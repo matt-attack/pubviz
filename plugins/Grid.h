@@ -61,6 +61,11 @@ public:
 	{
 		// add any properties
 	}
+	
+	std::string GetTitle() override
+	{
+		return "Grid";
+	}
 };
 
 #endif

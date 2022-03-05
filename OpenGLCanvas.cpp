@@ -40,14 +40,24 @@ bool OpenGLCanvas::OnMouseWheeled( int delta )
 	return true;
 }
 
+void OpenGLCanvas::OnMouseClickLeft( int /*x*/, int /*y*/, bool down )
+{
+	mouse_down_ = down;
+}
+
 void OpenGLCanvas::OnMouseMoved(int x, int y, int dx, int dy)
 {
 	// now convert to units
 	double pixels_per_meter = GetCanvas()->Height()/view_height_m_;
-	x_position_ = (x - GetCanvas()->Width()*0.5)/pixels_per_meter;
-	y_position_ = (GetCanvas()->Height()*0.5 - y)/pixels_per_meter;
+	x_mouse_position_ = (x - GetCanvas()->Width()*0.5)/pixels_per_meter;
+	y_mouse_position_ = (GetCanvas()->Height()*0.5 - y)/pixels_per_meter;
 	
 	// now apply offset
+	if (mouse_down_)
+	{
+		view_x_ -= dx/pixels_per_meter;
+		view_y_ += dy/pixels_per_meter;
+	}
 }
 
 void OpenGLCanvas::Render( Skin::Base* skin )
@@ -75,7 +85,7 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	float half_width = half_height*(float)GetCanvas()->Width()/(float)GetCanvas()->Height();
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	glOrtho( -half_width, half_width, -half_height, half_height, -1.0, 1.0 );
+	glOrtho( -half_width + view_x_, half_width + view_x_, -half_height + view_y_, half_height + view_y_, -1.0, 1.0 );
 	
 	// now apply other transforms
 	glMatrixMode(GL_MODELVIEW);

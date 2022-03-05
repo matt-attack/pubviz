@@ -15,9 +15,13 @@ namespace Gwen
 	}
 }
 
+class PubViz;
 class Plugin: public Gwen::Event::Handler
 {
+	friend class PubViz;
 	bool enabled_ = true;
+	Gwen::Controls::Properties* props_;
+	
 public:
 	virtual ~Plugin() {};
 	
@@ -29,8 +33,10 @@ public:
 	{
 		return enabled_;
 	}
+	
+	virtual std::string GetTitle() = 0;
 
-	void OnFirstNameChanged( Gwen::Controls::Base* pControl )
+	void OnEnableChecked( Gwen::Controls::Base* pControl )
 	{
 		Gwen::Controls::PropertyRow* pRow = ( Gwen::Controls::PropertyRow* ) pControl;
 		enabled_ = pRow->GetProperty()->GetPropertyValue().GetUnicode() == L"1";

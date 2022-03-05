@@ -21,26 +21,29 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		const Gwen::Color & GetColor() { return m_Color; }
 		void SetColor( const Gwen::Color & col ) { m_Color = col; }
 		
-		virtual bool OnMouseWheeled( int iDelta );
-		
 		std::vector<Plugin*> plugins_;
 		
 		void GetMousePosition(double& x, double& y)
 		{
-			x = x_position_;
-			y = y_position_;
+			x = x_mouse_position_;
+			y = y_mouse_position_;
 		}
 
 	protected:
 	
 		void OnMouseMoved(int x, int y, int dx, int dy) override;
+		bool OnMouseWheeled( int iDelta ) override;
+		void OnMouseClickLeft( int /*x*/, int /*y*/, bool /*bDown*/ ) override;
 
 		Gwen::Color		m_Color;
 		double view_height_m_;
+		bool mouse_down_ = false;
 		
-		double x_position_ = 0.0;
-		double y_position_ = 0.0;
-
+		double view_x_ = 0.0;
+		double view_y_ = 0.0;
+		
+		double x_mouse_position_ = 0.0;
+		double y_mouse_position_ = 0.0;
 };
 
 #endif

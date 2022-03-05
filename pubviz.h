@@ -42,10 +42,15 @@ class PubViz : public Gwen::Controls::DockBase
 		void MenuItemSelect(Gwen::Controls::Base* pControl);
 
 		void Layout(Gwen::Skin::Base* skin);
+		
+		void AddPlugin(const std::string& name);
 
 	private:
 		
 		void OnCategorySelect( Gwen::Event::Info info );
+		void OnAddPlugin(Gwen::Controls::Base* control);
+		void OnRemovePlugin( Gwen::Controls::Base* control);
+		void OnAddPluginFinish(Gwen::Controls::Base* control);
 		
 		Gwen::Controls::PropertyTree* plugin_tree_;
 		OpenGLCanvas* canvas_;

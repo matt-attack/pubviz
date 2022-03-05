@@ -35,6 +35,7 @@
 #include "Gwen/Controls/Property/ColorSelector.h"
 #include "Gwen/Controls/Property/Checkbox.h"
 #include "Gwen/Controls/Property/ComboBox.h"
+#include "Gwen/Controls/Property/Button.h"
 
 #include "OpenGLCanvas.h"
 
@@ -77,33 +78,32 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	}
 	{
 		Gwen::Controls::MenuItem* pRoot = menu_->AddItem(L"View");
-	}
+	}	
+				
+	auto page = GetLeft()->GetTabControl()->AddPage("Plugins")->GetPage();
 	
 	// now add the properties bar for plugins
-	plugin_tree_ = new Gwen::Controls::PropertyTree( this );
+	plugin_tree_ = new Gwen::Controls::PropertyTree( page );
+	plugin_tree_->Dock(Pos::Fill);
 	plugin_tree_->SetBounds( 200, 10, 200, 200 );
-	{
-		Gwen::Controls::Properties* props = plugin_tree_->Add( L"Item One" );
-		props->Add( L"Middle Name" );
-		props->Add( L"Last Name" );
-		props->Add( L"Four" );
-	}
-				
-	// Create our first plugin and bind default properties
-	GridPlugin* grid = new GridPlugin();
-	Gwen::Controls::Properties* props = plugin_tree_->Add( L"Grid Plugin" );
-	auto pRow = props->Add( L"Enable", new Gwen::Controls::Property::Checkbox( props ), L"1" );
-	pRow->onChange.Add( (Plugin*)grid, &Plugin::OnFirstNameChanged );
-	grid->Initialize(props);
-	plugins_.push_back(grid);
-				
+	
 	plugin_tree_->ExpandAll();
-				
-	GetLeft()->GetTabControl()->AddPage("Plugins", plugin_tree_);
+	
+	//Controls::Button* remove_button = new Controls::Button( page );
+	//remove_button->Dock(Pos::Bottom);
+	//remove_button->SetText( L"Remove Plugin" );
+	
+	Controls::Button* add_button = new Controls::Button( page );
+	add_button->Dock(Pos::Bottom);
+	add_button->SetText( L"Add Plugin" );
 			
 	canvas_ = new OpenGLCanvas(this);
 	canvas_->Dock(Pos::Fill);
 	canvas_->plugins_ = plugins_;//todo lets not maintain two lists
+	
+	AddPlugin("grid");
+	
+	add_button->onPress.Add( this, &ThisClass::OnAddPlugin );
 
 	m_StatusBar = new Controls::StatusBar(this->GetParent());
 	m_StatusBar->Dock(Pos::Bottom);
@@ -111,6 +111,91 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 
 	m_fLastSecond = Gwen::Platform::GetTimeInSeconds();
 	m_iFrames = 0;
+}
+
+void PubViz::AddPlugin(const std::string& name)
+{
+	Plugin* plugin;
+	if (name == "grid")
+	{
+		// todo
+		plugin = new GridPlugin();
+	}
+	else
+	{
+		printf("Unknown plugin name '%s'!\n", name.c_str());
+		return;
+	}
+	
+	Gwen::Controls::Properties* props = plugin_tree_->Add( name );
+	((Gwen::Controls::TreeNode*)props->GetParent())->Open();
+	auto pRow = props->Add( L"Enable", new Gwen::Controls::Property::Checkbox( props ), L"1" );
+	pRow->onChange.Add( plugin, &Plugin::OnEnableChecked );
+	plugin->Initialize(props);
+	plugin->props_ = props;
+	
+	// add the close button
+	auto pRow2 = props->Add( L"", new Gwen::Controls::Property::Button( props ), L"Close" );
+	pRow2->onChange.Add( this, &PubViz::OnRemovePlugin );
+	pRow2->UserData.Set<Plugin*>("plugin", plugin);
+	
+	plugins_.push_back(plugin);
+	canvas_->plugins_ = plugins_;
+}
+
+void PubViz::OnAddPlugin(Gwen::Controls::Base* control)
+{
+	Controls::WindowControl* window = new Controls::WindowControl( GetCanvas() );
+	window->SetTitle( L"Add Plugin" );
+	window->SetSize( 200, 100 );
+	window->MakeModal( true );
+	window->Position( Pos::Center );
+	window->SetDeleteOnClose( true );
+	
+	Gwen::Controls::ComboBox* combo = new Gwen::Controls::ComboBox( window );
+		combo->Dock(Pos::Top);
+	combo->SetPos( 50, 50 );
+	combo->SetWidth( 200 );
+	combo->AddItem( L"Grid", "grid" );
+	combo->AddItem( L"Number Two", "two" );
+	combo->AddItem( L"Door Three", "three" );
+	combo->AddItem( L"Four Legs", "four" );
+	combo->AddItem( L"Five Birds", "five" );
+				
+	Controls::Button* add_button = new Controls::Button( window );
+	add_button->Dock(Pos::Bottom);
+	add_button->SetText( L"Add Plugin" );
+	add_button->UserData.Set<Gwen::Controls::ComboBox*>("combo", combo);
+	add_button->onPress.Add( this, &ThisClass::OnAddPluginFinish );
+}
+
+void PubViz::OnAddPluginFinish(Gwen::Controls::Base* control)
+{
+	Gwen::Controls::ComboBox* combo = control->UserData.Get<Gwen::Controls::ComboBox*>("combo");
+	AddPlugin(combo->GetSelectedItem()->GetName());
+	control->GetParent()->DelayedDelete();
+}
+
+void PubViz::OnRemovePlugin(Gwen::Controls::Base* control)
+{
+	Plugin* plugin = control->UserData.Get<Plugin*>("plugin");
+	
+	// remove the properties for this plugin
+	plugin->props_->GetParent()->DelayedDelete();
+	
+	// now lets remove it
+	std::vector<Plugin*> plugins;
+	for (auto p: plugins_)
+	{
+		if (p != plugin)
+		{
+			plugins.push_back(p);
+		}
+	}
+	plugins_ = plugins;
+	canvas_->plugins_ = plugins;
+	
+	delete plugin;
 }
 
 static int val = 0;
