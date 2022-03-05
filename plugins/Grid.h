@@ -44,22 +44,29 @@ public:
 	{
 		glLineWidth(2.0f);
 		glBegin(GL_LINES);
-		// Red line to the right
 		glColor3f(0.5, 0.5, 0.5);
-		for (int i = -150; i <= 150; i += cell_size_)
+		
+		for (double x = start_x_; x < start_x_ + (grid_count_x_+0.001)*cell_size_; x += cell_size_)
 		{
-			glVertex2f(i, -150);
-			glVertex2f(i, 150);
- 	
-			glVertex2f(-150, i);
-			glVertex2f(150, i);
+			glVertex2f(x, start_y_);
+			glVertex2f(x, start_y_ + grid_count_y_*cell_size_);
 		}
+		
+		for (double y = start_y_; y < start_y_ + (grid_count_y_+0.001)*cell_size_; y += cell_size_)
+		{
+			glVertex2f(start_x_, y);
+			glVertex2f(start_x_ + grid_count_y_*cell_size_, y);
+		}
+
 		glEnd();
 	}
 	
 	virtual void Initialize(Gwen::Controls::Properties* tree)
 	{
 		// add any properties
+		tree->Add("X Count");
+		tree->Add("Y Count");
+		tree->Add("Resolution");
 	}
 	
 	std::string GetTitle() override

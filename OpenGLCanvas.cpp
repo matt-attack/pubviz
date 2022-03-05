@@ -22,7 +22,7 @@ using namespace Gwen::Controls;
 GWEN_CONTROL_CONSTRUCTOR( OpenGLCanvas )
 {
 	view_height_m_ = 150.0;
-	m_Color = Gwen::Color( 40, 40, 40, 255 );
+	m_Color = Gwen::Color( 50, 50, 50, 255 );
 }
 
 bool OpenGLCanvas::OnMouseWheeled( int delta )

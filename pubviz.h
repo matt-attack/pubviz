@@ -51,6 +51,7 @@ class PubViz : public Gwen::Controls::DockBase
 		void OnAddPlugin(Gwen::Controls::Base* control);
 		void OnRemovePlugin( Gwen::Controls::Base* control);
 		void OnAddPluginFinish(Gwen::Controls::Base* control);
+		void OnBackgroundChange(Gwen::Controls::Base* control);
 		
 		Gwen::Controls::PropertyTree* plugin_tree_;
 		OpenGLCanvas* canvas_;

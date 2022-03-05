@@ -10,8 +10,10 @@
 
 #include "Plugin.h"
 
+class PubViz;
 class OpenGLCanvas : public Gwen::Controls::Base
 {
+	friend class PubViz;
 	public:
 
 		GWEN_CONTROL( OpenGLCanvas, Gwen::Controls::Base );

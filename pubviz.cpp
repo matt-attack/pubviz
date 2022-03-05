@@ -87,6 +87,10 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	plugin_tree_->Dock(Pos::Fill);
 	plugin_tree_->SetBounds( 200, 10, 200, 200 );
 	
+	Gwen::Controls::Properties* props = plugin_tree_->Add( "Global Options" );
+	auto row = props->Add(L"Background Color", new Gwen::Controls::Property::ColorSelector(props), L"50 50 50");
+	row->onChange.Add(this, &ThisClass::OnBackgroundChange);
+	
 	plugin_tree_->ExpandAll();
 	
 	//Controls::Button* remove_button = new Controls::Button( page );
@@ -111,6 +115,13 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 
 	m_fLastSecond = Gwen::Platform::GetTimeInSeconds();
 	m_iFrames = 0;
+}
+
+void PubViz::OnBackgroundChange(Gwen::Controls::Base* control)
+{
+	auto prop = ((Gwen::Controls::PropertyRow*)control)->GetProperty();
+	Gwen::Controls::Property::ColorSelector* selector = (Gwen::Controls::Property::ColorSelector*)prop;
+	canvas_->m_Color = selector->m_Button->m_Color;
 }
 
 void PubViz::AddPlugin(const std::string& name)
