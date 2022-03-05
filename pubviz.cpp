@@ -85,9 +85,11 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	// now add the properties bar for plugins
 	plugin_tree_ = new Gwen::Controls::PropertyTree( page );
 	plugin_tree_->Dock(Pos::Fill);
-	plugin_tree_->SetBounds( 200, 10, 200, 200 );
+	plugin_tree_->SetBounds( 200, 10, 400, 200 );
+	page->GetParent()->GetParent()->SetWidth(300);
 	
 	Gwen::Controls::Properties* props = plugin_tree_->Add( "Global Options" );
+	props->SetSplitWidth(150);
 	auto row = props->Add(L"Background Color", new Gwen::Controls::Property::ColorSelector(props), L"50 50 50");
 	row->onChange.Add(this, &ThisClass::OnBackgroundChange);
 	
@@ -143,6 +145,7 @@ void PubViz::AddPlugin(const std::string& name)
 	auto pRow = props->Add( L"Enable", new Gwen::Controls::Property::Checkbox( props ), L"1" );
 	pRow->onChange.Add( plugin, &Plugin::OnEnableChecked );
 	plugin->Initialize(props);
+	props->SetSplitWidth(150);
 	plugin->props_ = props;
 	
 	// add the close button
@@ -164,7 +167,7 @@ void PubViz::OnAddPlugin(Gwen::Controls::Base* control)
 	window->SetDeleteOnClose( true );
 	
 	Gwen::Controls::ComboBox* combo = new Gwen::Controls::ComboBox( window );
-		combo->Dock(Pos::Top);
+	combo->Dock(Pos::Top);
 	combo->SetPos( 50, 50 );
 	combo->SetWidth( 200 );
 	combo->AddItem( L"Grid", "grid" );
