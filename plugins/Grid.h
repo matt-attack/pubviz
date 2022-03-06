@@ -36,6 +36,8 @@ class GridPlugin: public Plugin
 	
 	FloatProperty* cell_size_;
 	
+	ColorProperty* color_;
+	
 public:
 	virtual ~GridPlugin()
 	{
@@ -44,13 +46,16 @@ public:
 		delete x_count_;
 		delete y_count_;
 		delete cell_size_;
+		delete color_;
 	}
 	
 	virtual void Render()
 	{
 		glLineWidth(2.0f);
 		glBegin(GL_LINES);
-		glColor3f(0.5, 0.5, 0.5);
+		
+		Gwen::Color color = color_->GetValue();
+		glColor3f(color.r/255.0, color.g/255.0, color.b/255.0);
 		
 		double cell_size = cell_size_->GetValue();
 		int x_count = x_count_->GetValue();
@@ -84,6 +89,8 @@ public:
 		start_y_ = new FloatProperty(tree, "Start Y", -50.0);
 		
 		cell_size_ = new FloatProperty(tree, "Size", 10.0);
+		
+		color_ = new ColorProperty(tree, "Color", Gwen::Color(125,125,125));
 	}
 	
 	std::string GetTitle() override

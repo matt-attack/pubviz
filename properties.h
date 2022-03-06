@@ -59,4 +59,35 @@ public:
 	}
 };
 
+class ColorProperty: public Gwen::Event::Handler
+{
+	Gwen::Controls::Property::ColorSelector* property_;
+	
+	Gwen::Color value_;
+	
+	void onChange(Gwen::Controls::Base* control)
+	{
+		auto prop = ((Gwen::Controls::PropertyRow*)control)->GetProperty();
+		Gwen::Controls::Property::ColorSelector* selector = (Gwen::Controls::Property::ColorSelector*)prop;
+		value_ = selector->m_Button->m_Color;
+	}
+	
+public:
+
+	ColorProperty(Gwen::Controls::Properties* tree, const std::string& name, Gwen::Color color)
+	{
+		std::string c_str = std::to_string(color.r) + " ";
+		c_str += std::to_string(color.g) + " " + std::to_string(color.b);
+		property_ = new Gwen::Controls::Property::ColorSelector(tree);
+		auto item = tree->Add(name, property_, c_str);
+		item->onChange.Add(this, &ColorProperty::onChange);
+		value_ = color;
+	}
+	
+	Gwen::Color GetValue()
+	{
+		return value_;
+	}
+};
+
 #endif
