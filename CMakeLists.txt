@@ -7,7 +7,8 @@ find_package(GWEN_opengl REQUIRED HINTS ../GWEN/gwen)
 add_executable(pubviz
   pubviz.cpp
   main.cpp
-  OpenGLCanvas.cpp)
+  OpenGLCanvas.cpp
+  GraphCanvas.cpp)
 target_include_directories(pubviz PUBLIC ${GWEN_INCLUDE_DIRECTORIES})
 target_link_libraries(pubviz GWEN_opengl GWEN_static)
 

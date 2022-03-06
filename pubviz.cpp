@@ -38,6 +38,7 @@
 #include "Gwen/Controls/Property/Button.h"
 
 #include "OpenGLCanvas.h"
+#include "GraphCanvas.h"
 
 #include "plugins/Grid.h"
 
@@ -102,7 +103,14 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	Controls::Button* add_button = new Controls::Button( page );
 	add_button->Dock(Pos::Bottom);
 	add_button->SetText( L"Add Plugin" );
-			
+	
+	// make a test for the graph
+	{
+		auto page = GetRight()->GetTabControl()->AddPage("Graph")->GetPage();
+		auto graph = new GraphCanvas(page);
+		graph->Dock(Pos::Fill);
+	}
+	
 	canvas_ = new OpenGLCanvas(this);
 	canvas_->Dock(Pos::Fill);
 	canvas_->plugins_ = plugins_;//todo lets not maintain two lists
