@@ -24,60 +24,7 @@
 #endif
 
 #include "../Plugin.h"
-
-class NumberProperty: public Gwen::Event::Handler
-{
-	Gwen::Controls::Property::Numeric* property_;
-	
-	int value_;
-	
-	void onChange(Gwen::Controls::Base* prop)
-	{
-		value_ = std::atoi(property_->GetPropertyValue().c_str());
-	}
-	
-public:
-
-	NumberProperty(Gwen::Controls::Properties* tree, const std::string& name, int num)
-	{
-		property_ = new Gwen::Controls::Property::Numeric(tree);
-		auto item = tree->Add(name, property_, std::to_string(num));
-		item->onChange.Add(this, &NumberProperty::onChange);
-		value_ = num;
-	}
-	
-	int GetValue()
-	{
-		return value_;
-	}
-};
-
-class FloatProperty: public Gwen::Event::Handler
-{
-	Gwen::Controls::Property::Float* property_;
-	
-	double value_;
-	
-	void onChange(Gwen::Controls::Base* prop)
-	{
-		value_ = std::atof(property_->GetPropertyValue().c_str());
-	}
-	
-public:
-
-	FloatProperty(Gwen::Controls::Properties* tree, const std::string& name, double num)
-	{
-		property_ = new Gwen::Controls::Property::Float(tree);
-		auto item = tree->Add(name, property_, std::to_string(num));
-		item->onChange.Add(this, &FloatProperty::onChange);
-		value_ = num;
-	}
-	
-	double GetValue()
-	{
-		return value_;
-	}
-};
+#include "../properties.h"
 
 class GridPlugin: public Plugin
 {
@@ -92,7 +39,11 @@ class GridPlugin: public Plugin
 public:
 	virtual ~GridPlugin()
 	{
-	
+		delete start_x_;
+		delete start_y_;
+		delete x_count_;
+		delete y_count_;
+		delete cell_size_;
 	}
 	
 	virtual void Render()

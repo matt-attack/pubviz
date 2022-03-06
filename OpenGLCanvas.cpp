@@ -49,8 +49,8 @@ void OpenGLCanvas::OnMouseMoved(int x, int y, int dx, int dy)
 {
 	// now convert to units
 	double pixels_per_meter = GetCanvas()->Height()/view_height_m_;
-	x_mouse_position_ = (x - GetCanvas()->Width()*0.5)/pixels_per_meter;
-	y_mouse_position_ = (GetCanvas()->Height()*0.5 - y)/pixels_per_meter;
+	x_mouse_position_ = (x - GetCanvas()->Width()*0.5)/pixels_per_meter + view_x_;
+	y_mouse_position_ = (GetCanvas()->Height()*0.5 - y)/pixels_per_meter + view_y_;
 	
 	// now apply offset
 	if (mouse_down_)
