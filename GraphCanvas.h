@@ -8,6 +8,10 @@
 #include <Gwen/Gwen.h>
 #include <Gwen/Skin.h>
 
+#include <deque>
+
+#include <pubsub_cpp/Time.h>
+
 class PubViz;
 class GraphCanvas : public Gwen::Controls::Base
 {
@@ -26,6 +30,8 @@ class GraphCanvas : public Gwen::Controls::Base
 			x = x_mouse_position_;
 			y = y_mouse_position_;
 		}
+		
+		void AddSample(double value, pubsub::Time time);
 
 	protected:
 	
@@ -43,14 +49,18 @@ class GraphCanvas : public Gwen::Controls::Base
 		double x_mouse_position_ = 0.0;
 		double y_mouse_position_ = 0.0;
 		
+		// these change as we get more samples
 		double min_x_ = 0.0;
-		double max_x_ = 10.0;// in seconds?
+		double max_x_ = 10.0;// in seconds
+		double x_width_ = 10.0;// in seconds, this is constant and set by user
 		
 		double min_y_ = -2.0;
 		double max_y_ = 2.0;
 		
+		pubsub::Time start_time_;// the time we opened this graph, used for making time values smaller
+		
 		// contains the plot data of the graph, in sequential order
-		std::vector<std::pair<double, double>> data_;
+		std::deque<std::pair<double, double>> data_;
 };
 
 #endif

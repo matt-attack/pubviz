@@ -57,6 +57,14 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 	{
 		exit(0);
 	}
+	else if (pMenuItem->GetText() == L"Plot")
+	{
+		auto button = GetRight()->GetTabControl()->AddPage("Graph");
+		button->SetClosable(true);
+		auto page = button->GetPage();
+		auto graph = new GraphCanvas(page);
+		graph->Dock(Pos::Fill);
+	}
 }
 
 void PubViz::Layout(Skin::Base* skin)
@@ -79,6 +87,7 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	}
 	{
 		Gwen::Controls::MenuItem* pRoot = menu_->AddItem(L"View");
+		pRoot->GetMenu()->AddItem(L"Plot", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
 	}	
 				
 	auto page = GetLeft()->GetTabControl()->AddPage("Plugins")->GetPage();
@@ -106,7 +115,9 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	
 	// make a test for the graph
 	{
-		auto page = GetRight()->GetTabControl()->AddPage("Graph")->GetPage();
+		auto button = GetRight()->GetTabControl()->AddPage("Graph");
+		button->SetClosable(true);
+		auto page = button->GetPage();
 		auto graph = new GraphCanvas(page);
 		graph->Dock(Pos::Fill);
 	}

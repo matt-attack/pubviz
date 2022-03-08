@@ -15,6 +15,8 @@
 
 #include <cmath>
 
+#include <pubsub_cpp/Node.h>
+
 using namespace Gwen;
 using namespace Gwen::Controls;
 
@@ -23,6 +25,18 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 {
 	view_height_m_ = 150.0;
 	m_Color = Gwen::Color( 255, 255, 255, 255 );
+	
+	// lets test some pubsub stuff here
+	
+	// testing, make some fake data
+	/*data_.clear();
+	
+	for (int i = 0; i < 100; i++)
+	{
+		data_.push_back({ (double)i/10.0, sin(i*3.14159/10.0) });
+	}*/
+	
+	start_time_ = pubsub::Time::now();
 }
 
 bool GraphCanvas::OnMouseWheeled( int delta )
@@ -38,6 +52,23 @@ bool GraphCanvas::OnMouseWheeled( int delta )
 	}
 	
 	return true;
+}
+
+void GraphCanvas::AddSample(double value, pubsub::Time time)
+{
+	pubsub::Duration dt = time - start_time_;
+	
+	data_.push_back({dt.toSec(), value});
+	
+	// remove any old samples that no longer fit on screen
+	while (data_.size() && data_.front().first < dt.toSec() - x_width_)
+	{
+		data_.pop_front();
+	}
+	
+	// now update the graph start x and y
+	min_x_ = dt.toSec() - x_width_;
+	max_x_ = dt.toSec();
 }
 
 void GraphCanvas::OnMouseClickLeft( int /*x*/, int /*y*/, bool down )
@@ -69,14 +100,8 @@ void GraphCanvas::Render( Skin::Base* skin )
 	r->DrawFilledRect( GetRenderBounds() );
 	
 	r->SetDrawColor(Gwen::Color(0,0,0,255));
-	
-	// testing, make some fake data
-	data_.resize(100);
-	
-	for (int i = 0; i < 100; i++)
-	{
-		data_[i] = { (double)i/10.0, sin(i*3.14159/10.0) };
-	}
+
+	AddSample(sin(fmod(pubsub::Time::now().toSec(), 3.14159*2.0)), pubsub::Time::now());
 	
 	const int left_padding = 80;
 	const int other_padding = 50;
