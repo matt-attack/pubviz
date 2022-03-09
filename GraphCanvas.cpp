@@ -1,6 +1,7 @@
 // todo license
 
 #include <Gwen/Platform.h>
+#include <Gwen/Controls/TextBox.h>
 
 #include "GraphCanvas.h"
 
@@ -20,6 +21,11 @@
 using namespace Gwen;
 using namespace Gwen::Controls;
 
+static bool node_initialized = false;
+static ps_node_t node;
+
+static std::map<std::string, bool> _topics;
+
 
 GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 {
@@ -36,7 +42,169 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 		data_.push_back({ (double)i/10.0, sin(i*3.14159/10.0) });
 	}*/
 	
+	Gwen::Controls::TextBox* label = new Gwen::Controls::TextBox( this );
+	label->SetText( "" );
+	label->SetPos( 10, 10 );
+	label->SetWidth(300);
+	//label->onTextChanged.Add( this, &ThisClass::OnEdit );
+	label->onReturnPressed.Add( this, &ThisClass::OnTopicChanged );
+	
+	field_name_ = new Gwen::Controls::TextBox( this );
+	field_name_->SetText( "" );
+	field_name_->SetPos( 320, 10 );
+	field_name_->SetWidth(150);
+	//field->onTextChanged.Add( this, &ThisClass::OnFieldChanged );
+	//label->onReturnPressed.Add( this, &ThisClass::OnTopicChanged );
+	
 	start_time_ = pubsub::Time::now();
+	if (!node_initialized)
+	{
+		// first lets get a list of all topics, and then subscribe to them
+		ps_node_init(&node, "pubviz", "", false);
+
+		ps_node_system_query(&node);
+
+		node.adv_cb = [](const char* topic, const char* type, const char* node, const ps_advertise_req_t* data)
+		{
+			// todo check if we already have the topic
+			if (_topics.find(topic) != _topics.end())
+			{
+				return;
+			}
+
+			printf("Discovered topic %s..\n", topic);
+		
+			_topics[topic] = true;
+			/*TopicData tdata;
+			tdata.topic = topic;
+			tdata.type = type;
+			tdata.hash = data->type_hash;
+			_topics[topic] = tdata;*/
+		};
+		node_initialized = true;
+	}
+	
+	
+	ps_node_system_query(&node);
+}
+
+static bool sub_created = false;
+static ps_sub_t sub;
+static std::string topic_name;
+void GraphCanvas::OnTopicChanged(Base* control)
+{
+ 	auto tb = (TextBox*)control;
+	printf("%s\n", tb->GetText().c_str());
+  
+	if (sub_created)
+	{
+		ps_sub_destroy(&sub);
+	}
+	
+	// store the topic name somewhere safe since the subscriber doesnt make a copy
+	topic_name = tb->GetText().c_str();
+	sub_created = true;
+  
+	// now create the subscriber
+	struct ps_subscriber_options options;
+	ps_subscriber_options_init(&options);
+	options.skip = 0;
+	options.queue_size = 0;
+	options.want_message_def = true;
+	options.allocator = 0;
+	options.ignore_local = false;
+	options.preferred_transport = false ? 1 : 0;
+	options.cb_data = (void*)this;
+	options.cb = [](void* message, unsigned int size, void* data, const ps_msg_info_t* info)
+	{
+		// get and deserialize the messages
+		if (sub.received_message_def.fields == 0)
+		{
+			//printf("WARN: got message but no message definition yet...\n");
+			// queue it up, then print them out once I get it
+			//todo_msgs.push_back({ message, *info });
+		}
+		else
+		{
+			GraphCanvas* canvas = (GraphCanvas*)data;
+			//ps_deserialize_print(message, &sub.received_message_def);
+			canvas->HandleMessage(message, &sub.received_message_def);
+			//printf("-------------\n");
+			free(message);
+		}
+	};
+
+	ps_node_create_subscriber_adv(&node, topic_name.c_str(), 0, &sub, &options);
+}
+
+void GraphCanvas::HandleMessage(const void* data, const ps_message_definition_t* definition)
+{
+	std::string field_name = field_name_->GetText().c_str();
+	
+	pubsub::Time msg_time = pubsub::Time::now();
+	
+	struct ps_deserialize_iterator iter = ps_deserialize_start((const char*)data, definition);
+	const struct ps_field_t* field; uint32_t length; const char* ptr;
+	while (ptr = ps_deserialize_iterate(&iter, &field, &length))
+	{
+		if (field_name.length() && strcmp(field_name.c_str(), field->name) != 0)
+		{
+			continue;
+		}
+		
+		if (field->type == FT_String)
+		{
+			// strings are already null terminated
+			//printf("%s: %s\n", field->name, ptr);
+			// what should I do about strings?
+		}
+		else
+		{
+			if (length > 0)
+			{
+				double value = 0;
+				// non dynamic types 
+				switch (field->type)
+				{
+				case FT_Int8:
+					value = *(int8_t*)ptr;
+					break;
+				case FT_Int16:
+					value = *(int16_t*)ptr;
+					break;
+				case FT_Int32:
+					value = *(int32_t*)ptr;
+					break;
+				case FT_Int64:
+					value = *(int64_t*)ptr;
+					break;
+				case FT_UInt8:
+					value = *(uint8_t*)ptr;
+					break;
+				case FT_UInt16:
+					value = *(uint16_t*)ptr;
+					break;
+				case FT_UInt32:
+					value = *(uint32_t*)ptr;
+					break;
+				case FT_UInt64:
+					value = *(uint64_t*)ptr;
+					break;
+				case FT_Float32:
+					value = *(float*)ptr;
+					break;
+				case FT_Float64:
+					value = *(double*)ptr;
+					break;
+				default:
+					printf("ERROR: unhandled field type when parsing....\n");
+				}
+				
+				AddSample(value, msg_time);
+			}
+			break;
+		}
+	}
 }
 
 bool GraphCanvas::OnMouseWheeled( int delta )
@@ -101,7 +269,8 @@ void GraphCanvas::Render( Skin::Base* skin )
 	
 	r->SetDrawColor(Gwen::Color(0,0,0,255));
 
-	AddSample(sin(fmod(pubsub::Time::now().toSec(), 3.14159*2.0)), pubsub::Time::now());
+	ps_node_spin(&node);// todo move me
+	//AddSample(sin(fmod(pubsub::Time::now().toSec(), 3.14159*2.0)), pubsub::Time::now());
 	
 	const int left_padding = 80;
 	const int other_padding = 50;
@@ -143,7 +312,6 @@ void GraphCanvas::Render( Skin::Base* skin )
 	}
 	
 	// force a flush essentially
-	r->EndClip();
 	r->StartClip();
         
 	glMatrixMode(GL_TEXTURE);
@@ -164,7 +332,8 @@ void GraphCanvas::Render( Skin::Base* skin )
 	// Mark the window as dirty so it redraws
 	// Todo can maybe do this a bit better so it only redraws on message or movement
 	Redraw();
-		
+	
+	// Draw graph grid lines
 	glLineWidth(3.0f);
 	glBegin(GL_LINES);
 	glColor3f(0, 0, 0);
@@ -181,6 +350,12 @@ void GraphCanvas::Render( Skin::Base* skin )
 	}
 	glEnd();
 	
+	// Set a clip region around the graph to crop anything out of range
+	Gwen::Rect old_clip_region = r->ClipRegion();
+	Gwen::Point start_pos = LocalPosToCanvas(Gwen::Point(start_x, start_y));
+	r->SetClipRegion(Gwen::Rect(start_pos.x, start_pos.y, graph_width, graph_height));
+	r->StartClip();
+	
 	// Draw the graph line
 	glLineWidth(4.0f);
 	glBegin(GL_LINE_STRIP);
@@ -192,9 +367,9 @@ void GraphCanvas::Render( Skin::Base* skin )
 	}
 	glEnd();
 	
-	// force a flush essentially
-	r->EndClip();
-	r->StartClip();
+	// Set the clip region back to old
+	r->SetClipRegion(old_clip_region);
+	r->StartClip();// this must stay here to force a flush (and update the above)
 	
 	glPopAttrib();
 	glMatrixMode(GL_MODELVIEW);

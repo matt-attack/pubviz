@@ -12,6 +12,8 @@
 
 #include <pubsub_cpp/Time.h>
 
+#include <pubsub/Serialization.h>
+
 class PubViz;
 class GraphCanvas : public Gwen::Controls::Base
 {
@@ -38,10 +40,14 @@ class GraphCanvas : public Gwen::Controls::Base
 		void OnMouseMoved(int x, int y, int dx, int dy) override;
 		bool OnMouseWheeled( int iDelta ) override;
 		void OnMouseClickLeft( int /*x*/, int /*y*/, bool /*bDown*/ ) override;
+		
+		void HandleMessage(const void* message, const ps_message_definition_t* def);
 
 		Gwen::Color		m_Color;
 		double view_height_m_;
 		bool mouse_down_ = false;
+		
+		Gwen::Controls::TextBox* field_name_;
 		
 		double view_x_ = 0.0;
 		double view_y_ = 0.0;
