@@ -16,8 +16,6 @@
 
 #include <cmath>
 
-#include <pubsub_cpp/Node.h>
-
 using namespace Gwen;
 using namespace Gwen::Controls;
 
@@ -42,19 +40,40 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 		data_.push_back({ (double)i/10.0, sin(i*3.14159/10.0) });
 	}*/
 	
-	Gwen::Controls::TextBox* label = new Gwen::Controls::TextBox( this );
-	label->SetText( "" );
-	label->SetPos( 10, 10 );
-	label->SetWidth(300);
-	//label->onTextChanged.Add( this, &ThisClass::OnEdit );
-	label->onReturnPressed.Add( this, &ThisClass::OnTopicChanged );
+	subscribers_.push_back(new Subscriber());
+	subscribers_.back()->canvas = this;
+	
+	topic_name_box_ = new Gwen::Controls::TextBox( this );
+	topic_name_box_->SetText( "" );
+	topic_name_box_->SetPos( 10, 10 );
+	topic_name_box_->SetWidth(300);
+	topic_name_box_->onTextChanged.Add( this, &ThisClass::OnTopicEdited );
+	topic_name_box_->onReturnPressed.Add( this, &ThisClass::OnTopicChanged );
+	topic_name_box_->onFocusLost.Add( this, &ThisClass::OnTopicEditFinished );
 	
 	field_name_ = new Gwen::Controls::TextBox( this );
 	field_name_->SetText( "" );
 	field_name_->SetPos( 320, 10 );
 	field_name_->SetWidth(150);
-	//field->onTextChanged.Add( this, &ThisClass::OnFieldChanged );
+	field_name_->onTextChanged.Add( this, &ThisClass::OnFieldChanged );
 	//label->onReturnPressed.Add( this, &ThisClass::OnTopicChanged );
+	
+	auto add_button = new Gwen::Controls::Button( this );
+	add_button->SetText("Add");
+	add_button->SetPos(480, 10);
+	add_button->SetWidth(70);
+	add_button->onPress.Add(this, &ThisClass::OnAdd);
+	
+	topic_list_ = new Gwen::Controls::ListBox(this);
+	topic_list_->AddItem("A");
+	topic_list_->AddItem("B");
+	topic_list_->AddItem("C");
+	topic_list_->AddItem("D");
+	topic_list_->AddItem("E");
+	topic_list_->AddItem("F");
+	topic_list_->AddItem("G");
+	topic_list_->Hide();
+	topic_list_->onRowSelected.Add( this, &ThisClass::OnSuggestionClicked );
 	
 	start_time_ = pubsub::Time::now();
 	if (!node_initialized)
@@ -75,35 +94,75 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 			printf("Discovered topic %s..\n", topic);
 		
 			_topics[topic] = true;
-			/*TopicData tdata;
-			tdata.topic = topic;
-			tdata.type = type;
-			tdata.hash = data->type_hash;
-			_topics[topic] = tdata;*/
 		};
 		node_initialized = true;
 	}
 	
-	
 	ps_node_system_query(&node);
 }
 
-static bool sub_created = false;
-static ps_sub_t sub;
-static std::string topic_name;
+void GraphCanvas::OnAdd(Base* control)
+{
+	printf("Added new sub\n");
+	// add a topic
+	subscribers_.back()->field_name = field_name_->GetText().c_str();
+	subscribers_.push_back(new Subscriber());
+	subscribers_.back()->canvas = this;
+}
+
+void GraphCanvas::OnSuggestionClicked(Base* control)
+{
+	topic_name_box_->SetText(((Gwen::Controls::ListBox*)control)->GetSelectedRowName());
+	OnTopicChanged(topic_name_box_);
+	topic_list_->Hide();
+}
+
+void GraphCanvas::OnTopicEditFinished(Base* control)
+{
+	topic_list_->Hide();
+}
+
+void GraphCanvas::OnFieldChanged(Base* control)
+{
+	subscribers_.back()->data.clear();
+}
+
+void GraphCanvas::OnTopicEdited(Base* control)
+{
+	auto p = control->GetPos();
+	p.y += control->Height();
+	topic_list_->SetPos(p);
+	topic_list_->SetSize(100, 100);
+	topic_list_->Show();
+	
+	topic_list_->Clear();
+	if (_topics.size())
+	{
+		for (const auto& topic: _topics)
+		{
+			topic_list_->AddItem(topic.first, topic.first);
+		}
+	}
+	else
+	{
+		topic_list_->AddItem("None found...");
+	}
+}
+
 void GraphCanvas::OnTopicChanged(Base* control)
 {
  	auto tb = (TextBox*)control;
 	printf("%s\n", tb->GetText().c_str());
   
-	if (sub_created)
+  	auto sub = subscribers_.back();
+	if (sub->subscribed)
 	{
-		ps_sub_destroy(&sub);
+		ps_sub_destroy(&sub->sub);
 	}
 	
 	// store the topic name somewhere safe since the subscriber doesnt make a copy
-	topic_name = tb->GetText().c_str();
-	sub_created = true;
+	sub->topic_name = tb->GetText().c_str();
+	sub->subscribed = true;
   
 	// now create the subscriber
 	struct ps_subscriber_options options;
@@ -114,11 +173,12 @@ void GraphCanvas::OnTopicChanged(Base* control)
 	options.allocator = 0;
 	options.ignore_local = false;
 	options.preferred_transport = false ? 1 : 0;
-	options.cb_data = (void*)this;
+	options.cb_data = (void*)sub;
 	options.cb = [](void* message, unsigned int size, void* data, const ps_msg_info_t* info)
 	{
 		// get and deserialize the messages
-		if (sub.received_message_def.fields == 0)
+		Subscriber* sub = (Subscriber*)data;
+		if (sub->sub.received_message_def.fields == 0)
 		{
 			//printf("WARN: got message but no message definition yet...\n");
 			// queue it up, then print them out once I get it
@@ -126,20 +186,19 @@ void GraphCanvas::OnTopicChanged(Base* control)
 		}
 		else
 		{
-			GraphCanvas* canvas = (GraphCanvas*)data;
 			//ps_deserialize_print(message, &sub.received_message_def);
-			canvas->HandleMessage(message, &sub.received_message_def);
+			sub->canvas->HandleMessage(message, &sub->sub.received_message_def, sub);// fixme
 			//printf("-------------\n");
 			free(message);
 		}
 	};
 
-	ps_node_create_subscriber_adv(&node, topic_name.c_str(), 0, &sub, &options);
+	ps_node_create_subscriber_adv(&node, sub->topic_name.c_str(), 0, &sub->sub, &options);
 }
 
-void GraphCanvas::HandleMessage(const void* data, const ps_message_definition_t* definition)
+void GraphCanvas::HandleMessage(const void* data, const ps_message_definition_t* definition, Subscriber* sub)
 {
-	std::string field_name = field_name_->GetText().c_str();
+	std::string field_name = sub->field_name.length() ? sub->field_name : field_name_->GetText().c_str();
 	
 	pubsub::Time msg_time = pubsub::Time::now();
 	
@@ -200,7 +259,7 @@ void GraphCanvas::HandleMessage(const void* data, const ps_message_definition_t*
 					printf("ERROR: unhandled field type when parsing....\n");
 				}
 				
-				AddSample(value, msg_time);
+				AddSample(value, msg_time, sub);
 			}
 			break;
 		}
@@ -222,20 +281,20 @@ bool GraphCanvas::OnMouseWheeled( int delta )
 	return true;
 }
 
-void GraphCanvas::AddSample(double value, pubsub::Time time)
+void GraphCanvas::AddSample(double value, pubsub::Time time, Subscriber* sub)
 {
 	pubsub::Duration dt = time - start_time_;
 	
-	data_.push_back({dt.toSec(), value});
+	sub->data.push_back({dt.toSec(), value});
 	
 	// remove any old samples that no longer fit on screen
-	while (data_.size() && data_.front().first < dt.toSec() - x_width_)
+	while (sub->data.size() && sub->data.front().first < dt.toSec() - x_width_)
 	{
-		data_.pop_front();
+		sub->data.pop_front();
 	}
 	
 	// now update the graph start x and y
-	min_x_ = dt.toSec() - x_width_;
+	min_x_ = dt.toSec() - x_width_;// todo use max here
 	max_x_ = dt.toSec();
 }
 
@@ -258,6 +317,8 @@ void GraphCanvas::OnMouseMoved(int x, int y, int dx, int dy)
 		view_y_ += dy/pixels_per_meter;
 	}
 }
+
+const static float colors[][3] = {{1,0,0},{0,1,0},{0,0,1}, {0,1,1}, {1,0,1}, {1,1,0}};
 
 void GraphCanvas::Render( Skin::Base* skin )
 {
@@ -297,18 +358,37 @@ void GraphCanvas::Render( Skin::Base* skin )
 	const double y_interval = (max_y_ - min_y_)/y_count;
 	
 	// lets make a grid for the graph
+	char buffer[50];
 	
 	// start with x lines, start with a fixed number of segments that fill the width
 	int i = 0;
 	for (double x = start_x; x < start_x + (x_count+0.001)*x_cell_size; x += x_cell_size)
 	{
-		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( x, b.h - 30 ), std::to_string(min_x_ + (i++)*x_interval));
+		double val = min_x_ + (i++)*x_interval;
+		if (std::abs(val) > 1.0 || val == 0.0)
+		{
+			sprintf(buffer, "%0.1lf", val);
+		}
+		else
+		{
+			sprintf(buffer, "%lf", val);
+		}
+		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( x, b.h - 30 ), buffer);
 	}
 		
 	i = 0;
 	for (double y = start_y; y < start_y + (y_count+0.001)*y_cell_size; y += y_cell_size)
 	{
-		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( 10, y ), std::to_string(min_y_ + (y_count-i++)*y_interval));
+		double val = min_y_ + (y_count-i++)*y_interval;
+		if (std::abs(val) > 1.0 || val == 0.0)
+		{
+			sprintf(buffer, "%0.1lf", val);
+		}
+		else
+		{
+			sprintf(buffer, "%lf", val);
+		}
+		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( 10, y ), buffer);
 	}
 	
 	// force a flush essentially
@@ -358,14 +438,19 @@ void GraphCanvas::Render( Skin::Base* skin )
 	
 	// Draw the graph line
 	glLineWidth(4.0f);
-	glBegin(GL_LINE_STRIP);
-	glColor3f(1, 0, 0);
-	for (auto& pt: data_)
+	int j = 0;
+	for (auto& sub: subscribers_)
 	{
-		glVertex2f(start_x + graph_width*(pt.first - min_x_)/(max_x_ - min_x_),
+		glBegin(GL_LINE_STRIP);
+		glColor3f(colors[j%6][0], colors[j%6][1], colors[j%6][2]);
+		for (auto& pt: sub->data)
+		{
+			glVertex2f(start_x + graph_width*(pt.first - min_x_)/(max_x_ - min_x_),
 		           start_y + y_count*y_cell_size - graph_height*(pt.second - min_y_)/(max_y_ - min_y_));
+		}
+		j++;
+		glEnd();
 	}
-	glEnd();
 	
 	// Set the clip region back to old
 	r->SetClipRegion(old_clip_region);
@@ -381,4 +466,30 @@ void GraphCanvas::Render( Skin::Base* skin )
 	
 	// reset matrices
 	r->Begin();
+	
+	
+		
+	// do whatever we want here
+	Rect rr;
+	rr.x = b.w - 200;
+	rr.w = 150;
+	rr.y = 100;
+	rr.h = subscribers_.size()*20;
+	r->SetDrawColor( Gwen::Color(0,0,0,255) );// start by clearing to background color
+	r->DrawFilledRect( rr );
+	rr.x += 2;
+	rr.y += 2;
+	rr.w -= 4;
+	rr.h -= 4;
+	r->SetDrawColor( Gwen::Color(255,255,255,255) );// start by clearing to background color
+	r->DrawFilledRect( rr );
+	
+	int q = 0;
+	for (auto& sub: subscribers_)
+	{
+		r->SetDrawColor(Gwen::Color(colors[q%6][0]*255,colors[q%6][1]*255,colors[q%6][2]*355,255));
+		std::string str = sub->topic_name + "." + sub->field_name;
+		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( b.w - 195, 104 + q*20), str);
+		q++;
+	}
 }
