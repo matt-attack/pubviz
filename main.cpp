@@ -7,6 +7,8 @@
 #include <Gwen/Gwen.h>
 #include <Gwen/Application.h>
 
+#include <pubsub/Node.h>
+
 int main(int argc, char** args)
 {
 	//skin->Init("DefaultSkin.png");
@@ -18,7 +20,14 @@ int main(int argc, char** args)
 	PubViz* ppUnit = new PubViz(app.AddWindow("Pubviz", 700, 500));
 	ppUnit->SetPos(0, 0);
 	
-	app.Spin();
+	// Wait for exit, use this instead of spin
+	while (ps_okay())
+	{
+		if (!app.SpinOnce())
+		{
+			break;
+		}
+	}
 
 	return 0;
 }

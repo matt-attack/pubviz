@@ -26,7 +26,6 @@
 #include <string>
 
 #include "Gwen/Controls/ComboBox.h"
-#include <signal.h>
 #include <sys/types.h>
 #include <stdio.h>
 
@@ -60,6 +59,7 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 	else if (pMenuItem->GetText() == L"Plot")
 	{
 		auto button = GetRight()->GetTabControl()->AddPage("Graph");
+		button->SetPopoutable(true);
 		button->SetClosable(true);
 		auto page = button->GetPage();
 		auto graph = new GraphCanvas(page);
@@ -114,13 +114,13 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	add_button->SetText( L"Add Plugin" );
 	
 	// make a test for the graph
-	{
+	/*{
 		auto button = GetRight()->GetTabControl()->AddPage("Graph");
 		button->SetClosable(true);
 		auto page = button->GetPage();
 		auto graph = new GraphCanvas(page);
 		graph->Dock(Pos::Fill);
-	}
+	}*/
 	
 	canvas_ = new OpenGLCanvas(this);
 	canvas_->Dock(Pos::Fill);

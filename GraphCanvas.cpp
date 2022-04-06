@@ -108,6 +108,7 @@ void GraphCanvas::OnAdd(Base* control)
 	subscribers_.back()->field_name = field_name_->GetText().c_str();
 	subscribers_.push_back(new Subscriber());
 	subscribers_.back()->canvas = this;
+	OnTopicChanged(topic_name_box_);
 }
 
 void GraphCanvas::OnSuggestionClicked(Base* control)
@@ -163,6 +164,8 @@ void GraphCanvas::OnTopicChanged(Base* control)
 	// store the topic name somewhere safe since the subscriber doesnt make a copy
 	sub->topic_name = tb->GetText().c_str();
 	sub->subscribed = true;
+	
+	sub->data.clear();
   
 	// now create the subscriber
 	struct ps_subscriber_options options;
@@ -393,6 +396,10 @@ void GraphCanvas::Render( Skin::Base* skin )
 	
 	// force a flush essentially
 	r->StartClip();
+	
+	// Mark the window as dirty so it redraws
+	// Todo can maybe do this a bit better so it only redraws on message or movement
+	Redraw();
         
 	glMatrixMode(GL_TEXTURE);
 	glPushMatrix();
@@ -404,14 +411,10 @@ void GraphCanvas::Render( Skin::Base* skin )
 	
 	// now apply other transforms
 	glMatrixMode(GL_MODELVIEW);
-	Gwen::Point pos = LocalPosToCanvas(Gwen::Point(0, 0));
+	Gwen::Point pos = r->GetRenderOffset();
 	glLoadIdentity();
 	//glRotatef(yaw, 0, 0, 1);
 	glTranslatef(pos.x, pos.y, 0);// shift it so 0, 0 is _our_ top left corner
-
-	// Mark the window as dirty so it redraws
-	// Todo can maybe do this a bit better so it only redraws on message or movement
-	Redraw();
 	
 	// Draw graph grid lines
 	glLineWidth(3.0f);
