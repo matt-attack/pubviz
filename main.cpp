@@ -6,6 +6,7 @@
 
 #include <Gwen/Gwen.h>
 #include <Gwen/Application.h>
+#include <Gwen/Renderers/OpenGL.h>
 
 #include <pubsub/Node.h>
 
@@ -14,8 +15,8 @@ int main(int argc, char** args)
 	//skin->Init("DefaultSkin.png");
 	//skin->SetDefaultFont(L"Open Sans", 14);
 	
-	Gwen::Application app;
-	app.SetDefaultFont("Open Sans", 10);
+	Gwen::Application<Gwen::Renderer::OpenGL> app;
+	//app.SetDefaultFont("Open Sans", 10);
 
 	PubViz* ppUnit = new PubViz(app.AddWindow("Pubviz", 700, 500));
 	ppUnit->SetPos(0, 0);

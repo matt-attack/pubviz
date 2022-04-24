@@ -15,6 +15,8 @@
 #include "OpenGLCanvas.h"
 #include "Plugin.h"
 
+#include <pubsub/Node.h>
+
 #include <thread>
 #include <mutex>
 
@@ -52,9 +54,12 @@ class PubViz : public Gwen::Controls::DockBase
 		void OnRemovePlugin( Gwen::Controls::Base* control);
 		void OnAddPluginFinish(Gwen::Controls::Base* control);
 		void OnBackgroundChange(Gwen::Controls::Base* control);
+		void OnCenter(Gwen::Controls::Base* control);
 		
 		Gwen::Controls::PropertyTree* plugin_tree_;
 		OpenGLCanvas* canvas_;
+		
+		ps_node_t node_;
 		
 		std::vector<Plugin*> plugins_;
 

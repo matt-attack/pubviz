@@ -39,14 +39,20 @@
 #include "OpenGLCanvas.h"
 #include "GraphCanvas.h"
 
+#include "plugins/Costmap.h"
 #include "plugins/Grid.h"
+#include "plugins/Marker.h"
+#include "plugins/PointCloud.h"
+
+
+#include <pubsub/TCPTransport.h>
 
 
 using namespace Gwen;
 
 PubViz::~PubViz()
 {
-
+	ps_node_destroy(&node_);
 }
 
 void PubViz::MenuItemSelect(Controls::Base* pControl)
@@ -71,6 +77,8 @@ void PubViz::Layout(Skin::Base* skin)
 {
 	BaseClass::Layout(skin);
 }
+
+static std::map<std::string, std::vector<std::string>> _topics;
 
 GWEN_CONTROL_CONSTRUCTOR(PubViz)
 {
@@ -113,6 +121,28 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	add_button->Dock(Pos::Bottom);
 	add_button->SetText( L"Add Plugin" );
 	
+	ps_node_init(&node_, "pubviz_real", "", false);
+	
+	struct ps_transport_t tcp_transport;
+    ps_tcp_transport_init(&tcp_transport, &node_);
+    ps_node_add_transport(&node_, &tcp_transport);
+	
+	ps_node_system_query(&node_);
+
+	node_.adv_cb = [](const char* topic, const char* type, const char* node, const ps_advertise_req_t* data)
+	{
+		// todo check if we already have the topic
+		//if (_topics.find(topic) != _topics.end())
+		//{
+		//	return;
+		//}
+
+		//printf("Discovered topic %s..\n", topic);
+		
+		_topics[type].push_back(topic);
+		//_topics[topic] = true;
+	};
+	
 	// make a test for the graph
 	/*{
 		auto button = GetRight()->GetTabControl()->AddPage("Graph");
@@ -127,15 +157,28 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	canvas_->plugins_ = plugins_;//todo lets not maintain two lists
 	
 	AddPlugin("grid");
+		AddPlugin("costmap");
+		AddPlugin("marker");
+		AddPlugin("pointcloud");
 	
 	add_button->onPress.Add( this, &ThisClass::OnAddPlugin );
 
 	m_StatusBar = new Controls::StatusBar(this->GetParent());
 	m_StatusBar->Dock(Pos::Bottom);
 	m_StatusBar->SendToBack();
+	
+	auto center_button = new Controls::Button(m_StatusBar);
+	center_button->Dock(Pos::Right);
+	center_button->SetText("Center");
+	center_button->onPress.Add( this, &ThisClass::OnCenter );
 
 	m_fLastSecond = Gwen::Platform::GetTimeInSeconds();
 	m_iFrames = 0;
+}
+
+void PubViz::OnCenter(Gwen::Controls::Base* control)
+{
+	canvas_->ResetView();
 }
 
 void PubViz::OnBackgroundChange(Gwen::Controls::Base* control)
@@ -153,6 +196,18 @@ void PubViz::AddPlugin(const std::string& name)
 		// todo
 		plugin = new GridPlugin();
 	}
+	else if (name == "costmap")
+	{
+		plugin = new CostmapPlugin();
+	}
+	else if (name == "marker")
+	{
+		plugin = new MarkerPlugin();
+	}
+	else if (name == "pointcloud")
+	{
+		plugin = new PointCloudPlugin();
+	}
 	else
 	{
 		printf("Unknown plugin name '%s'!\n", name.c_str());
@@ -163,6 +218,7 @@ void PubViz::AddPlugin(const std::string& name)
 	((Gwen::Controls::TreeNode*)props->GetParent())->Open();
 	auto pRow = props->Add( L"Enable", new Gwen::Controls::Property::Checkbox( props ), L"1" );
 	pRow->onChange.Add( plugin, &Plugin::OnEnableChecked );
+	plugin->node_ = &node_;
 	plugin->Initialize(props);
 	props->SetSplitWidth(150);
 	plugin->props_ = props;
@@ -190,11 +246,10 @@ void PubViz::OnAddPlugin(Gwen::Controls::Base* control)
 	combo->SetPos( 50, 50 );
 	combo->SetWidth( 200 );
 	combo->AddItem( L"Grid", "grid" );
-	combo->AddItem( L"Number Two", "two" );
-	combo->AddItem( L"Door Three", "three" );
-	combo->AddItem( L"Four Legs", "four" );
-	combo->AddItem( L"Five Birds", "five" );
-				
+	combo->AddItem( L"Costmap", "costmap" );
+	combo->AddItem( L"Marker", "marker" );
+	combo->AddItem( L"Point Cloud", "pointcloud" );
+	
 	Controls::Button* add_button = new Controls::Button( window );
 	add_button->Dock(Pos::Bottom);
 	add_button->SetText( L"Add Plugin" );
@@ -234,6 +289,8 @@ void PubViz::OnRemovePlugin(Gwen::Controls::Base* control)
 static int val = 0;
 void PubViz::Render(Gwen::Skin::Base* skin)
 {
+	ps_node_spin(&node_);
+	
 	m_iFrames++;
 	//show current line number of active tab, also need to figure out how to display active tab
 	if (m_fLastSecond < Gwen::Platform::GetTimeInSeconds())

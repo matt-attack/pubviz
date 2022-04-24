@@ -376,7 +376,7 @@ void GraphCanvas::Render( Skin::Base* skin )
 		{
 			sprintf(buffer, "%lf", val);
 		}
-		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( x, b.h - 30 ), buffer);
+		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( x, b.h - 30 ), (std::string)buffer);
 	}
 		
 	i = 0;
@@ -391,7 +391,7 @@ void GraphCanvas::Render( Skin::Base* skin )
 		{
 			sprintf(buffer, "%lf", val);
 		}
-		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( 10, y ), buffer);
+		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( 10, y ), (std::string)buffer);
 	}
 	
 	// force a flush essentially
@@ -469,8 +469,6 @@ void GraphCanvas::Render( Skin::Base* skin )
 	
 	// reset matrices
 	r->Begin();
-	
-	
 		
 	// do whatever we want here
 	Rect rr;

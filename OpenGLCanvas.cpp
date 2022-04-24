@@ -40,6 +40,13 @@ bool OpenGLCanvas::OnMouseWheeled( int delta )
 	return true;
 }
 
+void OpenGLCanvas::ResetView()
+{
+	view_height_m_ = 150.0;
+	view_x_ = 0.0;
+	view_y_ = 0.0;
+}
+
 void OpenGLCanvas::OnMouseClickLeft( int /*x*/, int /*y*/, bool down )
 {
 	mouse_down_ = down;
@@ -97,18 +104,6 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	// Mark the window as dirty so it redraws
 	// Todo can maybe do this a bit better so it only redraws on message or movement
 	Redraw();
-	
-	// Render some test items
-	float t = fmod(Gwen::Platform::GetTimeInSeconds(), 3.14159*2.0);
-	// now do custom rendering here
-	glPointSize(50.0f);
-	glBegin(GL_POINTS);// GL_LINE_STRIP
-	glColor4d(1.0, 1.0, 1.0, 1.0);
-	glVertex2d(500, 500);// in pixels atm
-	glVertex2d(800, 800);// in pixels atm
-	glVertex2d(60, 60);// in pixels atm
-	glVertex2d(50*sin(t), 50*cos(t));
-	glEnd();
 	
 	// Draw axes
 	glLineWidth(6.0f);

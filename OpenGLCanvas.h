@@ -30,6 +30,8 @@ class OpenGLCanvas : public Gwen::Controls::Base
 			x = x_mouse_position_;
 			y = y_mouse_position_;
 		}
+		
+		void ResetView();
 
 	protected:
 	

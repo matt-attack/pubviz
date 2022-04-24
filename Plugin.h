@@ -4,6 +4,8 @@
 
 #include <Gwen/Controls/PropertyTree.h>
 
+#include <pubsub/Node.h>
+
 namespace Gwen
 {
 	namespace Controls
@@ -20,6 +22,7 @@ class Plugin: public Gwen::Event::Handler
 {
 	friend class PubViz;
 	bool enabled_ = true;
+	ps_node_t* node_;
 	Gwen::Controls::Properties* props_;
 	
 public:
@@ -32,6 +35,11 @@ public:
 	bool Enabled()
 	{
 		return enabled_;
+	}
+	
+	ps_node_t* GetNode()
+	{
+		return node_;
 	}
 	
 	virtual std::string GetTitle() = 0;
