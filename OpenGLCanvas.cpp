@@ -18,7 +18,6 @@
 using namespace Gwen;
 using namespace Gwen::Controls;
 
-
 GWEN_CONTROL_CONSTRUCTOR( OpenGLCanvas )
 {
 	view_height_m_ = 150.0;
@@ -45,6 +44,8 @@ void OpenGLCanvas::ResetView()
 	view_height_m_ = 150.0;
 	view_x_ = 0.0;
 	view_y_ = 0.0;
+	pitch_ = 0.0;
+	yaw_ = 0.0;
 }
 
 void OpenGLCanvas::OnMouseClickLeft( int /*x*/, int /*y*/, bool down )
@@ -64,6 +65,9 @@ void OpenGLCanvas::OnMouseMoved(int x, int y, int dx, int dy)
 	{
 		view_x_ -= dx/pixels_per_meter;
 		view_y_ += dy/pixels_per_meter;
+		
+		pitch_ += dy;
+		yaw_ += dx;
 	}
 }
 
@@ -87,19 +91,47 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	glPushMatrix();
 	glPushAttrib(GL_ALL_ATTRIB_BITS);
 	
-	// set up the view matrix for the current zoom level
-	float half_height = view_height_m_/2.0;
-	float half_width = half_height*(float)GetCanvas()->Width()/(float)GetCanvas()->Height();
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho( -half_width + view_x_, half_width + view_x_, -half_height + view_y_, half_height + view_y_, -1.0, 1.0 );
+	if (view_type_ == ViewType::TopDown)
+	{
+		// set up the view matrix for the current zoom level (ortho, topdown)
+		float half_height = view_height_m_/2.0;
+		float half_width = half_height*(float)GetCanvas()->Width()/(float)GetCanvas()->Height();
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+		glOrtho( -half_width + view_x_, half_width + view_x_, -half_height + view_y_, half_height + view_y_, -10000.0, 10000.0 );
 	
-	// now apply other transforms
-	glMatrixMode(GL_MODELVIEW);
-	Gwen::Point pos = GetPos();
-	glLoadIdentity();
-	//glRotatef(yaw, 0, 0, 1);
-	//glTranslatef(pos.x, pos.y, 0);
+		// now apply other transforms
+		glMatrixMode(GL_MODELVIEW);
+		Gwen::Point pos = GetPos();
+		glLoadIdentity();
+	}
+	else if (view_type_ == ViewType::Orbit)
+	{
+		// set up the view matrix for the current zoom level (ortho, topdown)
+		float half_height = view_height_m_/2.0;
+		float half_width = half_height*(float)GetCanvas()->Width()/(float)GetCanvas()->Height();
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+		view_x_ = view_y_ = 0.0;
+		glOrtho( -half_width + view_x_, half_width + view_x_, -half_height + view_y_, half_height + view_y_, -10000.0, 10000.0 );
+	
+		// now apply other transforms
+		glMatrixMode(GL_MODELVIEW);
+		Gwen::Point pos = GetPos();
+		glLoadIdentity();
+	
+		glRotatef(-90, 1, 0, 0);
+		glRotatef(yaw_, 0, 0, 1);
+	
+		float ax = cos((-yaw_)*3.14159/180.0);
+		float ay = sin((-yaw_)*3.14159/180.0);
+		glRotatef(pitch_, ax, ay, 0);
+		
+		// we want depth testing in this mode
+		glEnable(GL_DEPTH_TEST);
+		glClear(GL_DEPTH_BUFFER_BIT);
+		glDepthFunc(GL_LEQUAL);
+	}
 
 	// Mark the window as dirty so it redraws
 	// Todo can maybe do this a bit better so it only redraws on message or movement
@@ -110,13 +142,18 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	glBegin(GL_LINES);
 	// Red line to the right (x)
 	glColor3f(1, 0, 0);
-	glVertex2f(0, 0);
-	glVertex2f(200, 0);
+	glVertex3f(0, 0, 0);
+	glVertex3f(200, 0, 0);
 
 	// Green line to the top (y)
 	glColor3f(0, 1, 0);
-	glVertex2f(0, 0);
-	glVertex2f(0, 200);
+	glVertex3f(0, 0, 0);
+	glVertex3f(0, 200, 0);
+	
+	// Blue line up (z)
+	glColor3f(0, 0, 1);
+	glVertex3f(0, 0, 0);
+	glVertex3f(0, 0, 200);
 	glEnd();
 	
 	// Now draw all the plugins
@@ -135,6 +172,8 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	glPopMatrix();
 	glMatrixMode(GL_TEXTURE);
 	glPopMatrix();
+	
+	glDisable(GL_DEPTH_TEST);
 	
 	// reset matrices
 	r->Begin();

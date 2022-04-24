@@ -10,6 +10,12 @@
 
 #include "Plugin.h"
 
+enum class ViewType
+{
+	TopDown = 0,
+	Orbit = 1
+};
+
 class PubViz;
 class OpenGLCanvas : public Gwen::Controls::Base
 {
@@ -32,6 +38,13 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		}
 		
 		void ResetView();
+		
+		void SetViewType(ViewType type)
+		{
+			view_type_ = type;
+			
+			ResetView();
+		}
 
 	protected:
 	
@@ -45,6 +58,11 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		
 		double view_x_ = 0.0;
 		double view_y_ = 0.0;
+		
+		double pitch_ = 0.0;
+		double yaw_ = 0.0;
+		
+		ViewType view_type_ = ViewType::Orbit;
 		
 		double x_mouse_position_ = 0.0;
 		double y_mouse_position_ = 0.0;

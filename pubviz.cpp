@@ -71,6 +71,14 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 		auto graph = new GraphCanvas(page);
 		graph->Dock(Pos::Fill);
 	}
+	else if (pMenuItem->GetText() == L"Top Down")
+	{
+		canvas_->SetViewType(ViewType::TopDown);
+	}
+	else if (pMenuItem->GetText() == L"Orbit")
+	{
+		canvas_->SetViewType(ViewType::Orbit);
+	}
 }
 
 void PubViz::Layout(Skin::Base* skin)
@@ -96,6 +104,8 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	{
 		Gwen::Controls::MenuItem* pRoot = menu_->AddItem(L"View");
 		pRoot->GetMenu()->AddItem(L"Plot", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddItem(L"Orbit", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddItem(L"Top Down", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
 	}	
 				
 	auto page = GetLeft()->GetTabControl()->AddPage("Plugins")->GetPage();

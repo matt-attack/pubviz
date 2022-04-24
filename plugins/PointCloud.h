@@ -106,12 +106,13 @@ public:
 		}
 	}
 	
-	struct Point2d
+	struct Point3d
 	{
 		float x;
 		float y;
+		float z;
 	};
-	std::vector<Point2d> point_buf_;
+	std::vector<Point3d> point_buf_;
 	std::vector<int> color_buf_;
 	
 	virtual void Render()
@@ -157,6 +158,7 @@ public:
 					{
 						point_buf_[i].x = ((float*)data->data)[i*3];
 						point_buf_[i].y = ((float*)data->data)[i*3+1];
+						point_buf_[i].z = ((float*)data->data)[i*3+2];
 						color_buf_[i] = (alpha << 24) | (max_color.b << 16) | (max_color.g << 8) | max_color.r;
 					}
 				}
@@ -167,6 +169,7 @@ public:
 					{
 						point_buf_[i].x = ((float*)data->data)[i*4];
 						point_buf_[i].y = ((float*)data->data)[i*4+1];
+						point_buf_[i].z = ((float*)data->data)[i*4+2];
 						float frac = ((float*)data->data)[i*4+3];
 						uint8_t r = frac*(max_color.r - min_color.r) + min_color.r;
 						uint8_t g = frac*(max_color.g - min_color.g) + min_color.g;
@@ -178,7 +181,7 @@ public:
 				
 				// upload!
 				glBindBuffer(GL_ARRAY_BUFFER, cloud->point_vbo);
-				glBufferData(GL_ARRAY_BUFFER, point_buf_.size()*8, point_buf_.data(), GL_STATIC_DRAW);
+				glBufferData(GL_ARRAY_BUFFER, point_buf_.size()*12, point_buf_.data(), GL_STATIC_DRAW);
 				
 				glBindBuffer(GL_ARRAY_BUFFER, cloud->color_vbo);
 				glBufferData(GL_ARRAY_BUFFER, color_buf_.size()*4, color_buf_.data(), GL_STATIC_DRAW);
@@ -199,7 +202,7 @@ public:
 		{
 			// render it
 			glBindBuffer(GL_ARRAY_BUFFER, cloud.point_vbo);
-			glVertexPointer(2, GL_FLOAT, 0, 0);
+			glVertexPointer(3, GL_FLOAT, 0, 0);
 			glBindBuffer(GL_ARRAY_BUFFER, cloud.color_vbo);
 			glColorPointer(4, GL_UNSIGNED_BYTE, 0, 0);
 			
