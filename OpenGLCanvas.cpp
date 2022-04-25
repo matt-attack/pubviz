@@ -68,7 +68,23 @@ void OpenGLCanvas::OnMouseMoved(int x, int y, int dx, int dy)
 		
 		pitch_ += dy;
 		yaw_ += dx;
+		
+		// Mark the window as dirty so it redraws
+		Redraw();
 	}
+}
+
+void OpenGLCanvas::Layout( Gwen::Skin::Base* skin )
+{
+	// Update each plugin here to see if they want a redraw
+	for (auto plugin: plugins_)
+	{
+		if (plugin->Enabled())
+		{
+			plugin->Update();
+		}
+	}
+	Invalidate();// we are being hacky, just always invalidate so we keep laying out
 }
 
 void OpenGLCanvas::Render( Skin::Base* skin )
@@ -133,27 +149,23 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		glDepthFunc(GL_LEQUAL);
 	}
 
-	// Mark the window as dirty so it redraws
-	// Todo can maybe do this a bit better so it only redraws on message or movement
-	Redraw();
-	
 	// Draw axes
 	glLineWidth(6.0f);
 	glBegin(GL_LINES);
 	// Red line to the right (x)
 	glColor3f(1, 0, 0);
 	glVertex3f(0, 0, 0);
-	glVertex3f(200, 0, 0);
+	glVertex3f(55, 0, 0);
 
 	// Green line to the top (y)
 	glColor3f(0, 1, 0);
 	glVertex3f(0, 0, 0);
-	glVertex3f(0, 200, 0);
+	glVertex3f(0, 55, 0);
 	
 	// Blue line up (z)
 	glColor3f(0, 0, 1);
 	glVertex3f(0, 0, 0);
-	glVertex3f(0, 0, 200);
+	glVertex3f(0, 0, 55);
 	glEnd();
 	
 	// Now draw all the plugins

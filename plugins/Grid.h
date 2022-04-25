@@ -49,6 +49,11 @@ public:
 		delete color_;
 	}
 	
+	virtual void Update()
+	{
+	
+	}
+	
 	virtual void Render()
 	{
 		glLineWidth(2.0f);

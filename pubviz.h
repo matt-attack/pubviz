@@ -43,7 +43,7 @@ class PubViz : public Gwen::Controls::DockBase
 
 		void MenuItemSelect(Gwen::Controls::Base* pControl);
 
-		void Layout(Gwen::Skin::Base* skin);
+		virtual void Layout(Gwen::Skin::Base* skin) override;
 		
 		void AddPlugin(const std::string& name);
 

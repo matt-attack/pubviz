@@ -45,6 +45,8 @@ class CostmapPlugin: public Plugin
 	
 	void UpdateFromMessage()
 	{
+		Redraw();
+		
 		if (texture_ != -1)
 		{
 			glDeleteTextures(1, &texture_);
@@ -159,7 +161,8 @@ public:
 		}
 	}
 	
-	virtual void Render()
+		
+	virtual void Update()
 	{
 		// process any messages
 		// our sub has a message definition, so the queue contains real messages
@@ -175,7 +178,10 @@ public:
 				UpdateFromMessage();
 			}
 		}
-		
+	}
+	
+	virtual void Render()
+	{		
 		// exit early if we dont have a messag
 		if (last_msg_.data_length == 0)
 		{

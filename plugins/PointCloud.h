@@ -53,11 +53,6 @@ class PointCloudPlugin: public Plugin
 	
 	std::map<int, pubsub::msg::Marker> markers_;
 	
-	void UpdateFromMessage()
-	{
-
-	}
-	
 	std::string current_topic_;
 	void Subscribe(std::string str)
 	{
@@ -115,7 +110,7 @@ public:
 	std::vector<Point3d> point_buf_;
 	std::vector<int> color_buf_;
 	
-	virtual void Render()
+	virtual void Update()
 	{
 		// process any messages
 		// our sub has a message definition, so the queue contains real messages
@@ -190,9 +185,14 @@ public:
 				
 				free(data->data);
 				free(data);//todo use allocator free
+				
+				Redraw();
 			}
 		}
-		
+	}
+	
+	virtual void Render()
+	{	
 		glPointSize(point_size_->GetValue());
 		
 		glEnableClientState(GL_VERTEX_ARRAY);

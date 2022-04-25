@@ -18,15 +18,22 @@ int main(int argc, char** args)
 	Gwen::Application<Gwen::Renderer::OpenGL> app;
 	//app.SetDefaultFont("Open Sans", 10);
 
-	PubViz* ppUnit = new PubViz(app.AddWindow("Pubviz", 700, 500));
+	auto window = app.AddWindow("Pubviz", 700, 500);
+	PubViz* ppUnit = new PubViz(window);
 	ppUnit->SetPos(0, 0);
 	
 	// Wait for exit, use this instead of spin
-	while (ps_okay())
+	while (app.Okay())
 	{
 		if (!app.SpinOnce())
 		{
 			break;
+		}
+		
+		if (!window->NeedsRedraw())
+		{
+			// If we dont need a redraw, sleep until we get new input
+			//Gwen::Platform::WaitForEvent();
 		}
 	}
 

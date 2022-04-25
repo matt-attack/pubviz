@@ -86,7 +86,7 @@ public:
 		}
 	}
 	
-	virtual void Render()
+	virtual void Update()
 	{
 		// process any messages
 		// our sub has a message definition, so the queue contains real messages
@@ -99,9 +99,14 @@ public:
 				markers_[data->id] = *data;
 				free(data->data);
 				free(data);//todo use allocator free
+				
+				Redraw();
 			}
 		}
+	}
 		
+	virtual void Render()
+	{	
 		for (auto& marker: markers_)
 		{
 			RenderMarker(marker.second);

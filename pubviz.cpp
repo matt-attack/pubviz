@@ -84,6 +84,9 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 void PubViz::Layout(Skin::Base* skin)
 {
 	BaseClass::Layout(skin);
+	
+	ps_node_spin(&node_);
+	Invalidate();
 }
 
 static std::map<std::string, std::vector<std::string>> _topics;
@@ -131,7 +134,7 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	add_button->Dock(Pos::Bottom);
 	add_button->SetText( L"Add Plugin" );
 	
-	ps_node_init(&node_, "pubviz_real", "", false);
+	ps_node_init_ex(&node_, "pubviz_real", "", false, false);
 	
 	struct ps_transport_t tcp_transport;
     ps_tcp_transport_init(&tcp_transport, &node_);
@@ -299,8 +302,6 @@ void PubViz::OnRemovePlugin(Gwen::Controls::Base* control)
 static int val = 0;
 void PubViz::Render(Gwen::Skin::Base* skin)
 {
-	ps_node_spin(&node_);
-	
 	m_iFrames++;
 	//show current line number of active tab, also need to figure out how to display active tab
 	if (m_fLastSecond < Gwen::Platform::GetTimeInSeconds())

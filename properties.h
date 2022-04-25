@@ -16,6 +16,7 @@ class BooleanProperty: public Gwen::Event::Handler
 	
 	void onChange(Gwen::Controls::Base* prop)
 	{
+		property_->Redraw();
 		value_ = std::atoi(property_->GetPropertyValue().c_str()) > 0 ? true : false;
 	}
 	
@@ -43,6 +44,7 @@ class NumberProperty: public Gwen::Event::Handler
 	
 	void onChange(Gwen::Controls::Base* prop)
 	{
+		property_->Redraw();
 		value_ = std::atoi(property_->GetPropertyValue().c_str());
 	}
 	
@@ -76,6 +78,7 @@ class FloatProperty: public Gwen::Event::Handler
 	
 	void onChange(Gwen::Controls::Base* prop)
 	{
+		property_->Redraw();
 		value_ = std::atof(property_->GetPropertyValue().c_str());
 	}
 	
@@ -109,6 +112,7 @@ class TopicProperty: public Gwen::Event::Handler
 	
 	void cbOnChange(Gwen::Controls::Base* prop)
 	{
+		property_->Redraw();
 		value_ = property_->GetPropertyValue().c_str();
 		if (onChange)
 		{
@@ -142,6 +146,7 @@ class ColorProperty: public Gwen::Event::Handler
 	
 	void onChange(Gwen::Controls::Base* control)
 	{
+		property_->Redraw();
 		auto prop = ((Gwen::Controls::PropertyRow*)control)->GetProperty();
 		Gwen::Controls::Property::ColorSelector* selector = (Gwen::Controls::Property::ColorSelector*)prop;
 		value_ = selector->m_Button->m_Color;
