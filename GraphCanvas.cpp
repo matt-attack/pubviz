@@ -206,7 +206,7 @@ void GraphCanvas::HandleMessage(const void* data, const ps_message_definition_t*
 	pubsub::Time msg_time = pubsub::Time::now();
 	
 	struct ps_deserialize_iterator iter = ps_deserialize_start((const char*)data, definition);
-	const struct ps_field_t* field; uint32_t length; const char* ptr;
+	const struct ps_msg_field_t* field; uint32_t length; const char* ptr;
 	while (ptr = ps_deserialize_iterate(&iter, &field, &length))
 	{
 		if (field_name.length() && strcmp(field_name.c_str(), field->name) != 0)

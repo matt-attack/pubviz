@@ -42,10 +42,14 @@ class NumberProperty: public Gwen::Event::Handler
 	
 	int value_;
 	
-	void onChange(Gwen::Controls::Base* prop)
+	void cbOnChange(Gwen::Controls::Base* prop)
 	{
 		property_->Redraw();
 		value_ = std::atoi(property_->GetPropertyValue().c_str());
+		if (onChange)
+		{
+			onChange(value_);
+		}
 	}
 	
 public:
@@ -56,11 +60,11 @@ public:
 	  int increment = 1)
 	{
 		property_ = new Gwen::Controls::Property::Numeric(tree);
-		property_->m_Numeric->SetMax(min);
+		property_->m_Numeric->SetMin(min);
 		property_->m_Numeric->SetMax(max);
 		property_->m_Numeric->SetIncrement(increment);
 		auto item = tree->Add(name, property_, std::to_string(num));
-		item->onChange.Add(this, &NumberProperty::onChange);
+		item->onChange.Add(this, &NumberProperty::cbOnChange);
 		value_ = num;
 	}
 	
@@ -68,6 +72,8 @@ public:
 	{
 		return value_;
 	}
+	
+	std::function<void(int)> onChange;
 };
 
 class FloatProperty: public Gwen::Event::Handler
@@ -90,7 +96,7 @@ public:
 	  double increment = 1.0)
 	{
 		property_ = new Gwen::Controls::Property::Float(tree);
-		property_->m_Numeric->SetMax(min);
+		property_->m_Numeric->SetMin(min);
 		property_->m_Numeric->SetMax(max);
 		property_->m_Numeric->SetIncrement(increment);
 		auto item = tree->Add(name, property_, std::to_string(num));

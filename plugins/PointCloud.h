@@ -34,6 +34,7 @@ class PointCloudPlugin: public Plugin
 	ColorProperty* min_color_;
 	ColorProperty* max_color_;
 	NumberProperty* point_size_;
+	NumberProperty* history_length_;
 	
 	TopicProperty* topic_;
 	
@@ -49,9 +50,20 @@ class PointCloudPlugin: public Plugin
 		unsigned int color_vbo;
 	};
 	
-	std::vector<Cloud> clouds_;
+	std::deque<Cloud> clouds_;
 	
 	std::map<int, pubsub::msg::Marker> markers_;
+	
+	void HistoryLengthChange(int length)
+	{
+		while (clouds_.size() > length)
+		{
+			const auto& cloud = clouds_.back();
+			glDeleteBuffers(1, &cloud.point_vbo);
+			glDeleteBuffers(1, &cloud.color_vbo);
+			clouds_.pop_back();
+		}
+	}
 	
 	std::string current_topic_;
 	void Subscribe(std::string str)
@@ -93,6 +105,7 @@ public:
 		delete max_color_;
 		delete alpha_;
 		delete point_size_;
+		delete history_length_;
 		
 		if (sub_open_)
 		{
@@ -123,8 +136,11 @@ public:
 				
 				// make a new cloud with this, reusing the last ones buffers if necessary
 				Cloud* cloud = 0;
-				if (clouds_.size() > 0)
+				if (clouds_.size() >= history_length_->GetValue())
 				{
+					// pop back and push it to the front
+					clouds_.push_front(clouds_.back());
+					clouds_.pop_back();
 					cloud = &clouds_[0];
 				}
 				else
@@ -146,7 +162,7 @@ public:
 				Gwen::Color max_color = max_color_->GetValue();
 				
 				// now make the right kind of points then render
-				if (data->point_type == 0)
+				if (data->point_type == pubsub::msg::PointCloud::POINT_XYZ)
 				{
 					// x,y,z as floats
 					for (int i = 0; i < data->num_points; i++)
@@ -157,7 +173,7 @@ public:
 						color_buf_[i] = (alpha << 24) | (max_color.b << 16) | (max_color.g << 8) | max_color.r;
 					}
 				}
-				else if (data->point_type == 1)
+				else if (data->point_type == pubsub::msg::PointCloud::POINT_XYZI)
 				{
 					// x,y,z,intensity as floats
 					for (int i = 0; i < data->num_points; i++)
@@ -226,6 +242,9 @@ public:
 		
 		topic_ = new TopicProperty(tree, "Topic", "/pointcloud");
 		topic_->onChange = std::bind(&PointCloudPlugin::Subscribe, this, std::placeholders::_1);
+		
+		history_length_ = new NumberProperty(tree, "History Length", 1, 1, 100, 1);
+		history_length_->onChange = std::bind(&PointCloudPlugin::HistoryLengthChange, this, std::placeholders::_1);
 		
 		point_size_ = new NumberProperty(tree, "Point Size", 4, 1, 100, 2);
 		
