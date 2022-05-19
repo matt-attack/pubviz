@@ -79,6 +79,18 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 	{
 		canvas_->SetViewType(ViewType::Orbit);
 	}
+	else if (pMenuItem->GetText() == L"Top")
+	{
+		canvas_->SetViewAngle(90, 0);
+	}
+	else if (pMenuItem->GetText() == L"Front")
+	{
+		canvas_->SetViewAngle(0, -90);
+	}
+	else if (pMenuItem->GetText() == L"Left")
+	{
+		canvas_->SetViewAngle(0, 180);
+	}
 }
 
 void PubViz::Layout(Skin::Base* skin)
@@ -109,6 +121,10 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 		pRoot->GetMenu()->AddItem(L"Plot", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Orbit", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Top Down", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddDivider();
+		pRoot->GetMenu()->AddItem(L"Top", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddItem(L"Left", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddItem(L"Front", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 	}	
 				
 	auto page = GetLeft()->GetTabControl()->AddPage("Plugins")->GetPage();

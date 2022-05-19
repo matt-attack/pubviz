@@ -47,6 +47,15 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		}
 		
 		virtual void Layout( Gwen::Skin::Base* skin ) override;
+		
+		void SetViewAngle(double pitch, double yaw)
+		{
+			if (view_type_ == ViewType::Orbit)
+			{
+				pitch_ = pitch;
+				yaw_ = yaw;
+			}
+		}
 
 	protected:
 	
