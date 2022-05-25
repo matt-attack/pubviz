@@ -36,6 +36,9 @@ bool OpenGLCanvas::OnMouseWheeled( int delta )
 		view_height_m_ += 0.1*(double)delta;
 	}
 	
+	// Mark the window as dirty so it redraws
+	Redraw();
+	
 	return true;
 }
 
