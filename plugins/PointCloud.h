@@ -33,6 +33,7 @@ class PointCloudPlugin: public Plugin
 	FloatProperty* alpha_;
 	ColorProperty* min_color_;
 	ColorProperty* max_color_;
+	StringProperty* point_text_;
 	NumberProperty* point_size_;
 	NumberProperty* history_length_;
 	
@@ -63,6 +64,68 @@ class PointCloudPlugin: public Plugin
 			glDeleteBuffers(1, &cloud.color_vbo);
 			clouds_.pop_back();
 		}
+	}
+	
+	// Update our point texture if this changes
+	void TextChange(std::string value)
+	{
+		if (value.length() == 0)
+		{
+			return;
+		}
+		
+		// Create the font if we havent already
+		static Gwen::Font* f = 0;
+		if (!f)
+		{
+			f = new Gwen::Font;
+			*f = *tree->GetSkin()->GetDefaultFont();
+			f->size = 60;
+			f->facename = L"NotoEmoji-Bold.ttf";// the fallback font will handle normal characters
+		}
+		
+		auto r = tree->GetSkin()->GetRender();
+		r->SetDrawColor(Gwen::Color(255, 0, 255, 255));
+		
+		// Measure the text to determine the best texture size
+		auto s = r->MeasureText(f, value);
+		
+		// Resize the image to our new target size
+		glBindTexture(GL_TEXTURE_2D, render_texture_);
+		
+		int ortho_x_ = s.x;
+		int width_ = s.x;
+		int height_ = s.y;
+		int ortho_y_ = s.y;
+
+		// Give an empty image to OpenGL ( the last "0" )
+		char* data = new char[4*50*50];
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width_, height_, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		
+		glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer_);
+		glViewport(0, 0, 50, 50);
+
+		glClearColor(1.0, 1.0, 1.0, 0.0);
+		
+		glClear( GL_COLOR_BUFFER_BIT );
+		
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+		glOrtho( 0, ortho_x_, 0, ortho_y_, -1.0, 1.0 );
+		glMatrixMode( GL_MODELVIEW );
+		glViewport(0, 0, width_, height_);
+		
+		// Actually render in the text
+		r->RenderText(f, Gwen::PointF(0.0, 0.0), value);
+		
+		// Force a flush
+		r->EndClip();
+		
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 	
 	std::string current_topic_;
@@ -106,6 +169,10 @@ public:
 		delete alpha_;
 		delete point_size_;
 		delete history_length_;
+		delete point_text_;
+		
+		glDeleteFramebuffers(1, &frame_buffer_);
+		glDeleteTextures(1, &render_texture_);
 		
 		if (sub_open_)
 		{
@@ -214,6 +281,17 @@ public:
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glEnableClientState(GL_COLOR_ARRAY);
 		
+		bool render_texture = point_text_->GetValue().length() > 0;
+		if (render_texture)
+		{
+			glEnable(GL_BLEND);
+			glEnable(GL_ALPHA_TEST);
+			glEnable( GL_TEXTURE_2D );
+			glBindTexture(GL_TEXTURE_2D, render_texture_);
+			glEnable(GL_POINT_SPRITE);
+			glTexEnvi(GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE);
+		}
+		
 		for (auto& cloud: clouds_)
 		{
 			// render it
@@ -228,11 +306,52 @@ public:
 		glDisableClientState(GL_VERTEX_ARRAY);
 		glDisableClientState(GL_COLOR_ARRAY);
 		
+		if (render_texture)
+		{
+			glDisable(GL_BLEND);
+			glDisable(GL_ALPHA_TEST);
+		}
+		
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 	
+	GLuint frame_buffer_ = 0;
+	GLuint render_texture_ = 0;
+	Gwen::Controls::Properties* tree;
 	virtual void Initialize(Gwen::Controls::Properties* tree)
 	{
+		this->tree = tree;
+		
+		// Create our render texture for fonts
+		glGenTextures(1, &render_texture_);
+
+		// "Bind" the newly created texture : all future texture functions will modify this texture
+		glBindTexture(GL_TEXTURE_2D, render_texture_);
+		
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 50, 50, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glBindTexture(GL_TEXTURE_2D, 0);
+
+		// Now create the framebuffer using that texture as the color buffer
+		glGenFramebuffers(1, &frame_buffer_);
+		glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer_);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, render_texture_, 0);  
+		
+		// Do a dummy check
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		{
+			printf("Error creating framebuffer, it is incomplete!\n");
+		}
+		
+		GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
+		glDrawBuffers(1, DrawBuffers);
+		
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		
 		// add any properties
 		alpha_ = new FloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1);
 		
@@ -243,10 +362,14 @@ public:
 		topic_ = new TopicProperty(tree, "Topic", "/pointcloud");
 		topic_->onChange = std::bind(&PointCloudPlugin::Subscribe, this, std::placeholders::_1);
 		
+		point_text_ = new StringProperty(tree, "Text", "");
+		point_text_->onChange = std::bind(&PointCloudPlugin::TextChange, this, std::placeholders::_1);
+		TextChange(point_text_->GetValue());
+		
 		history_length_ = new NumberProperty(tree, "History Length", 1, 1, 100, 1);
 		history_length_->onChange = std::bind(&PointCloudPlugin::HistoryLengthChange, this, std::placeholders::_1);
 		
-		point_size_ = new NumberProperty(tree, "Point Size", 4, 1, 100, 2);
+		point_size_ = new NumberProperty(tree, "Point Size", 40, 1, 100, 2);
 		
 		Subscribe(topic_->GetValue());
 	}

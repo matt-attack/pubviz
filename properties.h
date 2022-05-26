@@ -144,6 +144,40 @@ public:
 	std::function<void(std::string)> onChange;
 };
 
+class StringProperty: public Gwen::Event::Handler
+{
+	Gwen::Controls::Property::Text* property_;
+	
+	std::string value_;
+	
+	void cbOnChange(Gwen::Controls::Base* prop)
+	{
+		property_->Redraw();
+		value_ = property_->GetPropertyValue().c_str();
+		if (onChange)
+		{
+			onChange(value_);
+		}
+	}
+	
+public:
+
+	StringProperty(Gwen::Controls::Properties* tree, const std::string& name, std::string topic = "")
+	{
+		property_ = new Gwen::Controls::Property::Text(tree);
+		auto item = tree->Add(name, property_, topic);
+		item->onChange.Add(this, &StringProperty::cbOnChange);
+		value_ = topic;
+	}
+	
+	std::string GetValue()
+	{
+		return value_;
+	}
+	
+	std::function<void(std::string)> onChange;
+};
+
 class ColorProperty: public Gwen::Event::Handler
 {
 	Gwen::Controls::Property::ColorSelector* property_;
