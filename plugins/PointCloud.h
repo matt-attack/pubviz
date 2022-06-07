@@ -369,7 +369,7 @@ public:
 		history_length_ = new NumberProperty(tree, "History Length", 1, 1, 100, 1);
 		history_length_->onChange = std::bind(&PointCloudPlugin::HistoryLengthChange, this, std::placeholders::_1);
 		
-		point_size_ = new NumberProperty(tree, "Point Size", 40, 1, 100, 2);
+		point_size_ = new NumberProperty(tree, "Point Size", 4, 1, 100, 2);
 		
 		Subscribe(topic_->GetValue());
 	}
