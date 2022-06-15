@@ -49,6 +49,8 @@ void OpenGLCanvas::ResetView()
 	view_y_ = 0.0;
 	pitch_ = 0.0;
 	yaw_ = 0.0;
+	
+	Redraw();
 }
 
 void OpenGLCanvas::OnMouseClickLeft( int /*x*/, int /*y*/, bool down )

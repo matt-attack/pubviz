@@ -17,6 +17,8 @@
 
 #include <pubsub/Node.h>
 
+#include "Parameters.h"
+
 #include <thread>
 #include <mutex>
 
@@ -56,8 +58,20 @@ class PubViz : public Gwen::Controls::DockBase
 		void OnBackgroundChange(Gwen::Controls::Base* control);
 		void OnCenter(Gwen::Controls::Base* control);
 		
+		void OnParametersClose(Gwen::Controls::Base* control)
+		{
+			parameters_page_ = 0;
+		}
+		
+		void OnConfigSave(Gwen::Event::Info info);
+		void OnConfigLoad(Gwen::Event::Info info);
+		
+		void ClearPlugins();
+		
 		Gwen::Controls::PropertyTree* plugin_tree_;
 		OpenGLCanvas* canvas_;
+		
+		Parameters* parameters_page_ = 0;
 		
 		ps_node_t node_;
 		

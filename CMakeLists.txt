@@ -10,7 +10,8 @@ add_executable(pubviz
   pubviz.cpp
   main.cpp
   OpenGLCanvas.cpp
-  GraphCanvas.cpp)
+  GraphCanvas.cpp
+  Parameters.cpp)
 target_include_directories(pubviz PUBLIC
   ${GWEN_INCLUDE_DIRECTORIES}
   ${pubsub_INCLUDE_DIRECTORIES})

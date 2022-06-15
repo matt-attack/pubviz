@@ -44,6 +44,8 @@ class OpenGLCanvas : public Gwen::Controls::Base
 			view_type_ = type;
 			
 			ResetView();
+			
+			Redraw();
 		}
 		
 		virtual void Layout( Gwen::Skin::Base* skin ) override;

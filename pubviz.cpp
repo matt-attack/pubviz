@@ -39,6 +39,8 @@
 #include "OpenGLCanvas.h"
 #include "GraphCanvas.h"
 
+#include "Parameters.h"
+
 #include "plugins/Costmap.h"
 #include "plugins/Grid.h"
 #include "plugins/Marker.h"
@@ -46,6 +48,9 @@
 
 
 #include <pubsub/TCPTransport.h>
+
+#include <Gwen/Controls/Dialogs/FileOpen.h>
+#include <Gwen/Controls/Dialogs/FileSave.h>
 
 
 using namespace Gwen;
@@ -55,12 +60,40 @@ PubViz::~PubViz()
 	ps_node_destroy(&node_);
 }
 
+void PubViz::OnConfigSave(Gwen::Event::Info info)
+{
+
+}
+
+void PubViz::OnConfigLoad(Gwen::Event::Info info)
+{
+	// first clear our plugins
+	ClearPlugins();
+	
+	// now load the new config
+}
+
+void PubViz::ClearPlugins()
+{
+	std::vector<Plugin*> plugins;
+	for (auto p: plugins_)
+	{
+		p->props_->GetParent()->DelayedDelete();
+	}
+	plugins_.clear();
+	canvas_->plugins_.clear();
+}
+
 void PubViz::MenuItemSelect(Controls::Base* pControl)
 {
 	Gwen::Controls::MenuItem* pMenuItem = (Gwen::Controls::MenuItem*) pControl;
 	if (pMenuItem->GetText() == L"Quit")
 	{
 		exit(0);
+	}
+	else if (pMenuItem->GetText() == L"Clear Plugins")
+	{
+		ClearPlugins();
 	}
 	else if (pMenuItem->GetText() == L"Plot")
 	{
@@ -70,6 +103,31 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 		auto page = button->GetPage();
 		auto graph = new GraphCanvas(page);
 		graph->Dock(Pos::Fill);
+	}
+	else if (pMenuItem->GetText() == L"Save Config As")
+	{
+		Gwen::Dialogs::FileSave(true, String("Save Config"), String("pubviz.config"), String(".config|*.config|All|*.*"), this, &ThisClass::OnConfigSave);
+	}
+	else if (pMenuItem->GetText() == L"Load Config")
+	{
+		Gwen::Dialogs::FileOpen(true, String("Load Config"), String(""), String(".config|*.config|All|*.*"), this, &ThisClass::OnConfigLoad);
+	}
+	else if (pMenuItem->GetText() == L"Change Parameters")
+	{
+		if (parameters_page_)
+		{
+			return;
+		}
+		
+		auto button = GetRight()->GetTabControl()->AddPage("Parameters");
+		button->SetPopoutable(true);
+		button->SetClosable(true);
+		button->onClose.Add(this, &PubViz::OnParametersClose);
+		auto page = button->GetPage();
+		auto params = new Parameters(page);
+		params->SetNode(&node_);
+		params->Dock(Pos::Fill);
+		parameters_page_ = params;
 	}
 	else if (pMenuItem->GetText() == L"Top Down")
 	{
@@ -114,13 +172,19 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	menu_->Dock(Pos::Top);
 	{
 		Gwen::Controls::MenuItem* pRoot = menu_->AddItem(L"File");
+		pRoot->GetMenu()->AddItem(L"Clear Plugins", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddItem(L"Load Config", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddItem(L"Save Config As", "", "Ctrl+S")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddDivider();
 		pRoot->GetMenu()->AddItem(L"Quit", "", "Ctrl+Q")->SetAction(this, &ThisClass::MenuItemSelect);
 	}
 	{
 		Gwen::Controls::MenuItem* pRoot = menu_->AddItem(L"View");
 		pRoot->GetMenu()->AddItem(L"Plot", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
-		pRoot->GetMenu()->AddItem(L"Orbit", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
-		pRoot->GetMenu()->AddItem(L"Top Down", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddItem(L"Change Parameters", "", "Shift+P")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddDivider();
+		pRoot->GetMenu()->AddItem(L"Orbit", "", "Ctrl+O")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddItem(L"Top Down", "", "Ctrl+T")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddDivider();
 		pRoot->GetMenu()->AddItem(L"Top", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Left", "", "")->SetAction(this, &ThisClass::MenuItemSelect);

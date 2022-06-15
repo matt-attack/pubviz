@@ -179,6 +179,13 @@ public:
 			ps_sub_destroy(&subscriber_);
 			sub_open_ = false;
 		}
+		
+		// free any buffers
+		for (auto cloud: clouds_)
+		{
+			glDeleteBuffers(1, &cloud.point_vbo);
+			glDeleteBuffers(1, &cloud.color_vbo);
+		}
 	}
 	
 	struct Point3d
