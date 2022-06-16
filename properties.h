@@ -3,12 +3,23 @@
 #define PUBVIZ_PROPERTIES_H
 
 #include <Gwen/Controls/PropertyTree.h>
+#include <Gwen/Controls/Property/Checkbox.h>
+#include <Gwen/Controls/Property/ColorSelector.h>
 #include <Gwen/Controls/Property/Numeric.h>
 #include <Gwen/Controls/Property/Folder.h>
 
 #include <functional>
 
-class BooleanProperty: public Gwen::Event::Handler
+class PropertyBase: public Gwen::Event::Handler
+{
+public:
+
+	virtual std::string Serialize() = 0;
+	
+	virtual void Deserialize(const std::string& str) = 0;
+};
+
+class BooleanProperty: public PropertyBase
 {
 	Gwen::Controls::Property::Checkbox* property_;
 	
@@ -34,9 +45,28 @@ public:
 	{
 		return value_;
 	}
+	
+	virtual std::string Serialize()
+	{
+		return value_ ? "true" : "false";
+	}
+	
+	virtual void Deserialize(const std::string& str)
+	{
+		if (str == "true")
+		{
+			value_ = true;
+		}
+		else
+		{
+			value_ = false;
+		}
+		property_->SetPropertyValue(value_ ? "1" : "0", true);
+		property_->Redraw();
+	}
 };
 
-class NumberProperty: public Gwen::Event::Handler
+class NumberProperty: public PropertyBase
 {
 	Gwen::Controls::Property::Numeric* property_;
 	
@@ -73,10 +103,21 @@ public:
 		return value_;
 	}
 	
+	virtual std::string Serialize()
+	{
+		return std::to_string(value_);
+	}
+	
+	virtual void Deserialize(const std::string& str)
+	{
+		value_ = std::atoi(str.c_str());
+		property_->SetPropertyValue(str, true);
+	}
+	
 	std::function<void(int)> onChange;
 };
 
-class FloatProperty: public Gwen::Event::Handler
+class FloatProperty: public PropertyBase
 {
 	Gwen::Controls::Property::Float* property_;
 	
@@ -108,9 +149,20 @@ public:
 	{
 		return value_;
 	}
+	
+	virtual std::string Serialize()
+	{
+		return std::to_string(value_);
+	}
+	
+	virtual void Deserialize(const std::string& str)
+	{
+		value_ = std::atof(str.c_str());
+		property_->SetPropertyValue(str, true);
+	}
 };
 
-class TopicProperty: public Gwen::Event::Handler
+class TopicProperty: public PropertyBase
 {
 	Gwen::Controls::Property::Text* property_;
 	
@@ -141,10 +193,21 @@ public:
 		return value_;
 	}
 	
+	virtual std::string Serialize()
+	{
+		return value_;
+	}
+	
+	virtual void Deserialize(const std::string& str)
+	{
+		value_ = str;
+		property_->SetPropertyValue(str, true);
+	}
+	
 	std::function<void(std::string)> onChange;
 };
 
-class StringProperty: public Gwen::Event::Handler
+class StringProperty: public PropertyBase
 {
 	Gwen::Controls::Property::Text* property_;
 	
@@ -175,10 +238,21 @@ public:
 		return value_;
 	}
 	
+	virtual std::string Serialize()
+	{
+		return value_;
+	}
+	
+	virtual void Deserialize(const std::string& str)
+	{
+		value_ = str;
+		property_->SetPropertyValue(str, true);
+	}
+	
 	std::function<void(std::string)> onChange;
 };
 
-class ColorProperty: public Gwen::Event::Handler
+class ColorProperty: public PropertyBase
 {
 	Gwen::Controls::Property::ColorSelector* property_;
 	
@@ -207,6 +281,16 @@ public:
 	Gwen::Color GetValue()
 	{
 		return value_;
+	}
+	
+	virtual std::string Serialize()
+	{
+		return std::to_string(value_.r) + " " + std::to_string(value_.g) + " " + std::to_string(value_.b);
+	}
+	
+	virtual void Deserialize(const std::string& str)
+	{
+		property_->SetPropertyValue(str, true);
 	}
 };
 

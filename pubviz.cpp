@@ -62,7 +62,36 @@ PubViz::~PubViz()
 
 void PubViz::OnConfigSave(Gwen::Event::Info info)
 {
+	std::string config;
+	for (auto p: plugins_)
+	{
+		config += p->GetTitle();
+		config += ":";
+		config += p->GetConfiguration();
+		config += "\n";
+	}
+	//printf("%s\n", config.c_str());
+	
+	FILE* f = fopen(info.String.c_str(), "wb");
+	fwrite(config.c_str(), 1, config.length(), f);
+	fclose(f);
+}
 
+std::vector<std::string> split(std::string s, std::string delimiter)
+{
+    size_t pos_start = 0, pos_end, delim_len = delimiter.length();
+    std::string token;
+    std::vector<std::string> res;
+
+    while ((pos_end = s.find(delimiter, pos_start)) != std::string::npos)
+    {
+        token = s.substr(pos_start, pos_end - pos_start);
+        pos_start = pos_end + delim_len;
+        res.push_back(token);
+    }
+
+    res.push_back(s.substr(pos_start));
+    return res;
 }
 
 void PubViz::OnConfigLoad(Gwen::Event::Info info)
@@ -71,6 +100,35 @@ void PubViz::OnConfigLoad(Gwen::Event::Info info)
 	ClearPlugins();
 	
 	// now load the new config
+	FILE *f = fopen(info.String.c_str(), "rb");
+	fseek(f, 0, SEEK_END);
+	long fsize = ftell(f);
+	fseek(f, 0, SEEK_SET);  /* same as rewind(f); */
+
+	std::string string;
+	string.resize(fsize, 'a');
+	fread((char*)string.data(), fsize, 1, f);
+	fclose(f);
+	
+	// create all the plugins
+	// first, split by line
+	auto lines = split(string, "\n");
+	for (auto l: lines)
+	{
+		//printf("Line: %s\n", l.c_str());
+		auto data = split(l, ":");
+		
+		if (data.size() <= 1)
+		{
+			continue;
+		}
+		
+		auto plugin = AddPlugin(data[0]);
+		if (plugin)
+		{
+			plugin->LoadConfiguration(data[1]);
+		}
+	}
 }
 
 void PubViz::ClearPlugins()
@@ -249,10 +307,10 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	canvas_->Dock(Pos::Fill);
 	canvas_->plugins_ = plugins_;//todo lets not maintain two lists
 	
-	AddPlugin("grid");
-		AddPlugin("costmap");
-		AddPlugin("marker");
-		AddPlugin("pointcloud");
+	AddPlugin("Grid");
+		AddPlugin("Costmap");
+		AddPlugin("Marker");
+		AddPlugin("Point Cloud");
 	
 	add_button->onPress.Add( this, &ThisClass::OnAddPlugin );
 
@@ -281,30 +339,29 @@ void PubViz::OnBackgroundChange(Gwen::Controls::Base* control)
 	canvas_->m_Color = selector->m_Button->m_Color;
 }
 
-void PubViz::AddPlugin(const std::string& name)
+Plugin* PubViz::AddPlugin(const std::string& name)
 {
 	Plugin* plugin;
-	if (name == "grid")
+	if (name == "Grid")
 	{
-		// todo
 		plugin = new GridPlugin();
 	}
-	else if (name == "costmap")
+	else if (name == "Costmap")
 	{
 		plugin = new CostmapPlugin();
 	}
-	else if (name == "marker")
+	else if (name == "Marker")
 	{
 		plugin = new MarkerPlugin();
 	}
-	else if (name == "pointcloud")
+	else if (name == "Point Cloud")
 	{
 		plugin = new PointCloudPlugin();
 	}
 	else
 	{
 		printf("Unknown plugin name '%s'!\n", name.c_str());
-		return;
+		return 0;
 	}
 	
 	Gwen::Controls::Properties* props = plugin_tree_->Add( name );
@@ -323,6 +380,8 @@ void PubViz::AddPlugin(const std::string& name)
 	
 	plugins_.push_back(plugin);
 	canvas_->plugins_ = plugins_;
+	
+	return plugin;
 }
 
 void PubViz::OnAddPlugin(Gwen::Controls::Base* control)
@@ -338,10 +397,10 @@ void PubViz::OnAddPlugin(Gwen::Controls::Base* control)
 	combo->Dock(Pos::Top);
 	combo->SetPos( 50, 50 );
 	combo->SetWidth( 200 );
-	combo->AddItem( L"Grid", "grid" );
-	combo->AddItem( L"Costmap", "costmap" );
-	combo->AddItem( L"Marker", "marker" );
-	combo->AddItem( L"Point Cloud", "pointcloud" );
+	combo->AddItem( L"Grid", "Grid" );
+	combo->AddItem( L"Costmap", "Costmap" );
+	combo->AddItem( L"Marker", "Marker" );
+	combo->AddItem( L"Point Cloud", "Point Cloud" );
 	
 	Controls::Button* add_button = new Controls::Button( window );
 	add_button->Dock(Pos::Bottom);

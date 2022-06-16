@@ -239,14 +239,14 @@ public:
 	virtual void Initialize(Gwen::Controls::Properties* tree)
 	{
 		// add any properties
-		alpha_ = new FloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1);
+		alpha_ = AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1);
 		
-		color_ = new ColorProperty(tree, "Outline Color", Gwen::Color(255,50,50));
+		color_ = AddColorProperty(tree, "Outline Color", Gwen::Color(255,50,50));
 		
-		topic_ = new TopicProperty(tree, "Topic", "/costmap");
+		topic_ = AddTopicProperty(tree, "Topic", "/costmap");
 		topic_->onChange = std::bind(&CostmapPlugin::Subscribe, this, std::placeholders::_1);
 		
-		show_outline_ = new BooleanProperty(tree, "Show Outline", true);
+		show_outline_ = AddBooleanProperty(tree, "Show Outline", true);
 		
 		Subscribe(topic_->GetValue());
 	}

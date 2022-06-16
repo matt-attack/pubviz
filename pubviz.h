@@ -47,7 +47,7 @@ class PubViz : public Gwen::Controls::DockBase
 
 		virtual void Layout(Gwen::Skin::Base* skin) override;
 		
-		void AddPlugin(const std::string& name);
+		Plugin* AddPlugin(const std::string& name);
 
 	private:
 		

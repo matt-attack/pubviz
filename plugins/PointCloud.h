@@ -360,23 +360,25 @@ public:
 
 		
 		// add any properties
-		alpha_ = new FloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1);
+		alpha_ = AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1);
 		
-		min_color_ = new ColorProperty(tree, "Max Color", Gwen::Color(255,255,255));
+		min_color_ = AddColorProperty(tree, "Max Color", Gwen::Color(255,255,255));
 		
-		max_color_ = new ColorProperty(tree, "Min Color", Gwen::Color(255,0,0));
+		max_color_ = AddColorProperty(tree, "Min Color", Gwen::Color(255,0,0));
+		
 		
 		topic_ = new TopicProperty(tree, "Topic", "/pointcloud");
+		topic_ = AddTopicProperty(tree, "Topic", "/pointcloud");
 		topic_->onChange = std::bind(&PointCloudPlugin::Subscribe, this, std::placeholders::_1);
 		
-		point_text_ = new StringProperty(tree, "Text", "");
+		point_text_ = AddStringProperty(tree, "Text", "");
 		point_text_->onChange = std::bind(&PointCloudPlugin::TextChange, this, std::placeholders::_1);
 		TextChange(point_text_->GetValue());
 		
-		history_length_ = new NumberProperty(tree, "History Length", 1, 1, 100, 1);
+		history_length_ = AddNumberProperty(tree, "History Length", 1, 1, 100, 1);
 		history_length_->onChange = std::bind(&PointCloudPlugin::HistoryLengthChange, this, std::placeholders::_1);
 		
-		point_size_ = new NumberProperty(tree, "Point Size", 4, 1, 100, 2);
+		point_size_ = AddNumberProperty(tree, "Point Size", 4, 1, 100, 2);
 		
 		Subscribe(topic_->GetValue());
 	}

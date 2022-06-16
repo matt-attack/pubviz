@@ -87,15 +87,15 @@ public:
 	virtual void Initialize(Gwen::Controls::Properties* tree)
 	{
 		// add any properties
-		x_count_ = new NumberProperty(tree, "X Count", 10);
-		y_count_ = new NumberProperty(tree, "Y Count", 10);
+		x_count_ = AddNumberProperty(tree, "X Count", 10);
+		y_count_ = AddNumberProperty(tree, "Y Count", 10);
 		
-		start_x_ = new FloatProperty(tree, "Start X", -50.0);
-		start_y_ = new FloatProperty(tree, "Start Y", -50.0);
+		start_x_ = AddFloatProperty(tree, "Start X", -50.0);
+		start_y_ = AddFloatProperty(tree, "Start Y", -50.0);
 		
-		cell_size_ = new FloatProperty(tree, "Size", 10.0);
+		cell_size_ = AddFloatProperty(tree, "Size", 10.0);
 		
-		color_ = new ColorProperty(tree, "Color", Gwen::Color(125,125,125));
+		color_ = AddColorProperty(tree, "Color", Gwen::Color(125,125,125));
 	}
 	
 	std::string GetTitle() override

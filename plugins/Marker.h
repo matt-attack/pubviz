@@ -185,14 +185,14 @@ public:
 	virtual void Initialize(Gwen::Controls::Properties* tree)
 	{
 		// add any properties
-		alpha_ = new FloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1);
+		alpha_ = AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1);
 		
-		color_ = new ColorProperty(tree, "Color", Gwen::Color(255,50,50));
+		color_ = AddColorProperty(tree, "Color", Gwen::Color(255,50,50));
 		
-		topic_ = new TopicProperty(tree, "Topic", "/marker");
+		topic_ = AddTopicProperty(tree, "Topic", "/marker");
 		topic_->onChange = std::bind(&MarkerPlugin::Subscribe, this, std::placeholders::_1);
 		
-		line_width_ = new NumberProperty(tree, "Line Width", 4, 1, 100, 2);
+		line_width_ = AddNumberProperty(tree, "Line Width", 4, 1, 100, 2);
 		
 		Subscribe(topic_->GetValue());
 	}
