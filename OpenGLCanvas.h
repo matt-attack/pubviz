@@ -48,6 +48,14 @@ class OpenGLCanvas : public Gwen::Controls::Base
 			Redraw();
 		}
 		
+		void SetViewOrigin(double x, double y, double z)
+		{
+			view_x_ = x;
+			view_y_ = y;
+			view_z_ = z;
+			Redraw();
+		}
+		
 		virtual void Layout( Gwen::Skin::Base* skin ) override;
 		
 		void SetViewAngle(double pitch, double yaw)
@@ -71,6 +79,7 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		
 		double view_x_ = 0.0;
 		double view_y_ = 0.0;
+		double view_z_ = 0.0;
 		
 		double pitch_ = 0.0;
 		double yaw_ = 0.0;

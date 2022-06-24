@@ -47,6 +47,7 @@ void OpenGLCanvas::ResetView()
 	view_height_m_ = 150.0;
 	view_x_ = 0.0;
 	view_y_ = 0.0;
+	view_z_ = 0.0;
 	pitch_ = 0.0;
 	yaw_ = 0.0;
 	
@@ -68,11 +69,16 @@ void OpenGLCanvas::OnMouseMoved(int x, int y, int dx, int dy)
 	// now apply offset
 	if (mouse_down_)
 	{
-		view_x_ -= dx/pixels_per_meter;
-		view_y_ += dy/pixels_per_meter;
-		
-		pitch_ += dy;
-		yaw_ += dx;
+		if (view_type_ == ViewType::TopDown)
+		{
+			view_x_ -= dx/pixels_per_meter;
+			view_y_ += dy/pixels_per_meter;
+		}
+		else
+		{
+			pitch_ += dy;
+			yaw_ += dx;
+		}
 		
 		// Mark the window as dirty so it redraws
 		Redraw();
@@ -128,13 +134,12 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	}
 	else if (view_type_ == ViewType::Orbit)
 	{
-		// set up the view matrix for the current zoom level (ortho, topdown)
+		// set up the view matrix for the current zoom level (orbit)
 		float half_height = view_height_m_/2.0;
 		float half_width = half_height*(float)GetCanvas()->Width()/(float)GetCanvas()->Height();
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
-		view_x_ = view_y_ = 0.0;
-		glOrtho( -half_width + view_x_, half_width + view_x_, -half_height + view_y_, half_height + view_y_, -10000.0, 10000.0 );
+		glOrtho( -half_width, half_width, -half_height, half_height, -10000.0, 10000.0 );
 	
 		// now apply other transforms
 		glMatrixMode(GL_MODELVIEW);
@@ -147,6 +152,9 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		float ax = cos((-yaw_)*3.14159/180.0);
 		float ay = sin((-yaw_)*3.14159/180.0);
 		glRotatef(pitch_, ax, ay, 0);
+		
+		
+		glTranslatef(view_x_, view_y_, view_z_);
 		
 		// we want depth testing in this mode
 		glEnable(GL_DEPTH_TEST);
