@@ -25,10 +25,14 @@ class BooleanProperty: public PropertyBase
 	
 	bool value_;
 	
-	void onChange(Gwen::Controls::Base* prop)
+	void OnChange(Gwen::Controls::Base* prop)
 	{
 		property_->Redraw();
 		value_ = std::atoi(property_->GetPropertyValue().c_str()) > 0 ? true : false;
+		if (onChange)
+		{
+			onChange(value_);
+		}
 	}
 	
 public:
@@ -37,7 +41,7 @@ public:
 	{
 		property_ = new Gwen::Controls::Property::Checkbox(tree);
 		auto item = tree->Add(name, property_, val ? "1" : "0");
-		item->onChange.Add(this, &BooleanProperty::onChange);
+		item->onChange.Add(this, &BooleanProperty::OnChange);
 		value_ = val;
 	}
 	
@@ -64,6 +68,8 @@ public:
 		property_->SetPropertyValue(value_ ? "1" : "0", true);
 		property_->Redraw();
 	}
+
+	std::function<void(bool)> onChange;
 };
 
 class NumberProperty: public PropertyBase

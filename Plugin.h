@@ -2,11 +2,11 @@
 #ifndef PUBVIZ_PLUGIN_H
 #define PUBVIZ_PLUGIN_H
 
+#include <pubsub/Node.h>
+
 #include <Gwen/Controls/PropertyTree.h>
 
 #include "properties.h"
-
-#include <pubsub/Node.h>
 
 namespace Gwen
 {
@@ -28,6 +28,7 @@ class Plugin: public Gwen::Event::Handler
 	bool enabled_ = true;
 	ps_node_t* node_;
 	Gwen::Controls::Properties* props_;
+	OpenGLCanvas* canvas_;
 	
 	void OnEnableChecked( Gwen::Controls::Base* pControl )
 	{
@@ -56,6 +57,12 @@ public:
 	ps_node_t* GetNode()
 	{
 		return node_;
+	}
+
+	// Get our canvas
+	OpenGLCanvas* GetCanvas()
+	{
+		return canvas_;
 	}
 	
 	// Indicate that we want a redraw

@@ -13,7 +13,7 @@
 #include <Gwen/Controls/PropertyTree.h>
 #include <Gwen/Controls/Property/Numeric.h>
 
-
+#define GLEW_STATIC
 #include <GL/glew.h>
 
 #ifndef _WIN32
@@ -128,9 +128,21 @@ public:
 		{
 			// 2d lines
 			glBegin(GL_LINES);
-			glColor3f(color.r/255.0, color.g/255.0, color.b/255.0);
 			for (int i = 0; i + 1 < last_msg_.data_length; i += 2)
 			{
+				int ci = i / 2;
+				if (ci < last_msg_.colors_length)
+				{
+					uint32_t c = last_msg_.colors[ci];
+					uint8_t r = (c & 0xFF0000) >> 16;
+					uint8_t g = (c & 0xFF00) >> 8;
+					uint8_t b = (c & 0xFF);
+					glColor3f(r / 255.0, g / 255.0, b / 255.0);
+				}
+				else
+				{
+					glColor3f(color.r / 255.0, color.g / 255.0, color.b / 255.0);
+				}
 				glVertex2f(last_msg_.data[i], last_msg_.data[i+1]);
 			}
 			glEnd();
@@ -149,6 +161,15 @@ public:
 				glColor3f(color.r/255.0, color.g/255.0, color.b/255.0);
 				for (; i < std::min<int>(end_index, last_msg_.data_length-1); i += 2)
 				{
+					int ci = i / 2;
+					if (ci < last_msg_.colors_length)
+					{
+						uint32_t c = last_msg_.colors[ci];
+						uint8_t r = (c & 0xFF0000) >> 16;
+						uint8_t g = (c & 0xFF00) >> 8;
+						uint8_t b = (c & 0xFF);
+						glColor3f(r / 255.0, g / 255.0, b / 255.0);
+					}
 					glVertex2f(last_msg_.data[i], last_msg_.data[i+1]);
 				}
 				glEnd();

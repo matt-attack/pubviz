@@ -13,7 +13,7 @@
 #include <Gwen/Controls/PropertyTree.h>
 #include <Gwen/Controls/Property/Numeric.h>
 
-
+#define GLEW_STATIC
 #include <GL/glew.h>
 
 #ifndef _WIN32

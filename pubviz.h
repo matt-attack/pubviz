@@ -2,6 +2,8 @@
 #ifndef PUBVIZ_H
 #define PUBVIZ_H
 
+#include <pubsub/Node.h>
+
 #include <Gwen/Gwen.h>
 #include <Gwen/Align.h>
 #include <Gwen/Utility.h>
@@ -15,7 +17,6 @@
 #include "OpenGLCanvas.h"
 #include "Plugin.h"
 
-#include <pubsub/Node.h>
 
 #include "Parameters.h"
 

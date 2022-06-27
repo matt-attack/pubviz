@@ -79,7 +79,8 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 	if (!node_initialized)
 	{
 		// first lets get a list of all topics, and then subscribe to them
-		ps_node_init_ex(&node, "pubviz", "", false, false);
+		//ps_node_init_ex(&node, "pubviz", "", false, false);
+		ps_node_init(&node, "pubviz", "", false);
 
 		ps_node_system_query(&node);
 

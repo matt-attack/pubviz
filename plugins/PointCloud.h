@@ -2,6 +2,11 @@
 #ifndef PUBVIZ_PLUGIN_POINTCLOUD_H
 #define PUBVIZ_PLUGIN_POINTCLOUD_H
 
+
+#include <pubsub/PointCloud.msg.h>
+#include "../Plugin.h"
+#include "../properties.h"
+
 #include <Gwen/Gwen.h>
 #include <Gwen/Align.h>
 #include <Gwen/Utility.h>
@@ -14,6 +19,7 @@
 #include <Gwen/Controls/Property/Numeric.h>
 
 
+#define GLEW_STATIC
 #include <GL/glew.h>
 
 #ifndef _WIN32
@@ -23,10 +29,7 @@
 #include <GL/glx.h>
 #endif
 
-#include "../Plugin.h"
-#include "../properties.h"
 
-#include <pubsub/PointCloud.msg.h>
 
 class PointCloudPlugin: public Plugin
 {

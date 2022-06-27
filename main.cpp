@@ -1,4 +1,7 @@
 
+
+#include <pubsub/Node.h>
+
 #include <stdlib.h>
 #include <memory.h>
 
@@ -7,8 +10,6 @@
 #include <Gwen/Gwen.h>
 #include <Gwen/Application.h>
 #include <Gwen/Renderers/OpenGL.h>
-
-#include <pubsub/Node.h>
 
 int main(int argc, char** args)
 {
@@ -30,7 +31,7 @@ int main(int argc, char** args)
 			break;
 		}
 		
-		if (!window->NeedsRedraw())
+		//if (!window->NeedsRedraw())
 		{
 			// If we dont need a redraw, sleep until we get new input
 			//Gwen::Platform::WaitForEvent();

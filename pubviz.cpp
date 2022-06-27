@@ -3,6 +3,8 @@
 	See license
 	*/
 
+#include <pubsub/TCPTransport.h>
+
 #include "pubviz.h"
 #include "Gwen/Controls/DockedTabControl.h"
 #include "Gwen/Controls/WindowControl.h"
@@ -45,9 +47,7 @@
 #include "plugins/Grid.h"
 #include "plugins/Marker.h"
 #include "plugins/PointCloud.h"
-
-
-#include <pubsub/TCPTransport.h>
+#include "plugins/Pose.h"
 
 #include <Gwen/Controls/Dialogs/FileOpen.h>
 #include <Gwen/Controls/Dialogs/FileSave.h>
@@ -272,7 +272,8 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	add_button->Dock(Pos::Bottom);
 	add_button->SetText( L"Add Plugin" );
 	
-	ps_node_init_ex(&node_, "pubviz_real", "", false, false);
+	//ps_node_init_ex(&node_, "pubviz_real", "", false, false);
+	ps_node_init(&node_, "pubviz_real", "", true);
 	
 	struct ps_transport_t tcp_transport;
     ps_tcp_transport_init(&tcp_transport, &node_);
@@ -307,10 +308,11 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	canvas_->Dock(Pos::Fill);
 	canvas_->plugins_ = plugins_;//todo lets not maintain two lists
 	
-	AddPlugin("Grid");
-		AddPlugin("Costmap");
-		AddPlugin("Marker");
-		AddPlugin("Point Cloud");
+	AddPlugin("grid");
+		AddPlugin("costmap");
+		AddPlugin("marker");
+		AddPlugin("pointcloud");
+		AddPlugin("pose");
 	
 	add_button->onPress.Add( this, &ThisClass::OnAddPlugin );
 
@@ -342,21 +344,25 @@ void PubViz::OnBackgroundChange(Gwen::Controls::Base* control)
 Plugin* PubViz::AddPlugin(const std::string& name)
 {
 	Plugin* plugin;
-	if (name == "Grid")
+	if (name == "grid")
 	{
 		plugin = new GridPlugin();
 	}
-	else if (name == "Costmap")
+	else if (name == "costmap")
 	{
 		plugin = new CostmapPlugin();
 	}
-	else if (name == "Marker")
+	else if (name == "marker")
 	{
 		plugin = new MarkerPlugin();
 	}
-	else if (name == "Point Cloud")
+	else if (name == "pointcloud")
 	{
 		plugin = new PointCloudPlugin();
+	}
+	else if (name == "pose")
+	{
+		plugin = new PosePlugin();
 	}
 	else
 	{
@@ -369,6 +375,7 @@ Plugin* PubViz::AddPlugin(const std::string& name)
 	auto pRow = props->Add( L"Enable", new Gwen::Controls::Property::Checkbox( props ), L"1" );
 	pRow->onChange.Add( plugin, &Plugin::OnEnableChecked );
 	plugin->node_ = &node_;
+	plugin->canvas_ = canvas_;
 	plugin->Initialize(props);
 	props->SetSplitWidth(150);
 	plugin->props_ = props;
@@ -397,10 +404,11 @@ void PubViz::OnAddPlugin(Gwen::Controls::Base* control)
 	combo->Dock(Pos::Top);
 	combo->SetPos( 50, 50 );
 	combo->SetWidth( 200 );
-	combo->AddItem( L"Grid", "Grid" );
-	combo->AddItem( L"Costmap", "Costmap" );
-	combo->AddItem( L"Marker", "Marker" );
-	combo->AddItem( L"Point Cloud", "Point Cloud" );
+	combo->AddItem( L"Grid", "grid" );
+	combo->AddItem( L"Costmap", "costmap" );
+	combo->AddItem( L"Marker", "marker" );
+	combo->AddItem( L"Point Cloud", "pointcloud" );
+	combo->AddItem( L"Pose", "pose");
 	
 	Controls::Button* add_button = new Controls::Button( window );
 	add_button->Dock(Pos::Bottom);

@@ -13,7 +13,7 @@
 #include <Gwen/Controls/PropertyTree.h>
 #include <Gwen/Controls/Property/Numeric.h>
 
-
+#define GLEW_STATIC
 #include <GL/glew.h>
 
 #ifndef _WIN32
@@ -52,8 +52,9 @@ class CostmapPlugin: public Plugin
 			glDeleteTextures(1, &texture_);
 		}
 		
-		if (last_msg_.width*last_msg_.height != last_msg_.data_length)
+		if (last_msg_.width* last_msg_.height != last_msg_.data_length)
 		{
+			last_msg_.data_length = 0;
 			printf("ERROR: bad costmap size\n");
 			return;
 		}
@@ -217,18 +218,18 @@ public:
 		glColor4f(1.0f, 1.0f, 1.0f, alpha_->GetValue() );
 
 		glTexCoord2d(0, 0);
-		glVertex2d(0, 0);
+		glVertex2d(last_msg_.left + 0, last_msg_.bottom + 0);
 		glTexCoord2d(1.0, 0);
-		glVertex2d(width, 0);
+		glVertex2d(last_msg_.left + width, last_msg_.bottom + 0);
 		glTexCoord2d(1.0, 1.0);
-		glVertex2d(width, height);
+		glVertex2d(last_msg_.left + width, last_msg_.bottom + height);
 
 		glTexCoord2d(0, 0);
-		glVertex2d(0, 0);
+		glVertex2d(last_msg_.left + 0, last_msg_.bottom + 0);
 		glTexCoord2d(1.0, 1.0);
-		glVertex2d(width, height);
+		glVertex2d(last_msg_.left + width, last_msg_.bottom + height);
 		glTexCoord2d(0, 1.0);
-		glVertex2d(0, height);
+		glVertex2d(last_msg_.left + 0, last_msg_.bottom + height);
 
 		glEnd();
 

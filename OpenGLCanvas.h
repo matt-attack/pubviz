@@ -8,14 +8,13 @@
 #include <Gwen/Gwen.h>
 #include <Gwen/Skin.h>
 
-#include "Plugin.h"
-
 enum class ViewType
 {
 	TopDown = 0,
 	Orbit = 1
 };
 
+class Plugin;
 class PubViz;
 class OpenGLCanvas : public Gwen::Controls::Base
 {
