@@ -156,7 +156,7 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		glRotatef(pitch_, ax, ay, 0);
 		
 		
-		glTranslatef(view_x_, view_y_, view_z_);
+		glTranslatef(-view_x_, -view_y_, -view_z_);
 		
 		// we want depth testing in this mode
 		glEnable(GL_DEPTH_TEST);
