@@ -48,6 +48,7 @@
 #include "plugins/Marker.h"
 #include "plugins/PointCloud.h"
 #include "plugins/Pose.h"
+#include "plugins/Path.h"
 
 #include <Gwen/Controls/Dialogs/FileOpen.h>
 #include <Gwen/Controls/Dialogs/FileSave.h>
@@ -261,6 +262,8 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	props->SetSplitWidth(150);
 	auto row = props->Add(L"Background Color", new Gwen::Controls::Property::ColorSelector(props), L"50 50 50");
 	row->onChange.Add(this, &ThisClass::OnBackgroundChange);
+	auto row2 = props->Add(L"WGS84 Frame", new Gwen::Controls::Property::Checkbox(props), L"true");
+	row2->onChange.Add(this, &ThisClass::OnFrameChange);
 	
 	plugin_tree_->ExpandAll();
 	
@@ -307,12 +310,14 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	canvas_ = new OpenGLCanvas(this);
 	canvas_->Dock(Pos::Fill);
 	canvas_->plugins_ = plugins_;//todo lets not maintain two lists
+	canvas_->SetFrame(true);
 	
 	AddPlugin("grid");
 		AddPlugin("costmap");
 		AddPlugin("marker");
 		AddPlugin("pointcloud");
 		AddPlugin("pose");
+		AddPlugin("path");
 	
 	add_button->onPress.Add( this, &ThisClass::OnAddPlugin );
 
@@ -332,6 +337,14 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 void PubViz::OnCenter(Gwen::Controls::Base* control)
 {
 	canvas_->ResetView();
+}
+
+void PubViz::OnFrameChange(Gwen::Controls::Base* control)
+{
+	auto prop = ((Gwen::Controls::PropertyRow*)control)->GetProperty();
+	Gwen::Controls::Property::Checkbox* selector = (Gwen::Controls::Property::Checkbox*)prop;
+	bool wgs84 = selector->GetPropertyValue() == L"1" ? true : false;
+	canvas_->SetFrame(wgs84);
 }
 
 void PubViz::OnBackgroundChange(Gwen::Controls::Base* control)
@@ -363,6 +376,10 @@ Plugin* PubViz::AddPlugin(const std::string& name)
 	else if (name == "pose")
 	{
 		plugin = new PosePlugin();
+	}
+	else if (name == "path")
+	{
+		plugin = new PathPlugin();
 	}
 	else
 	{
@@ -409,6 +426,7 @@ void PubViz::OnAddPlugin(Gwen::Controls::Base* control)
 	combo->AddItem( L"Marker", "marker" );
 	combo->AddItem( L"Point Cloud", "pointcloud" );
 	combo->AddItem( L"Pose", "pose");
+	combo->AddItem( L"Path", "path");
 	
 	Controls::Button* add_button = new Controls::Button( window );
 	add_button->Dock(Pos::Bottom);

@@ -286,6 +286,11 @@ public:
 	
 	virtual void Render()
 	{	
+		if (GetCanvas()->wgs84_mode_)
+		{
+			return;// not supported for the moment
+		}
+
 		glPointSize(point_size_->GetValue());
 		
 		glEnableClientState(GL_VERTEX_ARRAY);
@@ -369,8 +374,6 @@ public:
 		
 		max_color_ = AddColorProperty(tree, "Min Color", Gwen::Color(255,0,0));
 		
-		
-		topic_ = new TopicProperty(tree, "Topic", "/pointcloud");
 		topic_ = AddTopicProperty(tree, "Topic", "/pointcloud");
 		topic_->onChange = std::bind(&PointCloudPlugin::Subscribe, this, std::placeholders::_1);
 		

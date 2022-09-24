@@ -188,6 +188,11 @@ public:
 		{
 			return;
 		}
+
+		if (GetCanvas()->wgs84_mode_)
+		{
+			return;// not supported for the moment
+		}
 		
 		double width = last_msg_.resolution*last_msg_.width;
 		double height = last_msg_.resolution*last_msg_.height;

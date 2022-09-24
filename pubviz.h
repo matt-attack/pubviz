@@ -57,6 +57,7 @@ class PubViz : public Gwen::Controls::DockBase
 		void OnRemovePlugin( Gwen::Controls::Base* control);
 		void OnAddPluginFinish(Gwen::Controls::Base* control);
 		void OnBackgroundChange(Gwen::Controls::Base* control);
+		void OnFrameChange(Gwen::Controls::Base* control);
 		void OnCenter(Gwen::Controls::Base* control);
 		
 		void OnParametersClose(Gwen::Controls::Base* control)

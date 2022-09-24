@@ -90,8 +90,8 @@ public:
 		x_count_ = AddNumberProperty(tree, "X Count", 10);
 		y_count_ = AddNumberProperty(tree, "Y Count", 10);
 		
-		start_x_ = AddFloatProperty(tree, "Start X", -50.0);
-		start_y_ = AddFloatProperty(tree, "Start Y", -50.0);
+		start_x_ = AddFloatProperty(tree, "Start X", -50.0, -100000, 100000);
+		start_y_ = AddFloatProperty(tree, "Start Y", -50.0, -100000, 100000);
 		
 		cell_size_ = AddFloatProperty(tree, "Size", 10.0);
 		

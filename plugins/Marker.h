@@ -112,15 +112,9 @@ public:
 			RenderMarker(marker.second);
 		}
 	}
-		
+	
 	void RenderMarker(const pubsub::msg::Marker& last_msg_)
 	{
-		// todo handle frames, lets just ignore them for the moment and assume everything is odom
-		if (last_msg_.frame == 0)
-		{
-			return;// we cant render wgs84 atm
-		}
-		
 		// draw the marker
 		Gwen::Color color = color_->GetValue();
 		glLineWidth(line_width_->GetValue());
@@ -143,7 +137,30 @@ public:
 				{
 					glColor3f(color.r / 255.0, color.g / 255.0, color.b / 255.0);
 				}
-				glVertex2f(last_msg_.data[i], last_msg_.data[i+1]);
+				if (last_msg_.frame == 0)
+				{
+					if (GetCanvas()->wgs84_mode_)
+					{
+						double x, y;
+						GetCanvas()->local_xy_.FromLatLon(last_msg_.data[i], last_msg_.data[i + 1], x, y);
+						glVertex2f(x, y);
+					}
+					else
+					{
+						// todo
+					}
+				}
+				else
+				{
+					if (GetCanvas()->wgs84_mode_)
+					{
+						// todo
+					}
+					else
+					{
+						glVertex2f(last_msg_.data[i], last_msg_.data[i + 1]);
+					}
+				}
 			}
 			glEnd();
 		}
@@ -170,7 +187,32 @@ public:
 						uint8_t b = (c & 0xFF);
 						glColor3f(r / 255.0, g / 255.0, b / 255.0);
 					}
-					glVertex2f(last_msg_.data[i], last_msg_.data[i+1]);
+					if (last_msg_.frame == 0)
+					{
+						if (GetCanvas()->wgs84_mode_)
+						{
+							double x, y;
+							GetCanvas()->local_xy_.FromLatLon(last_msg_.data[i], last_msg_.data[i + 1], x, y);
+							//x += GetCanvas()->origin_x_;
+							//y += GetCanvas()->origin_y_;
+							glVertex2f(x, y);
+						}
+						else
+						{
+							// todo
+						}
+					}
+					else
+					{
+						if (GetCanvas()->wgs84_mode_)
+						{
+							// todo
+						}
+						else
+						{
+							glVertex2f(last_msg_.data[i], last_msg_.data[i + 1]);
+						}
+					}
 				}
 				glEnd();
 			}

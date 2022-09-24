@@ -11,8 +11,21 @@
 #include <Gwen/Application.h>
 #include <Gwen/Renderers/OpenGL.h>
 
+#ifdef WIN32
+// disables the console on windows
+int WinMain(
+	HINSTANCE hInstance,
+	HINSTANCE hPrevInstance,
+	LPSTR     lpCmdLine,
+	int       nShowCmd
+)
+{
+	int argc;
+	wchar_t** args = CommandLineToArgvW(GetCommandLineW(), &argc);
+#else
 int main(int argc, char** args)
 {
+#endif
 	//skin->Init("DefaultSkin.png");
 	//skin->SetDefaultFont(L"Open Sans", 14);
 	

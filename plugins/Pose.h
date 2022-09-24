@@ -56,7 +56,7 @@ class PosePlugin: public Plugin
 	{
 		if (!state)
 		{
-			GetCanvas()->SetViewOrigin(0.0, 0.0, 0.0);
+			GetCanvas()->ResetViewOrigin();
 		}
 	}
 	
@@ -111,10 +111,13 @@ public:
 				messages_.clear();
 				messages_.push_back(*data);
 
+				// todo is there a better way to do this?
+				GetCanvas()->SetLocalXY(data->latitude, data->longitude);
+
 				if (follow_pose_->GetValue())
 				{
 					// center view on me
-					GetCanvas()->SetViewOrigin(data->x, data->y, data->z);
+					GetCanvas()->SetViewOrigin(data->x, data->y, data->z, data->latitude, data->longitude, 0.0);
 				}
 
 				free(data);//todo use allocator free
@@ -128,11 +131,18 @@ public:
 	{
 		const double line_length = line_length_->GetValue();
 		glLineWidth(line_width_->GetValue());
-		for (auto& p: messages_)
+		for (auto p: messages_)
 		{
 			// start with just rendering axes
 			// 
 			// todo handle rotation
+
+			if (GetCanvas()->wgs84_mode_)
+			{
+				GetCanvas()->local_xy_.FromLatLon(p.latitude, p.longitude, p.x, p.y);
+				p.z = 0.0;
+				p.odom_yaw = p.yaw;
+			}
 
 			// first handle yaw
 			float x_x = 1.0 * cos(p.odom_yaw) - 0.0 * sin(p.odom_yaw);

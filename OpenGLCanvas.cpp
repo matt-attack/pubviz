@@ -50,6 +50,9 @@ void OpenGLCanvas::ResetView()
 	view_x_ = 0.0;
 	view_y_ = 0.0;
 	view_z_ = 0.0;
+	view_abs_x_ = 0.0;
+	view_abs_y_ = 0.0;
+	view_abs_z_ = 0.0;
 	pitch_ = 0.0;
 	yaw_ = 0.0;
 	
@@ -75,6 +78,9 @@ void OpenGLCanvas::OnMouseMoved(int x, int y, int dx, int dy)
 		{
 			view_x_ -= dx/pixels_per_meter;
 			view_y_ += dy/pixels_per_meter;
+
+			view_abs_x_ -= dx / pixels_per_meter;
+			view_abs_y_ += dy / pixels_per_meter;
 		}
 		else
 		{
@@ -119,6 +125,17 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 	glPushAttrib(GL_ALL_ATTRIB_BITS);
+
+	double view_x = view_x_;
+	double view_y = view_y_;
+	double view_z = view_z_;
+	if (wgs84_mode_)
+	{
+		view_x = view_abs_x_;
+		view_y = view_abs_y_;
+		view_z = view_abs_z_;
+		//local_xy_.FromLatLon(view_lat_, view_lon_, view_x, view_y);
+	}
 	
 	if (view_type_ == ViewType::TopDown)
 	{
@@ -127,7 +144,7 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		float half_width = half_height*(float)GetCanvas()->Width()/(float)GetCanvas()->Height();
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
-		glOrtho( -half_width + view_x_, half_width + view_x_, -half_height + view_y_, half_height + view_y_, -10000.0, 10000.0 );
+		glOrtho( -half_width + view_x, half_width + view_x, -half_height + view_y, half_height + view_y, -10000.0, 10000.0 );
 	
 		// now apply other transforms
 		glMatrixMode(GL_MODELVIEW);
@@ -156,7 +173,7 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		glRotatef(pitch_, ax, ay, 0);
 		
 		
-		glTranslatef(-view_x_, -view_y_, -view_z_);
+		glTranslatef(-view_x, -view_y, -view_z);
 		
 		// we want depth testing in this mode
 		glEnable(GL_DEPTH_TEST);

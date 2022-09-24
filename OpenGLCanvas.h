@@ -8,6 +8,8 @@
 #include <Gwen/Gwen.h>
 #include <Gwen/Skin.h>
 
+#include "LocalXY.h"
+
 enum class ViewType
 {
 	TopDown = 0,
@@ -20,6 +22,8 @@ class OpenGLCanvas : public Gwen::Controls::Base
 {
 	friend class PubViz;
 	public:
+
+		LocalXYUtil local_xy_;
 
 		GWEN_CONTROL( OpenGLCanvas, Gwen::Controls::Base );
 
@@ -46,13 +50,58 @@ class OpenGLCanvas : public Gwen::Controls::Base
 			
 			Redraw();
 		}
+
+		void ResetViewOrigin()
+		{
+			view_x_ = 0.0;
+			view_y_ = 0.0;
+			view_z_ = 0.0;
+
+			view_abs_x_ = 0.0;
+			view_abs_y_ = 0.0;
+			view_abs_z_ = 0.0;
+			view_lat_ = local_xy_.OriginLatitude();
+			view_lon_ = local_xy_.OriginLongitude();
+			view_alt_ = 0.0;
+			Redraw();
+		}
+
+		double view_abs_x_ = 0.0;
+		double view_abs_y_ = 0.0;
+		double view_abs_z_ = 0.0;
+
+		double view_lat_ = 0.0;
+		double view_lon_ = 0.0;
+		double view_alt_ = 0.0;
+
+		// sets the origin if it hasnt already been set
+		void SetLocalXY(double lat, double lon)
+		{
+			if (!local_xy_.Initialized() && lat != 0.0 && lon != 0.0)
+			{
+				local_xy_ = LocalXYUtil(lat, lon);
+			}
+		}
 		
-		void SetViewOrigin(double x, double y, double z)
+		void SetViewOrigin(double x, double y, double z, double lat, double lon, double alt)
 		{
 			view_x_ = x;
 			view_y_ = y;
 			view_z_ = z;
+			view_lat_ = lat;
+			view_lon_ = lon;
+			view_alt_ = alt;
+			view_abs_z_ = alt;
+			SetLocalXY(lat, lon);
+			local_xy_.FromLatLon(view_lat_, view_lon_, view_abs_x_, view_abs_y_);
+
 			Redraw();
+		}
+
+		bool wgs84_mode_ = false;
+		void SetFrame(bool wgs84)
+		{
+			wgs84_mode_ = wgs84;
 		}
 		
 		virtual void Layout( Gwen::Skin::Base* skin ) override;
