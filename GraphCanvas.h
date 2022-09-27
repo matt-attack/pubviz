@@ -59,12 +59,6 @@ class GraphCanvas : public Gwen::Controls::Base
 		const Gwen::Color & GetColor() { return m_Color; }
 		void SetColor( const Gwen::Color & col ) { m_Color = col; }
 		
-		void GetMousePosition(double& x, double& y)
-		{
-			x = x_mouse_position_;
-			y = y_mouse_position_;
-		}
-		
 		void AddSample(double value, pubsub::Time time, Subscriber* sub);
 
 	protected:
@@ -83,21 +77,13 @@ class GraphCanvas : public Gwen::Controls::Base
 		void HandleMessage(const void* message, const ps_message_definition_t* def, Subscriber* sub);
 
 		Gwen::Color		m_Color;
-		double view_height_m_;
-		bool mouse_down_ = false;
 		
 		Gwen::Controls::TextBox* field_name_;
 		Gwen::Controls::TextBox* topic_name_box_;
 		
 		std::vector<Subscriber*> subscribers_;
 		
-		double view_x_ = 0.0;
-		double view_y_ = 0.0;
-		
 		Gwen::Controls::ListBox* topic_list_;
-		
-		double x_mouse_position_ = 0.0;
-		double y_mouse_position_ = 0.0;
 		
 		// these change as we get more samples
 		double min_x_ = 0.0;

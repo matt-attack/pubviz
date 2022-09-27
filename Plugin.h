@@ -162,6 +162,13 @@ public:
 		properties_[name] = prop;
 		return prop;
 	}
+
+    EnumProperty* AddEnumProperty(Gwen::Controls::Properties* tree, const char* name, std::string def, std::vector<std::string> enums)
+    {
+        auto prop = new EnumProperty(tree, name, def, enums);
+        properties_[name] = prop;
+        return prop;
+    }
 };
 
 #endif

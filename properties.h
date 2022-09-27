@@ -5,6 +5,7 @@
 #include <Gwen/Controls/PropertyTree.h>
 #include <Gwen/Controls/Property/Checkbox.h>
 #include <Gwen/Controls/Property/ColorSelector.h>
+#include <Gwen/Controls/Property/ComboBox.h>
 #include <Gwen/Controls/Property/Numeric.h>
 #include <Gwen/Controls/Property/Folder.h>
 
@@ -69,6 +70,16 @@ public:
 		property_->Redraw();
 	}
 
+    void Hide()
+    {
+        property_->GetParent()->Hide();
+    }
+
+    void Show()
+    {
+        property_->GetParent()->Show();
+    }
+
 	std::function<void(bool)> onChange;
 };
 
@@ -119,6 +130,16 @@ public:
 		value_ = std::atoi(str.c_str());
 		property_->SetPropertyValue(str, true);
 	}
+
+    void Hide()
+    {
+        property_->GetParent()->Hide();
+    }
+
+    void Show()
+    {
+        property_->GetParent()->Show();
+    }
 	
 	std::function<void(int)> onChange;
 };
@@ -166,6 +187,16 @@ public:
 		value_ = std::atof(str.c_str());
 		property_->SetPropertyValue(str, true);
 	}
+
+    void Hide()
+    {
+        property_->GetParent()->Hide();
+    }
+
+    void Show()
+    {
+        property_->GetParent()->Show();
+    }
 };
 
 class TopicProperty: public PropertyBase
@@ -209,6 +240,16 @@ public:
 		value_ = str;
 		property_->SetPropertyValue(str, true);
 	}
+
+    void Hide()
+    {
+        property_->GetParent()->Hide();
+    }
+
+    void Show()
+    {
+        property_->GetParent()->Show();
+    }
 	
 	std::function<void(std::string)> onChange;
 };
@@ -254,6 +295,76 @@ public:
 		value_ = str;
 		property_->SetPropertyValue(str, true);
 	}
+
+    void Hide()
+    {
+        property_->GetParent()->Hide();
+    }
+
+    void Show()
+    {
+        property_->GetParent()->Show();
+    }
+	
+	std::function<void(std::string)> onChange;
+};
+
+class EnumProperty: public PropertyBase
+{
+	Gwen::Controls::Property::ComboBox* property_;
+	
+	std::string value_;
+	
+	void cbOnChange(Gwen::Controls::Base* prop)
+	{
+		property_->Redraw();
+		value_ = property_->GetPropertyValue().c_str();
+		if (onChange)
+		{
+			onChange(value_);
+		}
+	}
+	
+public:
+
+	EnumProperty(Gwen::Controls::Properties* tree, const std::string& name, std::string value, std::vector<std::string> enums)
+	{
+		property_ = new Gwen::Controls::Property::ComboBox(tree);
+        auto box = property_->GetComboBox();
+        for (auto& item: enums)
+        {
+            box->AddItem(Gwen::Utility::StringToUnicode(item), item);
+        }
+		auto item = tree->Add(name, property_, value);
+		item->onChange.Add(this, &EnumProperty::cbOnChange);
+		value_ = value;
+	}
+	
+	std::string GetValue()
+	{
+		return value_;
+	}
+	
+	virtual std::string Serialize()
+	{
+		return value_;
+	}
+	
+	virtual void Deserialize(const std::string& str)
+	{
+		value_ = str;
+		property_->SetPropertyValue(str, true);
+	}
+
+    void Hide()
+    {
+        property_->GetParent()->Hide();
+    }
+
+    void Show()
+    {
+        property_->GetParent()->Show();
+    }
 	
 	std::function<void(std::string)> onChange;
 };
@@ -298,6 +409,16 @@ public:
 	{
 		property_->SetPropertyValue(str, true);
 	}
+
+    void Hide()
+    {
+        property_->GetParent()->Hide();
+    }
+
+    void Show()
+    {
+        property_->GetParent()->Show();
+    }
 };
 
 #endif

@@ -48,7 +48,7 @@
 #include "plugins/Marker.h"
 #include "plugins/PointCloud.h"
 #include "plugins/Pose.h"
-#include "plugins/Path.h"
+//#include "plugins/Path.h"
 
 #include <Gwen/Controls/Dialogs/FileOpen.h>
 #include <Gwen/Controls/Dialogs/FileSave.h>
@@ -239,6 +239,10 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	}
 	{
 		Gwen::Controls::MenuItem* pRoot = menu_->AddItem(L"View");
+		Gwen::Controls::MenuItem* pCheckable = pRoot->GetMenu()->AddItem( "Show Config" );
+		pCheckable->SetCheckable( true );
+		pCheckable->SetChecked( true );
+        pCheckable->onCheckChange.Add(this, &ThisClass::OnShowConfigChanged);
 		pRoot->GetMenu()->AddItem(L"Plot", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Change Parameters", "", "Shift+P")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddDivider();
@@ -276,7 +280,7 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	add_button->SetText( L"Add Plugin" );
 	
 	//ps_node_init_ex(&node_, "pubviz_real", "", false, false);
-	ps_node_init(&node_, "pubviz_real", "", true);
+	ps_node_init_ex(&node_, "pubviz_real", "", true, false);
 	
 	struct ps_transport_t tcp_transport;
     ps_tcp_transport_init(&tcp_transport, &node_);
@@ -334,6 +338,23 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	m_iFrames = 0;
 }
 
+void PubViz::OnShowConfigChanged(Gwen::Controls::Base* control)
+{
+    auto item = (Gwen::Controls::MenuItem*)control;
+
+    // eh, this isnt great but mostly works
+    auto tree = plugin_tree_->GetParent()->GetParent()->GetParent();
+
+    if (item->GetChecked())
+    {
+        tree->Show();
+    }
+    else
+    {
+        tree->Hide();
+    }
+}
+
 void PubViz::OnCenter(Gwen::Controls::Base* control)
 {
 	canvas_->ResetView();
@@ -379,7 +400,7 @@ Plugin* PubViz::AddPlugin(const std::string& name)
 	}
 	else if (name == "path")
 	{
-		plugin = new PathPlugin();
+		//plugin = new PathPlugin();
 	}
 	else
 	{

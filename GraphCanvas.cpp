@@ -27,7 +27,6 @@ static std::map<std::string, bool> _topics;
 
 GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 {
-	view_height_m_ = 150.0;
 	m_Color = Gwen::Color( 255, 255, 255, 255 );
 	
 	// lets test some pubsub stuff here
@@ -79,8 +78,8 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 	if (!node_initialized)
 	{
 		// first lets get a list of all topics, and then subscribe to them
-		//ps_node_init_ex(&node, "pubviz", "", false, false);
-		ps_node_init(&node, "pubviz", "", false);
+		ps_node_init_ex(&node, "pubviz", "", false, false);
+		//ps_node_init(&node, "pubviz", "", false);
 
 		ps_node_system_query(&node);
 
@@ -272,16 +271,6 @@ void GraphCanvas::HandleMessage(const void* data, const ps_message_definition_t*
 
 bool GraphCanvas::OnMouseWheeled( int delta )
 {
-	if (delta < 0)
-	{
-		view_height_m_ += 0.1*(double)delta;
-		view_height_m_ = std::max(1.0, view_height_m_);
-	}
-	else
-	{
-		view_height_m_ += 0.1*(double)delta;
-	}
-	
 	return true;
 }
 
@@ -304,22 +293,12 @@ void GraphCanvas::AddSample(double value, pubsub::Time time, Subscriber* sub)
 
 void GraphCanvas::OnMouseClickLeft( int /*x*/, int /*y*/, bool down )
 {
-	mouse_down_ = down;
+
 }
 
 void GraphCanvas::OnMouseMoved(int x, int y, int dx, int dy)
 {
-	// now convert to units
-	double pixels_per_meter = GetCanvas()->Height()/view_height_m_;
-	x_mouse_position_ = (x - GetCanvas()->Width()*0.5)/pixels_per_meter + view_x_;
-	y_mouse_position_ = (GetCanvas()->Height()*0.5 - y)/pixels_per_meter + view_y_;
-	
-	// now apply offset
-	if (mouse_down_)
-	{
-		view_x_ -= dx/pixels_per_meter;
-		view_y_ += dy/pixels_per_meter;
-	}
+
 }
 
 const static float colors[][3] = {{1,0,0},{0,1,0},{0,0,1}, {0,1,1}, {1,0,1}, {1,1,0}};
