@@ -33,6 +33,7 @@ int main(int argc, char** args)
 	//app.SetDefaultFont("Open Sans", 10);
 
 	auto window = app.AddWindow("Pubviz", 700, 500);
+    window->SetMinimumSize(Gwen::Point(100, 100));
 	PubViz* ppUnit = new PubViz(window);
 	ppUnit->SetPos(0, 0);
 	

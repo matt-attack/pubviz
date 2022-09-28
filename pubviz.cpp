@@ -266,7 +266,7 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	props->SetSplitWidth(150);
 	auto row = props->Add(L"Background Color", new Gwen::Controls::Property::ColorSelector(props), L"50 50 50");
 	row->onChange.Add(this, &ThisClass::OnBackgroundChange);
-	auto row2 = props->Add(L"WGS84 Frame", new Gwen::Controls::Property::Checkbox(props), L"true");
+	auto row2 = props->Add(L"WGS84 Frame", new Gwen::Controls::Property::Checkbox(props), L"false");
 	row2->onChange.Add(this, &ThisClass::OnFrameChange);
 	
 	plugin_tree_->ExpandAll();
@@ -314,7 +314,7 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	canvas_ = new OpenGLCanvas(this);
 	canvas_->Dock(Pos::Fill);
 	canvas_->plugins_ = plugins_;//todo lets not maintain two lists
-	canvas_->SetFrame(true);
+	canvas_->SetFrame(false);
 	
 	AddPlugin("grid");
 		AddPlugin("costmap");
