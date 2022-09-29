@@ -47,10 +47,17 @@ class PointCloudPlugin: public Plugin
     // Used in interpolated mode and clamped mode
 	ColorProperty* min_color_;
 	ColorProperty* max_color_;
+    BooleanProperty* auto_min_max_;
+
+    // Used when auto min_max is false
+    FloatProperty* min_value_;
+    FloatProperty* max_value_;
 
     // Used in clamped mode
     ColorProperty* floored_color_;
     ColorProperty* ceiled_color_;
+
+    // Used 
 
     // Used in single color mode
     ColorProperty* single_color_;
@@ -94,12 +101,15 @@ class PointCloudPlugin: public Plugin
         floored_color_->Hide();
         single_color_->Hide();
         coloring_field_->Hide();
+        auto_min_max_->Hide();
+        AutoMinMaxChange(auto_min_max_->GetValue());
         // show the desired properties
         if (mode == "Interpolated")
         {
             min_color_->Show();
             max_color_->Show();
             coloring_field_->Show();
+            auto_min_max_->Show();
         }
         else if (mode == "Clamped")
         {
@@ -108,19 +118,38 @@ class PointCloudPlugin: public Plugin
             ceiled_color_->Show();
             floored_color_->Show();
             coloring_field_->Show();
+            auto_min_max_->Show();
         }
         else if (mode == "Single Color")
         {
             single_color_->Show();
             coloring_field_->Show();
+            min_value_->Hide();
+            max_value_->Hide();
         }
         else if (mode == "Jet")
         {
-            coloring_field_->Show();            
+            coloring_field_->Show();  
+            auto_min_max_->Show();          
         }
         else if (mode == "Rainbow")
         {
             coloring_field_->Show();
+            auto_min_max_->Show();
+        }
+    }
+
+    void AutoMinMaxChange(bool value)
+    {
+        if (value)
+        {
+            min_value_->Hide();
+            max_value_->Hide();
+        }
+        else
+        {
+            min_value_->Show();
+            max_value_->Show();
         }
     }
 	
@@ -336,12 +365,21 @@ public:
                     // get min and max for the field
                     float min = 100000000.0;
                     float max = -100000000.0;
-                    for (int i = 0; i < data->num_points; i++)
-					{
-					    auto value = ((float*)data->data)[i*4+color_offset];
-                        min = std::min(min, value);
-                        max = std::max(max, value);
+                    if (auto_min_max_->GetValue())
+                    {
+                        for (int i = 0; i < data->num_points; i++)
+					    {
+					        auto value = ((float*)data->data)[i*4+color_offset];
+                            min = std::min(min, value);
+                            max = std::max(max, value);
+                        }
                     }
+                    else
+                    {
+                        min = min_value_->GetValue();
+                        max = max_value_->GetValue();
+                    }
+
                     float byte_scale = 255.0/(max-min);
                     float scale = 1.0/(max-min);
 
@@ -355,6 +393,10 @@ public:
 						    point_buf_[i].y = ((float*)data->data)[i*4+1];
 					    	point_buf_[i].z = ((float*)data->data)[i*4+2];
 						    int index = (((float*)data->data)[i*4+color_offset]-min)*byte_scale;
+                            if (index < 0)
+                                index = 0;
+                            else if (index > 255)
+                                index = 255;
 						    uint8_t r = table[index].r;
 						    uint8_t g = table[index].g;
 						    uint8_t b = table[index].b;
@@ -379,12 +421,31 @@ public:
                     }
                     else
                     {
+                        Gwen::Color lt_min_color = min_color;
+                        Gwen::Color gt_max_color = max_color;
+                        if (mode == "Clamped")
+                        {
+                            lt_min_color = floored_color_->GetValue();
+                            gt_max_color = ceiled_color_->GetValue();
+                        }
 					    for (int i = 0; i < data->num_points; i++)
 					    {
 					    	point_buf_[i].x = ((float*)data->data)[i*4];
 						    point_buf_[i].y = ((float*)data->data)[i*4+1];
 					    	point_buf_[i].z = ((float*)data->data)[i*4+2];
 						    float frac = (((float*)data->data)[i*4+color_offset]-min)*scale;
+                            if (frac < 0)
+                            {
+                                frac = 0;
+                                color_buf_[i] = (alpha << 24) | lt_min_color.r | (lt_min_color.g << 8) | (lt_min_color.b << 16);
+                                continue;
+                            }
+                            else if (frac > 1.0)
+                            {
+                                frac = 1.0;
+color_buf_[i] = (alpha << 24) | gt_max_color.r | (gt_max_color.g << 8) | (gt_max_color.b << 16);
+                                continue;
+                            }
 						    uint8_t r = frac*(max_color.r - min_color.r) + min_color.r;
 						    uint8_t g = frac*(max_color.g - min_color.g) + min_color.g;
 						    uint8_t b = frac*(max_color.b - min_color.b) + min_color.b;
@@ -520,6 +581,13 @@ public:
 		max_color_ = AddColorProperty(tree, "Min Color", Gwen::Color(255,0,0));
 
         single_color_ = AddColorProperty(tree, "Point Color", Gwen::Color(255,255,255));
+
+        auto_min_max_ = AddBooleanProperty(tree, "Auto Min/Max", true);
+        auto_min_max_->onChange = std::bind(&PointCloudPlugin::AutoMinMaxChange, this, std::placeholders::_1);
+
+        min_value_ = AddFloatProperty(tree, "Min Value", 0.0,   -1000000.0, 1000000.0);
+        max_value_ = AddFloatProperty(tree, "Max Value", 255.0, -1000000.0, 1000000.0);
+
 
         // build color lookup tables
         for (int i = 0; i < 256; i++)
