@@ -182,18 +182,18 @@ public:
 	virtual void Initialize(Gwen::Controls::Properties* tree)
 	{
 		// add any properties
-		alpha_ = AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1);
+		alpha_ = AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1, "Pose visualization transparency.");
 		
 		color_ = AddColorProperty(tree, "Color", Gwen::Color(255,50,50));
 		
 		topic_ = AddTopicProperty(tree, "Topic", "/pose");
 		topic_->onChange = std::bind(&PosePlugin::Subscribe, this, std::placeholders::_1);
 		
-		line_width_ = AddNumberProperty(tree, "Line Width", 4, 1, 100, 2);
+		line_width_ = AddNumberProperty(tree, "Line Width", 4, 1, 100, 2, "Width in pixels of lines.");
 
-		line_length_ = AddFloatProperty(tree, "Line Length", 5, 0.1, 100, 2);
+		line_length_ = AddFloatProperty(tree, "Line Length", 5, 0.1, 100, 2, "Length in world units of lines.");
 
-		follow_pose_ = AddBooleanProperty(tree, "Follow", false);
+		follow_pose_ = AddBooleanProperty(tree, "Follow", false, "If true, center the view on this pose.");
 		follow_pose_->onChange = std::bind(&PosePlugin::OnFollowChange, this, std::placeholders::_1);
 		
 		Subscribe(topic_->GetValue());

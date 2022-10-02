@@ -245,14 +245,13 @@ public:
 	virtual void Initialize(Gwen::Controls::Properties* tree)
 	{
 		// add any properties
-		alpha_ = AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1);
+		alpha_ = AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1, "Costmap transparency.");
 		
-		color_ = AddColorProperty(tree, "Outline Color", Gwen::Color(255,50,50));
-		
-		topic_ = AddTopicProperty(tree, "Topic", "/costmap");
+		topic_ = AddTopicProperty(tree, "Topic", "/costmap", "");
 		topic_->onChange = std::bind(&CostmapPlugin::Subscribe, this, std::placeholders::_1);
 		
-		show_outline_ = AddBooleanProperty(tree, "Show Outline", true);
+		show_outline_ = AddBooleanProperty(tree, "Show Outline", true, "If true, draw an outline around the costmap.");
+		color_ = AddColorProperty(tree, "Outline Color", Gwen::Color(255,50,50), "Color to use to draw border of costmap.");
 		
 		Subscribe(topic_->GetValue());
 	}

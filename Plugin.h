@@ -118,9 +118,10 @@ public:
 	NumberProperty* AddNumberProperty(Gwen::Controls::Properties* tree, const char* name, int num,
 	  int min = 0,
 	  int max = 100,
-	  int increment = 1)
+	  int increment = 1,
+      const std::string& description = "")
 	{
-		auto prop = new NumberProperty(tree, name, num, min, max, increment);
+		auto prop = new NumberProperty(tree, name, num, min, max, increment, description);
 		properties_[name] = prop;
 		return prop;
 	}
@@ -128,44 +129,50 @@ public:
 	FloatProperty* AddFloatProperty(Gwen::Controls::Properties* tree, const char* name, double num,
 	  double min = 0.0,
 	  double max = 100.0,
-	  double increment = 1.0)
+	  double increment = 1.0,
+      const std::string& description = "")
 	{
-		auto prop = new FloatProperty(tree, name, num, min, max, increment);
+		auto prop = new FloatProperty(tree, name, num, min, max, increment, description);
 		properties_[name] = prop;
 		return prop;
 	}
 	
-	ColorProperty* AddColorProperty(Gwen::Controls::Properties* tree, const char* name, Gwen::Color color)
+	ColorProperty* AddColorProperty(Gwen::Controls::Properties* tree, const char* name, Gwen::Color color,
+      const std::string& description = "")
 	{
-		auto prop = new ColorProperty(tree, name, color);
+		auto prop = new ColorProperty(tree, name, color, description);
 		properties_[name] = prop;
 		return prop;
 	}
 	
-	BooleanProperty* AddBooleanProperty(Gwen::Controls::Properties* tree, const char* name, bool val)
+	BooleanProperty* AddBooleanProperty(Gwen::Controls::Properties* tree, const char* name, bool val,
+      const std::string& description = "")
 	{
-		auto prop = new BooleanProperty(tree, name, val);
+		auto prop = new BooleanProperty(tree, name, val, description);
 		properties_[name] = prop;
 		return prop;
 	}
 	
-	TopicProperty* AddTopicProperty(Gwen::Controls::Properties* tree, const char* name, std::string topic)
+	TopicProperty* AddTopicProperty(Gwen::Controls::Properties* tree, const char* name, std::string topic,
+      const std::string& description = "")
 	{
-		auto prop = new TopicProperty(tree, name, topic);
+		auto prop = new TopicProperty(tree, name, topic, description);
 		properties_[name] = prop;
 		return prop;
 	}
 	
-	StringProperty* AddStringProperty(Gwen::Controls::Properties* tree, const char* name, std::string val)
+	StringProperty* AddStringProperty(Gwen::Controls::Properties* tree, const char* name, std::string val,
+      const std::string& description = "")
 	{
-		auto prop = new StringProperty(tree, name, val);
+		auto prop = new StringProperty(tree, name, val, description);
 		properties_[name] = prop;
 		return prop;
 	}
 
-    EnumProperty* AddEnumProperty(Gwen::Controls::Properties* tree, const char* name, std::string def, std::vector<std::string> enums)
+    EnumProperty* AddEnumProperty(Gwen::Controls::Properties* tree, const char* name, std::string def, std::vector<std::string> enums,
+      const std::string& description = "")
     {
-        auto prop = new EnumProperty(tree, name, def, enums);
+        auto prop = new EnumProperty(tree, name, def, enums, description);
         properties_[name] = prop;
         return prop;
     }

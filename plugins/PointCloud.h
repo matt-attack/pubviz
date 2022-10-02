@@ -555,38 +555,38 @@ color_buf_[i] = (alpha << 24) | gt_max_color.r | (gt_max_color.g << 8) | (gt_max
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		// add any properties
-		alpha_ = AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1);
+		alpha_ = AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1, "Point transparency.");
 		
 		topic_ = AddTopicProperty(tree, "Topic", "/pointcloud");
 		topic_->onChange = std::bind(&PointCloudPlugin::Subscribe, this, std::placeholders::_1);
 		
-		point_text_ = AddStringProperty(tree, "Text", "");
+		point_text_ = AddStringProperty(tree, "Text", "", "If set, visualize the points as the given characters.");
 		point_text_->onChange = std::bind(&PointCloudPlugin::TextChange, this, std::placeholders::_1);
 		TextChange(point_text_->GetValue());
 		
-		history_length_ = AddNumberProperty(tree, "History Length", 1, 1, 100, 1);
+		history_length_ = AddNumberProperty(tree, "History Length", 1, 1, 100, 1, "Number of past pointclouds to show.");
 		history_length_->onChange = std::bind(&PointCloudPlugin::HistoryLengthChange, this, std::placeholders::_1);
 		
-		point_size_ = AddNumberProperty(tree, "Point Size", 4, 1, 100, 2);
+		point_size_ = AddNumberProperty(tree, "Point Size", 4, 1, 100, 2, "Size in pixels for points.");
 
-        coloring_mode_ = AddEnumProperty(tree, "Coloring Mode", "Interpolated", {"Interpolated", "Clamped", "Jet", "Rainbow", "Single Color"});
+		coloring_mode_ = AddEnumProperty(tree, "Coloring Mode", "Interpolated", {"Interpolated", "Clamped", "Jet", "Rainbow", "Single Color"}, "Coloring mode.");
 		coloring_mode_->onChange = std::bind(&PointCloudPlugin::ColoringModeChange, this, std::placeholders::_1);
 
-        coloring_field_ = AddEnumProperty(tree, "Coloring Mode", "Intensity", {"Intensity", "X", "Y", "Z"});
+		coloring_field_ = AddEnumProperty(tree, "Coloring Mode", "Intensity", {"Intensity", "X", "Y", "Z"}, "Point field to use for coloring points.");
 
-		floored_color_ = AddColorProperty(tree, "Floor Color", Gwen::Color(0,255,0));
-		ceiled_color_ = AddColorProperty(tree, "Ceiling Color", Gwen::Color(255,255,0));
+		floored_color_ = AddColorProperty(tree, "Floor Color", Gwen::Color(0,255,0), "Color for points below the minimum value.");
+		ceiled_color_ = AddColorProperty(tree, "Ceiling Color", Gwen::Color(255,255,0), "Color for points above the minimum value.");
 		
-		min_color_ = AddColorProperty(tree, "Max Color", Gwen::Color(255,255,255));
-		max_color_ = AddColorProperty(tree, "Min Color", Gwen::Color(255,0,0));
+		min_color_ = AddColorProperty(tree, "Max Color", Gwen::Color(255,255,255), "Color for the minimum value.");
+		max_color_ = AddColorProperty(tree, "Min Color", Gwen::Color(255,0,0), "Color for the maximum value.");
 
-        single_color_ = AddColorProperty(tree, "Point Color", Gwen::Color(255,255,255));
+		single_color_ = AddColorProperty(tree, "Point Color", Gwen::Color(255,255,255), "Color for points.");
 
-        auto_min_max_ = AddBooleanProperty(tree, "Auto Min/Max", true);
-        auto_min_max_->onChange = std::bind(&PointCloudPlugin::AutoMinMaxChange, this, std::placeholders::_1);
+		auto_min_max_ = AddBooleanProperty(tree, "Auto Min/Max", true, "If true, determine the min max values from each pointcloud automatically.");
+		auto_min_max_->onChange = std::bind(&PointCloudPlugin::AutoMinMaxChange, this, std::placeholders::_1);
 
-        min_value_ = AddFloatProperty(tree, "Min Value", 0.0,   -1000000.0, 1000000.0);
-        max_value_ = AddFloatProperty(tree, "Max Value", 255.0, -1000000.0, 1000000.0);
+		min_value_ = AddFloatProperty(tree, "Min Value", 0.0,   -1000000.0, 1000000.0, 1.0, "Value at which min color is used.");
+		max_value_ = AddFloatProperty(tree, "Max Value", 255.0, -1000000.0, 1000000.0, 1.0, "Value at which max color is used.");
 
 
         // build color lookup tables

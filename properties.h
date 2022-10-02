@@ -38,11 +38,15 @@ class BooleanProperty: public PropertyBase
 	
 public:
 
-	BooleanProperty(Gwen::Controls::Properties* tree, const std::string& name, bool val)
+	BooleanProperty(Gwen::Controls::Properties* tree, const std::string& name, bool val, const std::string& description = "")
 	{
 		property_ = new Gwen::Controls::Property::Checkbox(tree);
 		auto item = tree->Add(name, property_, val ? "1" : "0");
 		item->onChange.Add(this, &BooleanProperty::OnChange);
+		if (description.length())
+		{
+			item->SetToolTip(description);
+		}
 		value_ = val;
 	}
 	
@@ -104,7 +108,7 @@ public:
 	NumberProperty(Gwen::Controls::Properties* tree, const std::string& name, int num,
 	  int min = 0,
 	  int max = 100,
-	  int increment = 1)
+	  int increment = 1, const std::string& description = "")
 	{
 		property_ = new Gwen::Controls::Property::Numeric(tree);
 		property_->m_Numeric->SetMin(min);
@@ -112,6 +116,10 @@ public:
 		property_->m_Numeric->SetIncrement(increment);
 		auto item = tree->Add(name, property_, std::to_string(num));
 		item->onChange.Add(this, &NumberProperty::cbOnChange);
+		if (description.length())
+		{
+			item->SetToolTip(description);
+		}
 		value_ = num;
 	}
 	
@@ -161,7 +169,7 @@ public:
 	FloatProperty(Gwen::Controls::Properties* tree, const std::string& name, double num,
 	  double min = 0.0,
 	  double max = 100.0,
-	  double increment = 1.0)
+	  double increment = 1.0, const std::string& description = "")
 	{
 		property_ = new Gwen::Controls::Property::Float(tree);
 		property_->m_Numeric->SetMin(min);
@@ -169,6 +177,10 @@ public:
 		property_->m_Numeric->SetIncrement(increment);
 		auto item = tree->Add(name, property_, std::to_string(num));
 		item->onChange.Add(this, &FloatProperty::onChange);
+		if (description.length())
+		{
+			item->SetToolTip(description);
+		}
 		value_ = num;
 	}
 	
@@ -217,11 +229,15 @@ class TopicProperty: public PropertyBase
 	
 public:
 
-	TopicProperty(Gwen::Controls::Properties* tree, const std::string& name, std::string topic = "")
+	TopicProperty(Gwen::Controls::Properties* tree, const std::string& name, std::string topic = "", const std::string& description = "")
 	{
 		property_ = new Gwen::Controls::Property::Text(tree);
 		auto item = tree->Add(name, property_, topic);
 		item->onChange.Add(this, &TopicProperty::cbOnChange);
+		if (description.length())
+		{
+			item->SetToolTip(description);
+		}
 		value_ = topic;
 	}
 	
@@ -272,11 +288,15 @@ class StringProperty: public PropertyBase
 	
 public:
 
-	StringProperty(Gwen::Controls::Properties* tree, const std::string& name, std::string topic = "")
+	StringProperty(Gwen::Controls::Properties* tree, const std::string& name, std::string topic = "", const std::string& description = "")
 	{
 		property_ = new Gwen::Controls::Property::Text(tree);
 		auto item = tree->Add(name, property_, topic);
 		item->onChange.Add(this, &StringProperty::cbOnChange);
+		if (description.length())
+		{
+			item->SetToolTip(description);
+		}
 		value_ = topic;
 	}
 	
@@ -327,7 +347,7 @@ class EnumProperty: public PropertyBase
 	
 public:
 
-	EnumProperty(Gwen::Controls::Properties* tree, const std::string& name, std::string value, std::vector<std::string> enums)
+	EnumProperty(Gwen::Controls::Properties* tree, const std::string& name, std::string value, std::vector<std::string> enums, const std::string& description = "")
 	{
 		property_ = new Gwen::Controls::Property::ComboBox(tree);
         auto box = property_->GetComboBox();
@@ -337,6 +357,10 @@ public:
         }
 		auto item = tree->Add(name, property_, value);
 		item->onChange.Add(this, &EnumProperty::cbOnChange);
+        if (description.length())
+        {
+            item->SetToolTip(description);
+        }
 		value_ = value;
 	}
 	
@@ -385,13 +409,17 @@ class ColorProperty: public PropertyBase
 	
 public:
 
-	ColorProperty(Gwen::Controls::Properties* tree, const std::string& name, Gwen::Color color)
+	ColorProperty(Gwen::Controls::Properties* tree, const std::string& name, Gwen::Color color, const std::string& description = "")
 	{
 		std::string c_str = std::to_string(color.r) + " ";
 		c_str += std::to_string(color.g) + " " + std::to_string(color.b);
 		property_ = new Gwen::Controls::Property::ColorSelector(tree);
 		auto item = tree->Add(name, property_, c_str);
 		item->onChange.Add(this, &ColorProperty::onChange);
+        if (description.length())
+        {
+            item->SetToolTip(description);
+        }
 		value_ = color;
 	}
 	
