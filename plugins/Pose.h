@@ -39,6 +39,8 @@ class PosePlugin: public Plugin
 	NumberProperty* line_width_;
 	FloatProperty* line_length_;
 	BooleanProperty* follow_pose_;
+	NumberProperty* history_length_;
+	FloatProperty* sample_distance_;
 	
 	TopicProperty* topic_;
 	
@@ -57,6 +59,22 @@ class PosePlugin: public Plugin
 		if (!state)
 		{
 			GetCanvas()->ResetViewOrigin();
+		}
+	}
+
+	void OnHistoryChange(int length)
+	{
+		if (messages_.size() > length)
+		{
+			messages_.resize(length);
+		}
+	}
+
+	void OnSampleDistanceChange(double d)
+	{
+		while (messages_.size() > 1)
+		{
+			messages_.pop_front();
 		}
 	}
 	
@@ -105,11 +123,50 @@ public:
 		pubsub::msg::Pose* data;
 		if (sub_open_)
 		{
+			double sample_dist = sample_distance_->GetValue();
+			auto sample_dist_sqr = sample_dist*sample_dist;
 			while (data = (pubsub::msg::Pose*)ps_sub_deque(&subscriber_))
 			{
-				// user is responsible for freeing the message and its arrays
-				messages_.clear();
-				messages_.push_back(*data);
+				if (Paused())
+				{
+				    free(data);//todo use allocator free
+					continue;
+				}
+
+                // if sample distance
+                if (sample_dist > 0.0)
+                {
+                    // always have at least two samples
+                    if (messages_.size() < 2)
+                    {
+                        messages_.push_back(*data);
+                    }
+                    else
+                    {
+                        // replace the newest sample 
+                        auto& other = messages_[messages_.size()-2];
+                        double dx = (data->x-other.x); double dy = (data->y-other.y); double dz = (data->z-other.z);
+                        double current_distance = dx*dx + dy*dy + dz*dz;
+                        if (current_distance < sample_dist_sqr)
+                        {
+                            messages_.pop_back();
+                        }
+                        messages_.push_back(*data);
+                        // if new sample is > sample distance from last placed sample, insert a new one
+                    }
+                    
+                    // if the first s
+                }
+                else
+                {
+				    // always add
+				    messages_.push_back(*data);
+                }
+
+                while (messages_.size() > history_length_->GetValue())
+                {
+                    messages_.pop_front();
+                }
 
 				// todo is there a better way to do this?
 				GetCanvas()->SetLocalXY(data->latitude, data->longitude);
@@ -195,6 +252,11 @@ public:
 
 		follow_pose_ = AddBooleanProperty(tree, "Follow", false, "If true, center the view on this pose.");
 		follow_pose_->onChange = std::bind(&PosePlugin::OnFollowChange, this, std::placeholders::_1);
+
+		history_length_ = AddNumberProperty(tree, "History Length", 1, 1, 1000000, 2, "");
+		history_length_->onChange = std::bind(&PosePlugin::OnHistoryChange, this, std::placeholders::_1);
+		sample_distance_ = AddFloatProperty(tree, "Sample Distance", 10.0, 0.0, 100, 1, "");
+		sample_distance_->onChange = std::bind(&PosePlugin::OnSampleDistanceChange, this, std::placeholders::_1);
 		
 		Subscribe(topic_->GetValue());
 	}

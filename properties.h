@@ -158,10 +158,14 @@ class FloatProperty: public PropertyBase
 	
 	double value_;
 	
-	void onChange(Gwen::Controls::Base* prop)
+	void cbOnChange(Gwen::Controls::Base* prop)
 	{
 		property_->Redraw();
 		value_ = std::atof(property_->GetPropertyValue().c_str());
+		if (onChange)
+		{
+			onChange(value_);
+		}
 	}
 	
 public:
@@ -176,7 +180,7 @@ public:
 		property_->m_Numeric->SetMax(max);
 		property_->m_Numeric->SetIncrement(increment);
 		auto item = tree->Add(name, property_, std::to_string(num));
-		item->onChange.Add(this, &FloatProperty::onChange);
+		item->onChange.Add(this, &FloatProperty::cbOnChange);
 		if (description.length())
 		{
 			item->SetToolTip(description);
@@ -209,6 +213,8 @@ public:
     {
         property_->GetParent()->Show();
     }
+
+	std::function<void(int)> onChange;
 };
 
 class TopicProperty: public PropertyBase

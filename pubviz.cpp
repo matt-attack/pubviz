@@ -146,7 +146,11 @@ void PubViz::ClearPlugins()
 void PubViz::MenuItemSelect(Controls::Base* pControl)
 {
 	Gwen::Controls::MenuItem* pMenuItem = (Gwen::Controls::MenuItem*) pControl;
-	if (pMenuItem->GetText() == L"Quit")
+	if (pMenuItem->GetText() == L"Pause" || pMenuItem->GetText() == L"Go Live")
+	{
+		OnPause(0);
+	}
+	else if (pMenuItem->GetText() == L"Quit")
 	{
 		exit(0);
 	}
@@ -208,6 +212,10 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 	{
 		canvas_->SetViewAngle(0, 180);
 	}
+	else if (pMenuItem->GetText() == L"Reset")
+	{
+		canvas_->ResetView();
+	}
 }
 
 void PubViz::Layout(Skin::Base* skin)
@@ -245,6 +253,7 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
         pCheckable->onCheckChange.Add(this, &ThisClass::OnShowConfigChanged);
 		pRoot->GetMenu()->AddItem(L"Plot", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Change Parameters", "", "Shift+P")->SetAction(this, &ThisClass::MenuItemSelect);
+		pause_item_ = pRoot->GetMenu()->AddItem(L"Pause", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddDivider();
 		pRoot->GetMenu()->AddItem(L"Orbit", "", "Ctrl+O")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Top Down", "", "Ctrl+T")->SetAction(this, &ThisClass::MenuItemSelect);
@@ -252,6 +261,8 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 		pRoot->GetMenu()->AddItem(L"Top", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Left", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Front", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddDivider();
+		pRoot->GetMenu()->AddItem(L"Reset", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 	}	
 				
 	auto page = GetLeft()->GetTabControl()->AddPage("Plugins")->GetPage();
@@ -334,6 +345,12 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	center_button->SetText("Center");
 	center_button->onPress.Add( this, &ThisClass::OnCenter );
 
+	pause_button_ = new Controls::Button(m_StatusBar);
+	pause_button_->Dock(Pos::Right);
+	pause_button_->SetText("Pause");
+	pause_button_->onPress.Add( this, &ThisClass::OnPause );
+	canvas_->SetPaused(false);
+
 	m_fLastSecond = Gwen::Platform::GetTimeInSeconds();
 	m_iFrames = 0;
 }
@@ -352,6 +369,21 @@ void PubViz::OnShowConfigChanged(Gwen::Controls::Base* control)
     else
     {
         tree->Hide();
+    }
+}
+
+void PubViz::OnPause(Gwen::Controls::Base* control)
+{
+    canvas_->SetPaused(!canvas_->Paused());
+    if (canvas_->Paused())
+    {
+        pause_button_->SetText("Go Live");
+        pause_item_->SetText("Go Live");
+    }
+    else
+    {
+        pause_button_->SetText("Pause");
+        pause_item_->SetText("Pause");
     }
 }
 
@@ -409,10 +441,13 @@ Plugin* PubViz::AddPlugin(const std::string& name)
 	}
 	
 	Gwen::Controls::Properties* props = plugin_tree_->Add( name );
-	((Gwen::Controls::TreeNode*)props->GetParent())->Open();
+	auto node = (Gwen::Controls::TreeNode*)props->GetParent();
+	node->Open();
+	//node->GetButton()->SetTextColorOverride(Gwen::Color(255,0,0,255));
 	auto pRow = props->Add( L"Enable", new Gwen::Controls::Property::Checkbox( props ), L"1" );
 	pRow->onChange.Add( plugin, &Plugin::OnEnableChecked );
 	plugin->node_ = &node_;
+	plugin->plugin_button_ = node->GetButton();
 	plugin->canvas_ = canvas_;
 	plugin->Initialize(props);
 	props->SetSplitWidth(150);

@@ -172,6 +172,13 @@ public:
 		{
 			while (data = (pubsub::msg::Costmap*)ps_sub_deque(&subscriber_))
 			{
+				if (Paused())
+				{
+					free(data->data);
+					free(data);//todo use allocator free
+					continue;
+				}
+
 				// user is responsible for freeing the message and its arrays
 				last_msg_ = *data;
 				free(data->data);

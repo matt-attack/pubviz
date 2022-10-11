@@ -60,6 +60,7 @@ class PubViz : public Gwen::Controls::DockBase
 		void OnFrameChange(Gwen::Controls::Base* control);
 		void OnCenter(Gwen::Controls::Base* control);
         void OnShowConfigChanged(Gwen::Controls::Base* control);
+        void OnPause(Gwen::Controls::Base* control);
 		
 		void OnParametersClose(Gwen::Controls::Base* control)
 		{
@@ -72,6 +73,8 @@ class PubViz : public Gwen::Controls::DockBase
 		void ClearPlugins();
 		
 		Gwen::Controls::PropertyTree* plugin_tree_;
+		Gwen::Controls::Button* pause_button_;
+		Gwen::Controls::MenuItem* pause_item_;
 		OpenGLCanvas* canvas_;
 		
 		Parameters* parameters_page_ = 0;

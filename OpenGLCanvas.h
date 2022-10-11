@@ -51,6 +51,16 @@ class OpenGLCanvas : public Gwen::Controls::Base
 			Redraw();
 		}
 
+		inline bool Paused()
+		{
+			return paused_;
+		}
+
+		inline void SetPaused(bool paused)
+		{
+			paused_ = paused;
+		}
+
 		void ResetViewOrigin()
 		{
 			view_x_ = 0.0;
@@ -73,6 +83,7 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		double view_lat_ = 0.0;
 		double view_lon_ = 0.0;
 		double view_alt_ = 0.0;
+
 
 		// sets the origin if it hasnt already been set
 		void SetLocalXY(double lat, double lon)
@@ -131,6 +142,8 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		
 		double pitch_ = 0.0;
 		double yaw_ = 0.0;
+
+		bool paused_ = false;
 		
 		ViewType view_type_ = ViewType::Orbit;
 		

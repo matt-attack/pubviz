@@ -29,6 +29,7 @@ class Plugin: public Gwen::Event::Handler
 	ps_node_t* node_;
 	Gwen::Controls::Properties* props_;
 	OpenGLCanvas* canvas_;
+	Gwen::Controls::Button* plugin_button_;
 	
 	void OnEnableChecked( Gwen::Controls::Base* pControl )
 	{
@@ -51,6 +52,11 @@ public:
 	bool Enabled()
 	{
 		return enabled_;
+	}
+
+	bool Paused()
+	{
+		return canvas_->Paused();
 	}
 	
 	// Get the node for this view

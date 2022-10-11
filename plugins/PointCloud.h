@@ -300,6 +300,12 @@ public:
 			while (data = (pubsub::msg::PointCloud*)ps_sub_deque(&subscriber_))
 			{
 				// user is responsible for freeing the message and its arrays
+				if (Paused())
+				{
+				    free(data->data);
+				    free(data);//todo use allocator free
+					continue;
+				}
 				
 				// make a new cloud with this, reusing the last ones buffers if necessary
 				Cloud* cloud = 0;

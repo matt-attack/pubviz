@@ -95,6 +95,13 @@ public:
 		{
 			while (data = (pubsub::msg::Marker*)ps_sub_deque(&subscriber_))
 			{
+				if (Paused())
+				{
+				    free(data->data);
+				    free(data);//todo use allocator free
+					continue;
+				}
+
 				// user is responsible for freeing the message and its arrays
 				markers_[data->id] = *data;
 				free(data->data);
