@@ -113,6 +113,16 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	// do whatever we want here
 	skin->GetRender()->SetDrawColor( m_Color );// start by clearing to background color
 	skin->GetRender()->DrawFilledRect( GetRenderBounds() );
+
+    auto bounds = GetRenderBounds();
+    bounds.x += 5;
+    bounds.y += 5;
+    bounds.w -= 10;
+    bounds.h -= 10;
+
+    auto origin = LocalPosToCanvas();
+    auto width = Width();
+    auto height = Height();
 	
 	// force a flush essentially
 	r->EndClip();
@@ -136,12 +146,16 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		view_z = view_abs_z_;
 		//local_xy_.FromLatLon(view_lat_, view_lon_, view_x, view_y);
 	}
+
+    float vp[4];
+    glGetFloatv(GL_VIEWPORT, vp);
+    glViewport(origin.x, origin.y, width, height);
 	
 	if (view_type_ == ViewType::TopDown)
 	{
 		// set up the view matrix for the current zoom level (ortho, topdown)
 		float half_height = view_height_m_/2.0;
-		float half_width = half_height*(float)GetCanvas()->Width()/(float)GetCanvas()->Height();
+		float half_width = half_height*((float)width/(float)height);
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
 		glOrtho( -half_width + view_x, half_width + view_x, -half_height + view_y, half_height + view_y, -10000.0, 10000.0 );
@@ -155,7 +169,7 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	{
 		// set up the view matrix for the current zoom level (orbit)
 		float half_height = view_height_m_/2.0;
-		float half_width = half_height*(float)GetCanvas()->Width()/(float)GetCanvas()->Height();
+		float half_width = half_height*((float)width/(float)height);
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
 		glOrtho( -half_width, half_width, -half_height, half_height, -10000.0, 10000.0 );
@@ -218,6 +232,8 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	glPopMatrix();
 	
 	glDisable(GL_DEPTH_TEST);
+
+    glViewport(vp[0], vp[1], vp[2], vp[3]);
 	
 	// reset matrices
 	r->Begin();
