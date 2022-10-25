@@ -29,7 +29,8 @@
 #include <GL/glx.h>
 #endif
 
-
+#undef min
+#undef max
 
 class PointCloudPlugin: public Plugin
 {
@@ -392,7 +393,7 @@ public:
                     auto mode = coloring_mode_->GetValue();
                     if (mode == "Jet" || mode == "Rainbow")
                     {
-                        auto& table = mode == "Jet" ? jet_table_ : rainbow_table_;
+                        auto table = mode == "Jet" ? jet_table_ : rainbow_table_;
 					    for (int i = 0; i < data->num_points; i++)
 					    {
 					    	point_buf_[i].x = ((float*)data->data)[i*4];
