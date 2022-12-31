@@ -43,11 +43,11 @@
 
 #include "Parameters.h"
 
-#include "plugins/Costmap.h"
-#include "plugins/Grid.h"
-#include "plugins/Marker.h"
-#include "plugins/PointCloud.h"
-#include "plugins/Pose.h"
+#include "../plugins/Costmap.h"
+#include "../plugins/Grid.h"
+#include "../plugins/Marker.h"
+#include "../plugins/PointCloud.h"
+#include "../plugins/Pose.h"
 //#include "plugins/Path.h"
 
 #include <Gwen/Controls/Dialogs/FileOpen.h>
@@ -166,6 +166,7 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 		auto page = button->GetPage();
 		auto graph = new GraphCanvas(page);
 		graph->Dock(Pos::Fill);
+        page->GetParent()->GetParent()->SetWidth(580);
 	}
 	else if (pMenuItem->GetText() == L"Save Config As")
 	{
@@ -430,10 +431,10 @@ Plugin* PubViz::AddPlugin(const std::string& name)
 	{
 		plugin = new PosePlugin();
 	}
-	else if (name == "path")
+	/*else if (name == "path")
 	{
-		//plugin = new PathPlugin();
-	}
+		plugin = new PathPlugin();
+	}*/
 	else
 	{
 		printf("Unknown plugin name '%s'!\n", name.c_str());

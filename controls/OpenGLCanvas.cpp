@@ -6,7 +6,7 @@
 
 #include <GL/glew.h>
 
-#include "Plugin.h"
+#include "../Plugin.h"
 
 #ifndef _WIN32
 #include <X11/Xlib.h>

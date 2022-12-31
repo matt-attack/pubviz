@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <memory.h>
 
-#include "pubviz.h"
+#include "../controls/pubviz.h"
 
 #include <Gwen/Gwen.h>
 #include <Gwen/Application.h>

@@ -30,7 +30,7 @@
 
 #include <pubsub/Pose.msg.h>
 
-#include "../OpenGLCanvas.h"
+#include "../controls/OpenGLCanvas.h"
 
 class PosePlugin: public Plugin
 {

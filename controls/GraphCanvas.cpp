@@ -1,7 +1,10 @@
 // todo license
 
 #include <Gwen/Platform.h>
+#include <Gwen/Controls/CheckBox.h>
+#include <Gwen/Controls/Menu.h>
 #include <Gwen/Controls/TextBox.h>
+#include <Gwen/Controls/WindowControl.h>
 
 #include "GraphCanvas.h"
 
@@ -29,16 +32,6 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 {
 	m_Color = Gwen::Color( 255, 255, 255, 255 );
 	
-	// lets test some pubsub stuff here
-	
-	// testing, make some fake data
-	/*data_.clear();
-	
-	for (int i = 0; i < 100; i++)
-	{
-		data_.push_back({ (double)i/10.0, sin(i*3.14159/10.0) });
-	}*/
-	
 	subscribers_.push_back(new Subscriber());
 	subscribers_.back()->canvas = this;
 	
@@ -50,18 +43,34 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 	topic_name_box_->onReturnPressed.Add( this, &ThisClass::OnTopicChanged );
 	topic_name_box_->onFocusLost.Add( this, &ThisClass::OnTopicEditFinished );
 	
-	field_name_ = new Gwen::Controls::TextBox( this );
-	field_name_->SetText( "" );
-	field_name_->SetPos( 320, 10 );
-	field_name_->SetWidth(150);
-	field_name_->onTextChanged.Add( this, &ThisClass::OnFieldChanged );
+	field_name_box_ = new Gwen::Controls::TextBox( this );
+	field_name_box_->SetText( "" );
+	field_name_box_->SetPos( 320, 10 );
+	field_name_box_->SetWidth(150);
+	field_name_box_->onTextChanged.Add( this, &ThisClass::OnFieldChanged );
+	field_name_box_->onFocusLost.Add( this, &ThisClass::OnFieldEditFinished );
 	//label->onReturnPressed.Add( this, &ThisClass::OnTopicChanged );
 	
 	auto add_button = new Gwen::Controls::Button( this );
-	add_button->SetText("Add");
+	add_button->SetText("+");
+    add_button->SetFont(L"", 20, false);
 	add_button->SetPos(480, 10);
-	add_button->SetWidth(70);
+	add_button->SetWidth(30);
 	add_button->onPress.Add(this, &ThisClass::OnAdd);
+
+	auto remove_button = new Gwen::Controls::Button( this );
+	remove_button->SetText("-");
+	remove_button->SetPos(520, 10);
+    remove_button->SetFont(L"", 20, false);
+	remove_button->SetWidth(30);
+	remove_button->onPress.Add(this, &ThisClass::OnRemove);
+
+	auto configure_button = new Gwen::Controls::Button( this );
+	configure_button->SetText("*");
+	configure_button->SetPos(520, 40);
+    configure_button->SetFont(L"", 20, false);
+	configure_button->SetWidth(30);
+	configure_button->onPress.Add(this, &ThisClass::OnConfigure);
 	
 	topic_list_ = new Gwen::Controls::ListBox(this);
 	topic_list_->AddItem("A");
@@ -72,7 +81,18 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 	topic_list_->AddItem("F");
 	topic_list_->AddItem("G");
 	topic_list_->Hide();
-	topic_list_->onRowSelected.Add( this, &ThisClass::OnSuggestionClicked );
+	topic_list_->onRowSelected.Add( this, &ThisClass::OnTopicSuggestionClicked );
+
+	field_list_ = new Gwen::Controls::ListBox(this);
+	field_list_->AddItem("A");
+	field_list_->AddItem("B");
+	field_list_->AddItem("C");
+	field_list_->AddItem("D");
+	field_list_->AddItem("E");
+	field_list_->AddItem("F");
+	field_list_->AddItem("G");
+	field_list_->Hide();
+	field_list_->onRowSelected.Add( this, &ThisClass::OnFieldSuggestionClicked );
 	
 	start_time_ = pubsub::Time::now();
 	if (!node_initialized)
@@ -101,35 +121,181 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 	ps_node_system_query(&node);
 }
 
+void GraphCanvas::OnConfigure(Base* control)
+{
+	Controls::WindowControl* pWindow = new Controls::WindowControl( GetCanvas() );
+	pWindow->SetTitle( L"Configure Graph" );
+	pWindow->SetSize( 200, 250 );
+	pWindow->MakeModal( true );
+	//pWindow->Position( Pos::Center );// doesnt work if we have no inner space left
+    auto pos = GetCanvas()->GetRenderBounds();
+    pWindow->SetPos(Gwen::Point(pos.w/2 - 100, pos.h/2 - 100));
+	pWindow->SetDeleteOnClose( true );
+    pWindow->DisableResizing();
+
+    // add settings
+    // todo fill out
+    {
+        Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
+		label->SetText( "X-Axis" );
+		label->SizeToContents();
+		label->SetPos( 10, 10 );
+    }
+    {
+		Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
+		label->SetText( "Left" );
+		label->SizeToContents();
+		label->SetPos( 20, 10 + 25 );
+        Gwen::Controls::TextBoxNumeric* box = new Gwen::Controls::TextBoxNumeric( pWindow );
+		box->SetText( "0.0" );
+		box->SetPos( 110, 10 + 25 );
+        box->SetWidth(70);
+    }
+    {
+		Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
+		label->SetText( "Right" );
+		label->SizeToContents();
+		label->SetPos( 20, 10 + 25*2 );
+        Gwen::Controls::TextBoxNumeric* box = new Gwen::Controls::TextBoxNumeric( pWindow );
+		box->SetText( "10.0" );
+		box->SetPos( 110, 10 + 25*2 );
+        box->SetWidth(70);
+    }
+
+
+    {
+        Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
+		label->SetText( "Y-Axis" );
+		label->SizeToContents();
+		label->SetPos( 10, 20 + 25*3 );
+    }
+    {
+		Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
+		label->SetText( "Auto Scale" );
+		label->SizeToContents();
+		label->SetPos( 20, 20 + 25*4 );
+		Gwen::Controls::CheckBox* check = new Gwen::Controls::CheckBox( pWindow );
+		check->SetPos( 110, 20 + 25*4 );
+        check->SetChecked(true);
+		//check->onChecked.Add( this, &Checkbox::OnChecked );
+		//check->onUnChecked.Add( this, &Checkbox::OnUnchecked );
+		//check->onCheckChanged.Add( this, &Checkbox::OnCheckChanged );
+    }
+    {
+		Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
+		label->SetText( "Bottom" );
+		label->SizeToContents();
+		label->SetPos( 20, 20 + 25*5 );
+        Gwen::Controls::TextBoxNumeric* box = new Gwen::Controls::TextBoxNumeric( pWindow );
+		box->SetText( std::to_string(min_y_) );
+		box->SetPos( 110, 20 + 25*5 );
+        box->SetWidth(70);
+    }
+    {
+		Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
+		label->SetText( "Top" );
+		label->SizeToContents();
+		label->SetPos( 20, 20 + 25*6 );
+        Gwen::Controls::TextBoxNumeric* box = new Gwen::Controls::TextBoxNumeric( pWindow );
+		box->SetText( std::to_string(max_y_) );
+		box->SetPos( 110, 20 + 25*6 );
+        box->SetWidth(70);
+    }
+
+}
+
 void GraphCanvas::OnAdd(Base* control)
 {
 	printf("Added new sub\n");
+    if (field_name_box_->GetText().length() == 0)
+    {
+        return;
+    }
 	// add a topic
-	subscribers_.back()->field_name = field_name_->GetText().c_str();
+	subscribers_.back()->field_name = field_name_box_->GetText().c_str();
 	subscribers_.push_back(new Subscriber());
 	subscribers_.back()->canvas = this;
+    subscribers_.back()->field_name = field_name_box_->GetText().c_str();
 	OnTopicChanged(topic_name_box_);
 }
 
-void GraphCanvas::OnSuggestionClicked(Base* control)
+void GraphCanvas::OnRemove(Base* control)
+{
+    // todo show menu with list of current topics
+    auto menu = new Gwen::Controls::Menu(this);
+    for (int i = 0; i < subscribers_.size() - 1; i++)
+    {
+        auto sub = subscribers_[i];
+        menu->AddItem(sub->topic_name + "." + sub->field_name)->SetAction(this, &ThisClass::OnRemoveSelect);
+    }
+	menu->AddDivider();
+
+	auto p = control->GetPos();
+	p.y += control->Height();
+	menu->SetPos(p);
+	//menu->SetSize(100, 200);
+	menu->Show();
+}
+
+void GraphCanvas::OnRemoveSelect(Gwen::Controls::Base* pControl)
+{
+	Gwen::Controls::MenuItem* pMenuItem = (Gwen::Controls::MenuItem*) pControl;
+    auto name = pMenuItem->GetText();
+
+    for (int i = 0; i < subscribers_.size() - 1; i++)
+    {
+        std::string current_name = subscribers_[i]->topic_name + "." + subscribers_[i]->field_name;
+        printf("%s vs %s\n", name.c_str(), current_name.c_str());
+        if (name == current_name)
+        {
+            subscribers_.erase(subscribers_.begin() + i);
+            break;
+        }
+    }
+}
+
+void GraphCanvas::OnTopicSuggestionClicked(Base* control)
 {
 	topic_name_box_->SetText(((Gwen::Controls::ListBox*)control)->GetSelectedRowName());
 	OnTopicChanged(topic_name_box_);
 	topic_list_->Hide();
 }
 
+void GraphCanvas::OnFieldSuggestionClicked(Base* control)
+{
+	field_name_box_->SetText(((Gwen::Controls::ListBox*)control)->GetSelectedRowName());
+	OnFieldChanged(field_name_box_);
+	field_list_->Hide();
+}
+
 void GraphCanvas::OnTopicEditFinished(Base* control)
 {
 	topic_list_->Hide();
+    OnTopicChanged(control);
+}
+
+void GraphCanvas::OnFieldEditFinished(Base* control)
+{
+	field_list_->Hide();
 }
 
 void GraphCanvas::OnFieldChanged(Base* control)
 {
+    redo_scale_ = true;
+	auto p = control->GetPos();
+	p.y += control->Height();
+	field_list_->SetPos(p);
+	field_list_->SetSize(100, 100);
+	field_list_->Show();
+
+    subscribers_.back()->field_name = field_name_box_->GetText().c_str();
 	subscribers_.back()->data.clear();
 }
 
 void GraphCanvas::OnTopicEdited(Base* control)
 {
+    redo_scale_ = true;
+
 	auto p = control->GetPos();
 	p.y += control->Height();
 	topic_list_->SetPos(p);
@@ -137,6 +303,7 @@ void GraphCanvas::OnTopicEdited(Base* control)
 	topic_list_->Show();
 	
 	topic_list_->Clear();
+    field_list_->Clear();
 	if (_topics.size())
 	{
 		for (const auto& topic: _topics)
@@ -152,12 +319,18 @@ void GraphCanvas::OnTopicEdited(Base* control)
 
 void GraphCanvas::OnTopicChanged(Base* control)
 {
+    redo_scale_ = true;
  	auto tb = (TextBox*)control;
 	printf("%s\n", tb->GetText().c_str());
   
   	auto sub = subscribers_.back();
 	if (sub->subscribed)
 	{
+        // if the topic didnt change, dont do anything
+        if (sub->topic_name == tb->GetText().c_str())
+        {
+            return;
+        }
 		ps_sub_destroy(&sub->sub);
 	}
 	
@@ -201,14 +374,21 @@ void GraphCanvas::OnTopicChanged(Base* control)
 
 void GraphCanvas::HandleMessage(const void* data, const ps_message_definition_t* definition, Subscriber* sub)
 {
-	std::string field_name = sub->field_name.length() ? sub->field_name : field_name_->GetText().c_str();
+	std::string field_name = sub->field_name.length() ? sub->field_name : field_name_box_->GetText().c_str();
 	
 	pubsub::Time msg_time = pubsub::Time::now();
+
+    bool new_list = field_list_->GetTable()->RowCount(0) == 0;
 	
 	struct ps_deserialize_iterator iter = ps_deserialize_start((const char*)data, definition);
 	const struct ps_msg_field_t* field; uint32_t length; const char* ptr;
 	while (ptr = ps_deserialize_iterate(&iter, &field, &length))
 	{
+        if (new_list)
+        {
+            field_list_->AddItem(field->name, field->name);
+        }
+
 		if (field_name.length() && strcmp(field_name.c_str(), field->name) != 0)
 		{
 			continue;
@@ -264,7 +444,10 @@ void GraphCanvas::HandleMessage(const void* data, const ps_message_definition_t*
 				
 				AddSample(value, msg_time, sub);
 			}
-			break;
+            if (!new_list)
+            {
+			    break;
+            }
 		}
 	}
 }
@@ -330,6 +513,54 @@ void GraphCanvas::Render( Skin::Base* skin )
 	// Now calculate number of cells to make on each axis
 	double x_count = (int)std::max(1.0, (double)graph_width/(double)pixel_interval);
 	double y_count = (int)std::max(1.0, (double)graph_height/(double)pixel_interval);
+
+    // do autoscale
+    if (autoscale_y_)
+    {
+        bool data_point = false;
+        double current_min_y = std::numeric_limits<double>::max();
+        double current_max_y = -std::numeric_limits<double>::max();
+       	for (auto& sub: subscribers_)
+	    {
+		    for (auto& pt: sub->data)
+		    {
+                current_min_y = std::min(current_min_y, pt.second);
+                current_max_y = std::max(current_max_y, pt.second);
+                data_point = true;
+            }
+        }
+
+        if (redo_scale_ && data_point)
+        {
+            redo_scale_ = false;
+            min_y_ = std::numeric_limits<double>::max();
+            max_y_ = -std::numeric_limits<double>::max();
+        }
+        
+        if (redo_scale_)
+        {
+            min_y_ = -1.0;
+            max_y_ = 1.0;
+        }
+        else
+        {
+            // add a bit of a buffer on each edge (5% of difference)
+            const double difference = std::abs(current_min_y - current_max_y);
+            double buffer = difference * 0.05;
+            current_max_y += buffer;
+            current_min_y -= buffer;
+
+            max_y_ = std::max(max_y_, current_max_y);
+            min_y_ = std::min(min_y_, current_min_y);
+        }
+
+        // handle max and min being identical resulting in bad graphs
+        if (std::abs(min_y_ - max_y_) < 0.0001)
+        {
+            max_y_ += 0.0001;
+            min_y_ -= 0.0001;
+        }
+    }
 	
 	const double x_cell_size = graph_width/x_count;
 	const double y_cell_size = graph_height/y_count;

@@ -15,7 +15,7 @@
 #include <Gwen/Controls/PropertyTree.h>
 
 #include "OpenGLCanvas.h"
-#include "Plugin.h"
+#include "../Plugin.h"
 
 
 #include "Parameters.h"

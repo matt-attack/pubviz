@@ -43,11 +43,6 @@ class MarkerPlugin: public Plugin
 	
 	std::map<int, pubsub::msg::Marker> markers_;
 	
-	void UpdateFromMessage()
-	{
-
-	}
-	
 	std::string current_topic_;
 	void Subscribe(std::string str)
 	{
@@ -125,7 +120,7 @@ public:
 		// draw the marker
 		Gwen::Color color = color_->GetValue();
 		glLineWidth(line_width_->GetValue());
-		if (last_msg_.marker_type == 0)
+		if (last_msg_.marker_type == pubsub::msg::Marker::LINE_LIST_2D)
 		{
 			// 2d lines
 			glBegin(GL_LINES);
@@ -144,7 +139,7 @@ public:
 				{
 					glColor3f(color.r / 255.0, color.g / 255.0, color.b / 255.0);
 				}
-				if (last_msg_.frame == 0)
+				if (last_msg_.frame == pubsub::msg::Marker::FRAME_WGS84)
 				{
 					if (GetCanvas()->wgs84_mode_)
 					{
@@ -171,7 +166,7 @@ public:
 			}
 			glEnd();
 		}
-		else if (last_msg_.marker_type == 1)
+		else if (last_msg_.marker_type == pubsub::msg::Marker::LINE_SEGMENTS_2D)
 		{
 			// 2d line segments
 			int i = 0;
@@ -194,7 +189,7 @@ public:
 						uint8_t b = (c & 0xFF);
 						glColor3f(r / 255.0, g / 255.0, b / 255.0);
 					}
-					if (last_msg_.frame == 0)
+					if (last_msg_.frame == pubsub::msg::Marker::FRAME_WGS84)
 					{
 						if (GetCanvas()->wgs84_mode_)
 						{
@@ -224,7 +219,7 @@ public:
 				glEnd();
 			}
 		}
-		else if (last_msg_.marker_type == 2)
+		else if (last_msg_.marker_type == pubsub::msg::Marker::POLYGON_2D)
 		{
 			// 2d polygons (just draw outline atm)
 			int i = 0;

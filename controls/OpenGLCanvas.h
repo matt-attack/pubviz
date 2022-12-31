@@ -8,7 +8,7 @@
 #include <Gwen/Gwen.h>
 #include <Gwen/Skin.h>
 
-#include "LocalXY.h"
+#include "../LocalXY.h"
 
 enum class ViewType
 {

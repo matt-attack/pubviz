@@ -66,9 +66,15 @@ class GraphCanvas : public Gwen::Controls::Base
 		void OnTopicEditFinished(Base* control);
 		void OnTopicChanged(Base* control);
 		void OnTopicEdited(Base* control);
+		void OnFieldEditFinished(Base* control);
 		void OnFieldChanged(Base* control);
-		void OnSuggestionClicked(Base* control);
+		void OnTopicSuggestionClicked(Base* control);
+        void OnFieldSuggestionClicked(Base* control);
 		void OnAdd(Base* control);
+		void OnRemove(Base* control);
+        void OnRemoveSelect(Gwen::Controls::Base* pControl);
+
+        void OnConfigure(Base* control);
 		
 		void OnMouseMoved(int x, int y, int dx, int dy) override;
 		bool OnMouseWheeled( int iDelta ) override;
@@ -78,20 +84,24 @@ class GraphCanvas : public Gwen::Controls::Base
 
 		Gwen::Color		m_Color;
 		
-		Gwen::Controls::TextBox* field_name_;
+		Gwen::Controls::TextBox* field_name_box_;
 		Gwen::Controls::TextBox* topic_name_box_;
 		
 		std::vector<Subscriber*> subscribers_;
 		
 		Gwen::Controls::ListBox* topic_list_;
+        Gwen::Controls::ListBox* field_list_;
 		
 		// these change as we get more samples
 		double min_x_ = 0.0;
 		double max_x_ = 10.0;// in seconds
 		double x_width_ = 10.0;// in seconds, this is constant and set by user
 		
-		double min_y_ = -2.0;
-		double max_y_ = 10.0;
+		double min_y_ = -100.0;
+		double max_y_ = 100.0;
+
+        bool autoscale_y_ = true;
+        bool redo_scale_ = true;
 		
 		pubsub::Time start_time_;// the time we opened this graph, used for making time values smaller
 };
