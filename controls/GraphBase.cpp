@@ -297,7 +297,65 @@ T roundMultiple( T value, T multiple )
     return static_cast<T>(std::round(static_cast<double>(value)/static_cast<double>(multiple))*static_cast<double>(multiple));
 }
 
+double CalcStepSize(double range, double targetSteps)
+{
+    // calculate an initial guess at step size
+    auto tempStep = range/targetSteps;
+
+    // get the magnitude of the step size
+    auto mag = (float)std::floor(std::log10(tempStep));
+    auto magPow = (float)std::pow(10, mag);
+
+    // calculate most significant digit of the new step size
+    auto magMsd = (int)(tempStep/magPow + 0.5);
+
+    // promote the MSD to either 1, 2, or 5
+    if (magMsd > 5)
+        magMsd = 10;
+    else if (magMsd > 2)
+        magMsd = 5;
+    else if (magMsd > 1)
+        magMsd = 2;
+
+    return magMsd*magPow;
+}
+
 const static float colors[][3] = {{1,0,0},{0,1,0},{0,0,1}, {0,1,1}, {1,0,1}, {1,1,0}};
+
+void CalculateDivisions(std::vector<double>& divisions, double min, double max, int max_divisions)
+{
+    // now determine the period to use
+    // for this we want enough divisions to fit and to minimize significant figures
+	//int max_divs = graph_width/pixel_interval;
+    //printf("Max divs: %i\n", max_divisions);
+    double period = CalcStepSize(max - min, std::max(max_divisions, 1));
+    if (period < 0)
+    {
+        period = 1 + max - min;
+    }
+    //printf("Target step: %f\n", period);
+	
+	// Determine where to put labels on the x axis using the best fitting period
+	double time = roundMultiple(min, period);
+    //printf("Min: %f Nearest: %f\n", min, time);
+    if (time < min)
+    {
+        time += period;
+    }
+	while (time <= max)
+	{
+        divisions.push_back(time);
+        //printf("Label: %f\n", time);
+		time += period;
+	}
+    // make sure we at least show 2 labels
+    if (divisions.size() == 1)
+    {
+        divisions.clear();
+        divisions.push_back(min);
+        divisions.push_back(max);
+    }
+}
 
 void GraphBase::Render( Skin::Base* skin )
 {
@@ -374,23 +432,13 @@ void GraphBase::Render( Skin::Base* skin )
         }
     }
 
-    double period = 0.5;
+    // now determine the period to use
+    // for this we want enough divisions to fit and to minimize significant figures
+	int max_divs = graph_width/pixel_interval;
 	
-	// Determine where to put labels on the x axis
+	// Determine where to put labels on the x axis using the best fitting period
 	std::vector<double> x_labels;
-	double time = roundMultiple(min_x_, period);\
-    printf("Min: %f Nearest: %f\n", min_x_, time);
-    if (time < min_x_)
-    {
-        time += period;
-    }
-	while (time <= max_x_)
-	{
-        x_labels.push_back(time);
-        printf("Label: %f\n", time);
-		time += period;
-	}
-
+    CalculateDivisions(x_labels, min_x_, max_x_, max_divs);
 	
 	const double x_cell_size = graph_width/x_count;
 	const double y_cell_size = graph_height/y_count;
@@ -421,20 +469,6 @@ void GraphBase::Render( Skin::Base* skin )
 		}
 		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( x, b.h - 30 ), (std::string)buffer);
     }
-	/*for (double x = start_x; x < start_x + (x_count+0.001)*x_cell_size; x += x_cell_size)
-	{
-		double val = min_x_ + (i++)*x_interval;
-		if (std::abs(val) > 1.0 || val == 0.0)
-		{
-			sprintf(buffer, "%lf", val);
-		}
-		else
-		{
-			sprintf(buffer, "%lf", val);
-		}
-		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( x, b.h - 30 ), (std::string)buffer);
-	}*/
-		
 	i = 0;
 	for (double y = start_y; y < start_y + (y_count+0.001)*y_cell_size; y += y_cell_size)
 	{
@@ -452,37 +486,6 @@ void GraphBase::Render( Skin::Base* skin )
 	
 	// force a flush essentially
 	r->StartClip();
-
-    // now, figure out how many horizontal sections to do
-    // try either multiples of 5 or 1
-
-
-    // calculate where to draw vertical sections
-	// now draw the bars on the right side for each
-	/*const int title_width = 150;
-	int graph_width = bounds.w - title_width - 10;// for a bit of side padding
-	const double duration_usec = end_time_ - start_time_;
-	const double px_per_usec = (double)graph_width / duration_usec;
-	
-	// draw timeline labels, finding the period which fits the most that fit thats less than max_divs
-	const int min_div_width = 100;
-	int max_divs = graph_width/min_div_width;
-	int period_iter = num_periods - 1;
-	int period = periods[period_iter];
-	while (period_iter > 0)
-	{	
-		period_iter--;
-		period = periods[period_iter];
-		
-		if (duration_usec/period > max_divs)
-		{
-			period_iter++;
-			period = periods[period_iter];
-			break;
-		}
-	}*/
-
-
 	
 	// Mark the window as dirty so it redraws
 	// Todo can maybe do this a bit better so it only redraws on message or movement
@@ -512,13 +515,7 @@ void GraphBase::Render( Skin::Base* skin )
         double x = x_ppu*(value - min_x_)+start_x;
         glVertex2f(x, start_y);
 		glVertex2f(x, start_y + y_count*y_cell_size + 10);
-    }
-	/*for (double x = start_x; x < start_x + (x_count+0.001)*x_cell_size; x += x_cell_size)
-	{
-		glVertex2f(x, start_y);
-		glVertex2f(x, start_y + y_count*y_cell_size + 10);
-	}*/
-		
+    }	
 	for (double y = start_y; y < start_y + (y_count+0.001)*y_cell_size; y += y_cell_size)
 	{
 		glVertex2f(start_x - 10, y);

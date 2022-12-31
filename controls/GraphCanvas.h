@@ -17,8 +17,10 @@
 
 #include <pubsub_cpp/Node.h>
 
+#include "GraphBase.h"
+
 class PubViz;
-class GraphCanvas : public Gwen::Controls::Base
+class GraphCanvas : public GraphBase
 {
 	friend class PubViz;
 	
@@ -44,22 +46,14 @@ class GraphCanvas : public Gwen::Controls::Base
 		
 	public:
 
-		GWEN_CONTROL( GraphCanvas, Gwen::Controls::Base );
+		GWEN_CONTROL( GraphCanvas, GraphBase );
 		
 		~GraphCanvas()
 		{
-			for (auto& sub: subscribers_)
-			{
-				delete sub;
-			}
+
 		}
 
-		virtual void Render( Gwen::Skin::Base* skin );
-
-		const Gwen::Color & GetColor() { return m_Color; }
-		void SetColor( const Gwen::Color & col ) { m_Color = col; }
-		
-		void AddSample(double value, pubsub::Time time, Subscriber* sub);
+        virtual void DrawOnGraph(double start_x, double start_y, double graph_width, double graph_height);
 
 	protected:
 	
@@ -71,18 +65,12 @@ class GraphCanvas : public Gwen::Controls::Base
 		void OnTopicSuggestionClicked(Base* control);
         void OnFieldSuggestionClicked(Base* control);
 		void OnAdd(Base* control);
-		void OnRemove(Base* control);
-        void OnRemoveSelect(Gwen::Controls::Base* pControl);
 
-        void OnConfigure(Base* control);
+        //void OnConfigure(Base* control);
 		
 		void OnMouseMoved(int x, int y, int dx, int dy) override;
 		bool OnMouseWheeled( int iDelta ) override;
 		void OnMouseClickLeft( int /*x*/, int /*y*/, bool /*bDown*/ ) override;
-		
-		void HandleMessage(const void* message, const ps_message_definition_t* def, Subscriber* sub);
-
-		Gwen::Color		m_Color;
 		
 		Gwen::Controls::TextBox* field_name_box_;
 		Gwen::Controls::TextBox* topic_name_box_;
@@ -93,17 +81,14 @@ class GraphCanvas : public Gwen::Controls::Base
         Gwen::Controls::ListBox* field_list_;
 		
 		// these change as we get more samples
-		double min_x_ = 0.0;
-		double max_x_ = 10.0;// in seconds
+		//double min_x_ = 0.0;
+		//double max_x_ = 10.0;// in seconds
 		double x_width_ = 10.0;// in seconds, this is constant and set by user
-		
-		double min_y_ = -100.0;
-		double max_y_ = 100.0;
 
-        bool autoscale_y_ = true;
-        bool redo_scale_ = true;
+        //bool autoscale_y_ = true;
+        //bool redo_scale_ = true;
 		
-		pubsub::Time start_time_;// the time we opened this graph, used for making time values smaller
+		//pubsub::Time start_time_;// the time we opened this graph, used for making time values smaller
 };
 
 #endif
