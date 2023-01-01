@@ -27,13 +27,15 @@ static ps_node_t node;
 
 static std::map<std::string, bool> _topics;
 
-
 GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 {
 	m_Color = Gwen::Color( 255, 255, 255, 255 );
-	
-	subscribers_.push_back(new Subscriber());
-	subscribers_.back()->canvas = this;
+    auto sub = new Subscriber();
+	sub->canvas = this;
+    sub->channel = CreateChannel("", "");
+    sub->channel->can_remove = false;
+    sub->channel->on_remove = [sub, this]() { RemoveSub(sub); delete sub; };
+	subscribers_.push_back(sub);
 	
 	topic_name_box_ = new Gwen::Controls::TextBox( this );
 	topic_name_box_->SetText( "" );
@@ -42,6 +44,7 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 	topic_name_box_->onTextChanged.Add( this, &ThisClass::OnTopicEdited );
 	topic_name_box_->onReturnPressed.Add( this, &ThisClass::OnTopicChanged );
 	topic_name_box_->onFocusLost.Add( this, &ThisClass::OnTopicEditFinished );
+    topic_name_box_->onFocusGained.Add( this, &ThisClass::OnTopicEditStart );
 	
 	field_name_box_ = new Gwen::Controls::TextBox( this );
 	field_name_box_->SetText( "" );
@@ -49,6 +52,7 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 	field_name_box_->SetWidth(150);
 	field_name_box_->onTextChanged.Add( this, &ThisClass::OnFieldChanged );
 	field_name_box_->onFocusLost.Add( this, &ThisClass::OnFieldEditFinished );
+    field_name_box_->onFocusGained.Add( this, &ThisClass::OnFieldEditStart );
 	//label->onReturnPressed.Add( this, &ThisClass::OnTopicChanged );
 	
 	auto add_button = new Gwen::Controls::Button( this );
@@ -92,9 +96,7 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 
 		node.adv_cb = [](const char* topic, const char* type, const char* node, const ps_advertise_req_t* data)
 		{
-            
-			printf("Discovered topic %s..\n", topic);
-			// todo check if we already have the topic
+			// check if we already have the topic
 			if (_topics.find(topic) != _topics.end())
 			{
 				return;
@@ -118,10 +120,16 @@ void GraphCanvas::OnAdd(Base* control)
         return;
     }
 	// add a topic
-	subscribers_.back()->field_name = field_name_box_->GetText().c_str();
-	subscribers_.push_back(new Subscriber());
-	subscribers_.back()->canvas = this;
-    subscribers_.back()->field_name = field_name_box_->GetText().c_str();
+    auto old_sub = subscribers_.back();
+	old_sub->field_name = field_name_box_->GetText().c_str();
+    old_sub->channel->can_remove = true;
+    auto new_sub = new Subscriber();
+	new_sub->canvas = this;
+    new_sub->field_name = field_name_box_->GetText().c_str();
+    new_sub->channel = CreateChannel("", new_sub->field_name);
+    new_sub->channel->can_remove = false;
+    new_sub->channel->on_remove = [new_sub, this]() { RemoveSub(new_sub); delete new_sub; };
+	subscribers_.push_back(new_sub);
 	OnTopicChanged(topic_name_box_);
 }
 
@@ -139,10 +147,41 @@ void GraphCanvas::OnFieldSuggestionClicked(Base* control)
 	field_list_->Hide();
 }
 
+void GraphCanvas::OnTopicEditStart(Base* control)
+{
+    auto p = control->GetPos();
+	p.y += control->Height();
+	topic_list_->SetPos(p);
+	topic_list_->SetSize(100, 100);
+	topic_list_->Show();
+
+	topic_list_->Clear();
+	if (_topics.size())
+	{
+		for (const auto& topic: _topics)
+		{
+			topic_list_->AddItem(topic.first, topic.first);
+		}
+	}
+	else
+	{
+		topic_list_->AddItem("None found...");
+	}
+}
+
 void GraphCanvas::OnTopicEditFinished(Base* control)
 {
 	topic_list_->Hide();
     OnTopicChanged(control);
+}
+
+void GraphCanvas::OnFieldEditStart(Base* control)
+{
+    auto p = control->GetPos();
+	p.y += control->Height();
+	field_list_->SetPos(p);
+	field_list_->SetSize(100, 100);
+	field_list_->Show();
 }
 
 void GraphCanvas::OnFieldEditFinished(Base* control)
@@ -159,8 +198,11 @@ void GraphCanvas::OnFieldChanged(Base* control)
 	field_list_->SetSize(100, 100);
 	field_list_->Show();
 
-    subscribers_.back()->field_name = field_name_box_->GetText().c_str();
-	subscribers_.back()->data.clear();
+    auto sub = subscribers_.back();
+    sub->field_name = field_name_box_->GetText().c_str();
+    sub->channel->field_name = sub->field_name;
+    
+	sub->channel->data.clear();
 }
 
 void GraphCanvas::OnTopicEdited(Base* control)
@@ -204,12 +246,11 @@ void GraphCanvas::OnTopicChanged(Base* control)
         }
 		ps_sub_destroy(&sub->sub);
 	}
-	
 	// store the topic name somewhere safe since the subscriber doesnt make a copy
 	sub->topic_name = tb->GetText().c_str();
+    sub->channel->topic_name = sub->topic_name;
 	sub->subscribed = true;
-	
-	sub->data.clear();
+	sub->channel->data.clear();
   
 	// now create the subscriber
 	struct ps_subscriber_options options;
@@ -230,15 +271,25 @@ void GraphCanvas::OnTopicChanged(Base* control)
 			//printf("WARN: got message but no message definition yet...\n");
 			// queue it up, then print them out once I get it
 			//todo_msgs.push_back({ message, *info });
+            return;
 		}
-		else
-		{
-			//ps_deserialize_print(message, &sub.received_message_def);
-            auto channel = sub->canvas->GetChannel(sub->topic_name, sub->field_name);
-			sub->canvas->AddMessageSample(channel, pubsub::Time::now(), message, &sub->sub.received_message_def, 10.0);// fixme
-			//printf("-------------\n");
-			free(message);
-		}
+
+        // Populate the list of fields
+        if (sub == sub->canvas->subscribers_.back() && sub->canvas->field_list_->GetTable()->RowCount(0) == 0)
+        {
+            //sub->canvas->field_list_->ClearItems();
+            struct ps_deserialize_iterator iter = ps_deserialize_start((const char*)message, &sub->sub.received_message_def);
+	        const struct ps_msg_field_t* field; uint32_t length; const char* ptr;
+	        while (ptr = ps_deserialize_iterate(&iter, &field, &length))
+	        {
+		        sub->canvas->field_list_->AddItem(field->name, field->name);
+	        }
+        }
+
+		//ps_deserialize_print(message, &sub.received_message_def);
+		sub->canvas->AddMessageSample(sub->channel, pubsub::Time::now(), message, &sub->sub.received_message_def, 10.0);// fixme
+		//printf("-------------\n");
+		free(message);
 	};
 
 	ps_node_create_subscriber_adv(&node, sub->topic_name.c_str(), 0, &sub->sub, &options);

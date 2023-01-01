@@ -32,8 +32,7 @@ class GraphCanvas : public GraphBase
 			std::string field_name;
 			GraphCanvas* canvas;
 			
-			// contains the plot data of the graph, in sequential order
-			std::deque<std::pair<double, double>> data;
+			GraphBase::Channel* channel;
 			
 			~Subscriber()
 			{
@@ -56,10 +55,24 @@ class GraphCanvas : public GraphBase
         virtual void DrawOnGraph(double start_x, double start_y, double graph_width, double graph_height);
 
 	protected:
+
+        void RemoveSub(Subscriber* sub)
+        {
+            for (int i = 0; i < subscribers_.size(); i++)
+            {
+                if (subscribers_[i] == sub)
+                {
+                    subscribers_.erase(subscribers_.begin() + i);
+                    break;
+                }
+            }
+        }
 	
+        void OnTopicEditStart(Base* control);
 		void OnTopicEditFinished(Base* control);
 		void OnTopicChanged(Base* control);
 		void OnTopicEdited(Base* control);
+        void OnFieldEditStart(Base* control);
 		void OnFieldEditFinished(Base* control);
 		void OnFieldChanged(Base* control);
 		void OnTopicSuggestionClicked(Base* control);

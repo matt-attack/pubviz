@@ -125,15 +125,15 @@ void GraphBase::OnConfigure(Base* control)
 
 }
 
-GraphBase::Channel* GraphBase::GetChannel(const std::string& topic, const std::string& field)
+GraphBase::Channel* GraphBase::CreateChannel(const std::string& topic, const std::string& field)
 {
-    for (const auto& channel: channels_)
+    /*for (const auto& channel: channels_)
     {
         if (channel->topic_name == topic && channel->field_name == field)
         {
             return channel;
         }
-    }
+    }*/
 
     // add it!
     auto ch = new GraphBase::Channel();
@@ -155,12 +155,20 @@ void GraphBase::Layout(Gwen::Skin::Base* skin)
 
 void GraphBase::OnRemove(Base* control)
 {
-    // todo show menu with list of current topics
+    // todo disable button
+    if (channels_.size() == 0)
+    {
+        return;
+    }
+
     auto menu = new Gwen::Controls::Menu(this);
     for (int i = 0; i < channels_.size(); i++)
     {
         auto sub = channels_[i];
-        menu->AddItem(sub->topic_name + "." + sub->field_name)->SetAction(this, &ThisClass::OnRemoveSelect);
+        if (sub->can_remove)
+        {
+            menu->AddItem(sub->topic_name + "." + sub->field_name)->SetAction(this, &ThisClass::OnRemoveSelect);
+        }
     }
 	menu->AddDivider();
 
@@ -178,10 +186,16 @@ void GraphBase::OnRemoveSelect(Gwen::Controls::Base* pControl)
 
     for (int i = 0; i < channels_.size(); i++)
     {
-        std::string current_name = channels_[i]->topic_name + "." + channels_[i]->field_name;
-        printf("%s vs %s\n", name.c_str(), current_name.c_str());
-        if (name == current_name)
+        auto channel = channels_[i];
+        std::string current_name = channel->topic_name + "." + channel->field_name;
+        //printf("%s vs %s\n", name.c_str(), current_name.c_str());
+        if (name == current_name && channel->can_remove)
         {
+            if (channel->on_remove)
+            {
+                channel->on_remove();
+            }
+            delete channel;
             channels_.erase(channels_.begin() + i);
             break;
         }
@@ -439,6 +453,10 @@ void GraphBase::Render( Skin::Base* skin )
 	// Determine where to put labels on the x axis using the best fitting period
 	std::vector<double> x_labels;
     CalculateDivisions(x_labels, min_x_, max_x_, max_divs);
+
+    // Do the same for the y axis
+    std::vector<double> y_labels;
+    CalculateDivisions(y_labels, min_y_, max_y_, graph_height/pixel_interval);
 	
 	const double x_cell_size = graph_width/x_count;
 	const double y_cell_size = graph_height/y_count;
@@ -470,9 +488,11 @@ void GraphBase::Render( Skin::Base* skin )
 		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( x, b.h - 30 ), (std::string)buffer);
     }
 	i = 0;
-	for (double y = start_y; y < start_y + (y_count+0.001)*y_cell_size; y += y_cell_size)
-	{
-		double val = min_y_ + (y_count-i++)*y_interval;
+    double y_ppu = graph_height/(max_y_ - min_y_); 
+    for (auto label: y_labels)
+    {
+		double val = label;
+        double y = y_ppu*(max_y_ - label) + start_y;
 		if (std::abs(val) > 1.0 || val == 0.0)
 		{
 			sprintf(buffer, "%lf", val);
@@ -481,8 +501,8 @@ void GraphBase::Render( Skin::Base* skin )
 		{
 			sprintf(buffer, "%lf", val);
 		}
-		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( 10, y ), (std::string)buffer);
-	}
+		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( 10, y - 7 ), (std::string)buffer);
+    }
 	
 	// force a flush essentially
 	r->StartClip();
@@ -515,12 +535,18 @@ void GraphBase::Render( Skin::Base* skin )
         double x = x_ppu*(value - min_x_)+start_x;
         glVertex2f(x, start_y);
 		glVertex2f(x, start_y + y_count*y_cell_size + 10);
-    }	
-	for (double y = start_y; y < start_y + (y_count+0.001)*y_cell_size; y += y_cell_size)
+    }
+    for (auto value: y_labels)
+    {
+        double y = y_ppu*(max_y_ - value)+start_y;
+        glVertex2f(start_x - 10, y);
+		glVertex2f(start_x + graph_width, y);
+    }
+	/*for (double y = start_y; y < start_y + (y_count+0.001)*y_cell_size; y += y_cell_size)
 	{
 		glVertex2f(start_x - 10, y);
 		glVertex2f(start_x + x_count*x_cell_size, y);
-	}
+	}*/
 	glEnd();
 	
 	// Set a clip region around the graph to crop anything out of range

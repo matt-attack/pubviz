@@ -24,16 +24,19 @@ class GraphBase : public Gwen::Controls::Base
     Gwen::Controls::Button configure_button_;
 
 	friend class PubViz;
-
+		
+public:
     class Channel
     {
+    public:
         friend class GraphBase;
         std::string topic_name;
 		std::string field_name;
         std::deque<std::pair<double, double>> data;
+
+        bool can_remove = true;
+        std::function<void()> on_remove;
     };
-		
-public:
 
 	GWEN_CONTROL( GraphBase, Gwen::Controls::Base );
 		
@@ -54,7 +57,7 @@ public:
 
     void AddMessageSample(Channel* channel, pubsub::Time time, const void* message, const ps_message_definition_t* def, double max_graph_width = std::numeric_limits<double>::max());
 
-    Channel* GetChannel(const std::string& topic, const std::string& field);
+    Channel* CreateChannel(const std::string& topic, const std::string& field);
 
     virtual void DrawOnGraph(double start_x, double start_y, double graph_width, double graph_height) {}
 

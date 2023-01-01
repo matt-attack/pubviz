@@ -95,7 +95,7 @@ void SackViewer::OnFieldRightClick(Gwen::Controls::Base* pControl)
     page->GetParent()->GetParent()->SetWidth(580);
 
     // now add all the data
-    auto ch = graph->GetChannel(topic, field);
+    auto ch = graph->CreateChannel(topic, field);
     //ch->
 
     auto data = bag_data_[topic];
