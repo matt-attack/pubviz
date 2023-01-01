@@ -286,10 +286,10 @@ void GraphCanvas::OnTopicChanged(Base* control)
 	        }
         }
 
-		//ps_deserialize_print(message, &sub.received_message_def);
 		sub->canvas->AddMessageSample(sub->channel, pubsub::Time::now(), message, &sub->sub.received_message_def, 10.0);// fixme
-		//printf("-------------\n");
 		free(message);
+
+        sub->canvas->Redraw();
 	};
 
 	ps_node_create_subscriber_adv(&node, sub->topic_name.c_str(), 0, &sub->sub, &options);
@@ -297,7 +297,6 @@ void GraphCanvas::OnTopicChanged(Base* control)
 
 void GraphCanvas::DrawOnGraph(double start_x, double start_y, double graph_width, double graph_height)
 {
-    Redraw();
     ps_node_spin(&node);
 }
 
