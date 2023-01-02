@@ -19,6 +19,7 @@
 
 #include "GraphBase.h"
 
+class OpenGLCanvas;
 class PubViz;
 class GraphCanvas : public GraphBase
 {
@@ -80,6 +81,8 @@ class GraphCanvas : public GraphBase
 		void OnAdd(Base* control);
 
         //void OnConfigure(Base* control);
+
+		void Layout( Gwen::Skin::Base* skin );
 		
 		void OnMouseMoved(int x, int y, int dx, int dy) override;
 		bool OnMouseWheeled( int iDelta ) override;
@@ -91,7 +94,9 @@ class GraphCanvas : public GraphBase
 		std::vector<Subscriber*> subscribers_;
 		
 		Gwen::Controls::ListBox* topic_list_;
-        Gwen::Controls::ListBox* field_list_;
+		Gwen::Controls::ListBox* field_list_;
+
+		OpenGLCanvas* canvas_;
 		
 		// these change as we get more samples
 		//double min_x_ = 0.0;

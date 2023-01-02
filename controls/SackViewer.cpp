@@ -96,12 +96,11 @@ void SackViewer::OnFieldRightClick(Gwen::Controls::Base* pControl)
 
     // now add all the data
     auto ch = graph->CreateChannel(topic, field);
-    //ch->
 
     auto data = bag_data_[topic];
     for (auto& msg: data.messages)
     {
-        graph->AddMessageSample(ch, msg.time, msg.msg, &data.def);
+        graph->AddMessageSample(ch, msg.time, msg.msg, &data.def, false, false);
     }
 }
 

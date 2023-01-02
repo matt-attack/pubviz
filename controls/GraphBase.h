@@ -53,9 +53,9 @@ public:
 	const Gwen::Color & GetColor() { return m_Color; }
 	void SetColor( const Gwen::Color & col ) { m_Color = col; }
 		
-    void AddSample(Channel* channel, double value, pubsub::Time time, double max_graph_width);
+    void AddSample(Channel* channel, double value, pubsub::Time time, bool scroll_to_fit, bool remove_old);
 
-    void AddMessageSample(Channel* channel, pubsub::Time time, const void* message, const ps_message_definition_t* def, double max_graph_width = std::numeric_limits<double>::max());
+    void AddMessageSample(Channel* channel, pubsub::Time time, const void* message, const ps_message_definition_t* def, bool scroll_to_fit, bool remove_old);
 
     Channel* CreateChannel(const std::string& topic, const std::string& field);
 
@@ -84,6 +84,8 @@ protected:
     void OnRemoveSelect(Gwen::Controls::Base* pControl);
 
     void OnConfigure(Base* control);
+
+	void OnConfigureClosed(Gwen::Event::Info info);
 		
 	void OnMouseMoved(int x, int y, int dx, int dy) override;
 	bool OnMouseWheeled( int iDelta ) override;

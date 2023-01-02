@@ -42,6 +42,19 @@ GWEN_CONTROL_CONSTRUCTOR( GraphBase ) , remove_button_(this), configure_button_(
 	configure_button->onPress.Add(this, &ThisClass::OnConfigure);
 }
 
+struct ConfigureDialog
+{
+	Gwen::Controls::TextBoxNumeric* left_, *right_, *bottom_, *top_;
+	Gwen::Controls::CheckBox* autoscale_y_;
+
+	GraphBase* graph_;
+
+	ConfigureDialog(GraphBase* graph)
+	{
+		graph_ = graph;
+	}
+};
+
 void GraphBase::OnConfigure(Base* control)
 {
 	Controls::WindowControl* pWindow = new Controls::WindowControl( GetCanvas() );
@@ -54,8 +67,9 @@ void GraphBase::OnConfigure(Base* control)
 	pWindow->SetDeleteOnClose( true );
     pWindow->DisableResizing();
 
+	auto dialog = new ConfigureDialog(this);
+
     // add settings
-    // todo fill out
     {
         Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
 		label->SetText( "X-Axis" );
@@ -68,9 +82,10 @@ void GraphBase::OnConfigure(Base* control)
 		label->SizeToContents();
 		label->SetPos( 20, 10 + 25 );
         Gwen::Controls::TextBoxNumeric* box = new Gwen::Controls::TextBoxNumeric( pWindow );
-		box->SetText( "0.0" );
+		box->SetText( std::to_string(min_x_) );
 		box->SetPos( 110, 10 + 25 );
         box->SetWidth(70);
+		dialog->left_ = box;
     }
     {
 		Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
@@ -78,9 +93,10 @@ void GraphBase::OnConfigure(Base* control)
 		label->SizeToContents();
 		label->SetPos( 20, 10 + 25*2 );
         Gwen::Controls::TextBoxNumeric* box = new Gwen::Controls::TextBoxNumeric( pWindow );
-		box->SetText( "10.0" );
+		box->SetText( std::to_string(max_x_) );
 		box->SetPos( 110, 10 + 25*2 );
         box->SetWidth(70);
+		dialog->right_ = box;
     }
 
 
@@ -97,10 +113,8 @@ void GraphBase::OnConfigure(Base* control)
 		label->SetPos( 20, 20 + 25*4 );
 		Gwen::Controls::CheckBox* check = new Gwen::Controls::CheckBox( pWindow );
 		check->SetPos( 110, 20 + 25*4 );
-        check->SetChecked(true);
-		//check->onChecked.Add( this, &Checkbox::OnChecked );
-		//check->onUnChecked.Add( this, &Checkbox::OnUnchecked );
-		//check->onCheckChanged.Add( this, &Checkbox::OnCheckChanged );
+        check->SetChecked(autoscale_y_);
+		dialog->autoscale_y_ = check;
     }
     {
 		Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
@@ -111,6 +125,7 @@ void GraphBase::OnConfigure(Base* control)
 		box->SetText( std::to_string(min_y_) );
 		box->SetPos( 110, 20 + 25*5 );
         box->SetWidth(70);
+		dialog->bottom_ = box;
     }
     {
 		Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
@@ -121,20 +136,27 @@ void GraphBase::OnConfigure(Base* control)
 		box->SetText( std::to_string(max_y_) );
 		box->SetPos( 110, 20 + 25*6 );
         box->SetWidth(70);
+		dialog->top_ = box;
     }
 
+	pWindow->onWindowClosed.Add(this, &ThisClass::OnConfigureClosed, dialog);
+}
+
+void GraphBase::OnConfigureClosed(Gwen::Event::Info info)
+{
+	auto dialog = (ConfigureDialog*)info.Data;
+	autoscale_y_ = dialog->autoscale_y_->IsChecked();
+	min_y_ = dialog->bottom_->GetFloatFromText();
+	max_y_ = dialog->top_->GetFloatFromText();
+
+	min_x_ = dialog->left_->GetFloatFromText();
+	max_x_ = dialog->right_->GetFloatFromText();
+	
+	delete dialog;
 }
 
 GraphBase::Channel* GraphBase::CreateChannel(const std::string& topic, const std::string& field)
 {
-    /*for (const auto& channel: channels_)
-    {
-        if (channel->topic_name == topic && channel->field_name == field)
-        {
-            return channel;
-        }
-    }*/
-
     // add it!
     auto ch = new GraphBase::Channel();
     ch->topic_name = topic;
@@ -155,7 +177,7 @@ void GraphBase::Layout(Gwen::Skin::Base* skin)
 
 void GraphBase::OnRemove(Base* control)
 {
-    // todo disable button
+    // todo disable button if no channels
     if (channels_.size() == 0)
     {
         return;
@@ -202,7 +224,7 @@ void GraphBase::OnRemoveSelect(Gwen::Controls::Base* pControl)
     }
 }
 
-void GraphBase::AddMessageSample(Channel* channel, pubsub::Time msg_time, const void* message, const ps_message_definition_t* definition, double max_graph_width)
+void GraphBase::AddMessageSample(Channel* channel, pubsub::Time msg_time, const void* message, const ps_message_definition_t* definition, bool scroll_to_fit, bool remove_old)
 {
 	std::string field_name = channel->field_name;
 	
@@ -263,7 +285,7 @@ void GraphBase::AddMessageSample(Channel* channel, pubsub::Time msg_time, const 
 					printf("ERROR: unhandled field type when parsing....\n");
 				}
 				
-				AddSample(channel, value, msg_time, max_graph_width);
+				AddSample(channel, value, msg_time, scroll_to_fit, remove_old);
                 break;
 			}
 		}
@@ -275,21 +297,28 @@ bool GraphBase::OnMouseWheeled( int delta )
 	return true;
 }
 
-void GraphBase::AddSample(Channel* sub, double value, pubsub::Time time, double max_graph_width)
+void GraphBase::AddSample(Channel* sub, double value, pubsub::Time time, bool scroll_to_fit, bool remove_old)
 {
 	pubsub::Duration dt = time - start_time_;
 	
 	sub->data.push_back({dt.toSec(), value});
+
+    //if resize to fit, just make graph wider to show it
+    if (scroll_to_fit)
+    {
+        double width = max_x_ - min_x_;
+        max_x_ = std::max(dt.toSec(), max_x_);
+        min_x_ = max_x_ - width;
+    }
 	
 	// remove any old samples that no longer fit on screen
-	while (sub->data.size() && sub->data.front().first < dt.toSec() - max_graph_width)
-	{
-		sub->data.pop_front();
-	}
-	
-	// now update the graph start x and y
-	min_x_ = std::max(dt.toSec() - max_graph_width, min_x_);// todo use max here
-	max_x_ = std::max(dt.toSec(), max_x_);
+    if (remove_old)
+    {
+	    while (sub->data.size() && sub->data.front().first < min_x_)
+	    {
+		    sub->data.pop_front();
+	    }
+    }
 
     Redraw();
 }
@@ -340,7 +369,6 @@ void CalculateDivisions(std::vector<double>& divisions, double min, double max, 
 {
     // now determine the period to use
     // for this we want enough divisions to fit and to minimize significant figures
-	//int max_divs = graph_width/pixel_interval;
     //printf("Max divs: %i\n", max_divisions);
     double period = CalcStepSize(max - min, std::max(max_divisions, 1));
     if (period < 0)
@@ -470,8 +498,6 @@ void GraphBase::Render( Skin::Base* skin )
 	// lets make a grid for the graph
 	char buffer[50];
 	
-	// start with x lines, start with a fixed number of segments that fill the width
-	int i = 0;
     double x_ppu = graph_width/(max_x_ - min_x_); 
     for (auto label: x_labels)
     {
@@ -487,7 +513,6 @@ void GraphBase::Render( Skin::Base* skin )
 		}
 		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( x, b.h - 30 ), (std::string)buffer);
     }
-	i = 0;
     double y_ppu = graph_height/(max_y_ - min_y_); 
     for (auto label: y_labels)
     {
@@ -506,10 +531,6 @@ void GraphBase::Render( Skin::Base* skin )
 	
 	// force a flush essentially
 	r->StartClip();
-	
-	// Mark the window as dirty so it redraws
-	// Todo can maybe do this a bit better so it only redraws on message or movement
-	//Redraw();
         
 	glMatrixMode(GL_TEXTURE);
 	glPushMatrix();
@@ -542,11 +563,6 @@ void GraphBase::Render( Skin::Base* skin )
         glVertex2f(start_x - 10, y);
 		glVertex2f(start_x + graph_width, y);
     }
-	/*for (double y = start_y; y < start_y + (y_count+0.001)*y_cell_size; y += y_cell_size)
-	{
-		glVertex2f(start_x - 10, y);
-		glVertex2f(start_x + x_count*x_cell_size, y);
-	}*/
 	glEnd();
 	
 	// Set a clip region around the graph to crop anything out of range

@@ -7,6 +7,7 @@
 #include <Gwen/Controls/WindowControl.h>
 
 #include "GraphCanvas.h"
+#include "OpenGLCanvas.h"
 
 #include <GL/glew.h>
 
@@ -87,12 +88,8 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 	start_time_ = pubsub::Time::now();
 	if (!node_initialized)
 	{
-        printf("initialized node\n");
-		// first lets get a list of all topics, and then subscribe to them
 		ps_node_init_ex(&node, "pubviz", "", false, false);
 		//ps_node_init(&node, "pubviz", "", false);
-
-		ps_node_system_query(&node);
 
 		node.adv_cb = [](const char* topic, const char* type, const char* node, const ps_advertise_req_t* data)
 		{
@@ -114,11 +111,11 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 
 void GraphCanvas::OnAdd(Base* control)
 {
-	printf("Added new sub\n");
     if (field_name_box_->GetText().length() == 0)
     {
         return;
     }
+
 	// add a topic
     auto old_sub = subscribers_.back();
 	old_sub->field_name = field_name_box_->GetText().c_str();
@@ -286,18 +283,27 @@ void GraphCanvas::OnTopicChanged(Base* control)
 	        }
         }
 
-		sub->canvas->AddMessageSample(sub->channel, pubsub::Time::now(), message, &sub->sub.received_message_def, 10.0);// fixme
+		if (!sub->canvas->canvas_->Paused())
+		{
+			sub->canvas->AddMessageSample(sub->channel, pubsub::Time::now(), message, &sub->sub.received_message_def, true, true);
+		}
 		free(message);
-
-        sub->canvas->Redraw();
 	};
 
 	ps_node_create_subscriber_adv(&node, sub->topic_name.c_str(), 0, &sub->sub, &options);
 }
 
+void GraphCanvas::Layout( Gwen::Skin::Base* skin )
+{
+	ps_node_spin(&node);
+
+	BaseClass::Layout(skin);
+	Invalidate();// we are being hacky, just always invalidate so we keep laying out
+}
+
 void GraphCanvas::DrawOnGraph(double start_x, double start_y, double graph_width, double graph_height)
 {
-    ps_node_spin(&node);
+
 }
 
 bool GraphCanvas::OnMouseWheeled( int delta )

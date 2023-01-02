@@ -165,6 +165,7 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 		button->SetClosable(true);
 		auto page = button->GetPage();
 		auto graph = new GraphCanvas(page);
+		graph->canvas_ = canvas_;
 		graph->Dock(Pos::Fill);
         page->GetParent()->GetParent()->SetWidth(580);
 	}
