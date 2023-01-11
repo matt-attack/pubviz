@@ -71,6 +71,8 @@ public:
         {
             playhead_time_ = time;
         }
+
+		UpdateViewers();
     }
 
 protected:

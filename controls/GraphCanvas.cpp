@@ -28,15 +28,85 @@ static ps_node_t node;
 
 static std::map<std::string, bool> _topics;
 
+static int _num_canvases = 0;
+static std::map<std::string, GraphSubscriber*> _subscribers;
+
+
+GraphChannel::~GraphChannel()
+{
+	if (subscribed)
+	{
+		_subscribers[topic_name]->RemoveListener(this);
+	}
+}
+
+GraphSubscriber::GraphSubscriber(const std::string& topic)
+{
+	topic_name = topic;
+
+	// now create the subscriber
+	struct ps_subscriber_options options;
+	ps_subscriber_options_init(&options);
+	options.skip = 0;
+	options.queue_size = 0;
+	options.want_message_def = true;
+	options.allocator = 0;
+	options.ignore_local = false;
+	options.preferred_transport = false ? 1 : 0;
+	options.cb_data = (void*)this;
+	options.cb = [](void* message, unsigned int size, void* data, const ps_msg_info_t* info)
+	{
+		// get and deserialize the messages
+		GraphSubscriber* sub = (GraphSubscriber*)data;
+		if (sub->subscriber.received_message_def.fields == 0)
+		{
+			//printf("WARN: got message but no message definition yet...\n");
+			// queue it up, then print them out once I get it
+			//todo_msgs.push_back({ message, *info });
+            return;
+		}
+
+        // Populate the list of fields
+		for (auto& channel: sub->listeners)
+		{
+        	if (channel == channel->canvas->graph_channels_.back() && 
+				channel->canvas->field_list_->GetTable()->RowCount(0) == 0)
+        	{
+        	    //sub->canvas->field_list_->ClearItems();
+        	    struct ps_deserialize_iterator iter = ps_deserialize_start((const char*)message, &sub->subscriber.received_message_def);
+	    	    const struct ps_msg_field_t* field; uint32_t length; const char* ptr;
+	    	    while (ptr = ps_deserialize_iterate(&iter, &field, &length))
+	    	    {
+			        channel->canvas->field_list_->AddItem(field->name, field->name);
+	    	    }
+        	}
+		}
+
+		// add the sample to each graph that this matches for
+		auto time = pubsub::Time::now();
+		for (auto& channel: sub->listeners)
+		{
+			if (!channel->canvas->canvas_->Paused())
+			{
+				channel->canvas->AddMessageSample(channel->channel, time, message, &sub->subscriber.received_message_def, true, true);
+			}
+		}
+		free(message);
+	};
+
+	ps_node_create_subscriber_adv(&node, topic_name.c_str(), 0, &subscriber, &options);
+}
+
 GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 {
 	m_Color = Gwen::Color( 255, 255, 255, 255 );
-    auto sub = new Subscriber();
+    auto sub = new GraphChannel();
 	sub->canvas = this;
+	sub->subscribed = false;
     sub->channel = CreateChannel("", "");
     sub->channel->can_remove = false;
-    sub->channel->on_remove = [sub, this]() { RemoveSub(sub); delete sub; };
-	subscribers_.push_back(sub);
+    sub->channel->on_remove = [sub, this]() { RemoveChannel(sub); delete sub; };
+	graph_channels_.push_back(sub);
 	
 	topic_name_box_ = new Gwen::Controls::TextBox( this );
 	topic_name_box_->SetText( "" );
@@ -84,7 +154,8 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 	field_list_->AddItem("G");
 	field_list_->Hide();
 	field_list_->onRowSelected.Add( this, &ThisClass::OnFieldSuggestionClicked );
-	
+
+//add ability to save plots, for now just act like graph was pressed multiple times rather than worry about placement of the graphs (or could always pop them out)
 	start_time_ = pubsub::Time::now();
 	if (!node_initialized)
 	{
@@ -107,6 +178,23 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 	}
 	
 	ps_node_system_query(&node);
+
+	_num_canvases++;
+}
+
+GraphCanvas::~GraphCanvas()
+{
+	_num_canvases--;
+
+	if (_num_canvases == 0)
+	{
+		// remove all subs just in case
+		for (auto sub: _subscribers)
+		{
+			delete sub.second;
+		}
+		_subscribers.clear();
+	}
 }
 
 void GraphCanvas::OnAdd(Base* control)
@@ -116,17 +204,23 @@ void GraphCanvas::OnAdd(Base* control)
         return;
     }
 
-	// add a topic
-    auto old_sub = subscribers_.back();
+	// add the current topic we have selected
+    auto old_sub = graph_channels_.back();
 	old_sub->field_name = field_name_box_->GetText().c_str();
     old_sub->channel->can_remove = true;
-    auto new_sub = new Subscriber();
+
+	// duplicate the current topic
+    auto new_sub = new GraphChannel();
 	new_sub->canvas = this;
-    new_sub->field_name = field_name_box_->GetText().c_str();
-    new_sub->channel = CreateChannel("", new_sub->field_name);
+	new_sub->subscribed = false;
+	new_sub->topic_name = topic_name_box_->GetText().c_str();
+    new_sub->field_name = "";//field_name_box_->GetText().c_str();
+	field_name_box_->SetText("", false);
+    new_sub->channel = CreateChannel(new_sub->topic_name, new_sub->field_name);
     new_sub->channel->can_remove = false;
-    new_sub->channel->on_remove = [new_sub, this]() { RemoveSub(new_sub); delete new_sub; };
-	subscribers_.push_back(new_sub);
+    new_sub->channel->on_remove = [new_sub, this]() { RemoveChannel(new_sub); delete new_sub; };
+	graph_channels_.push_back(new_sub);
+
 	OnTopicChanged(topic_name_box_);
 }
 
@@ -188,14 +282,15 @@ void GraphCanvas::OnFieldEditFinished(Base* control)
 
 void GraphCanvas::OnFieldChanged(Base* control)
 {
-    redo_scale_ = true;
+    RecalculateScale();
+
 	auto p = control->GetPos();
 	p.y += control->Height();
 	field_list_->SetPos(p);
 	field_list_->SetSize(100, 100);
 	field_list_->Show();
 
-    auto sub = subscribers_.back();
+    auto sub = graph_channels_.back();
     sub->field_name = field_name_box_->GetText().c_str();
     sub->channel->field_name = sub->field_name;
     
@@ -204,7 +299,7 @@ void GraphCanvas::OnFieldChanged(Base* control)
 
 void GraphCanvas::OnTopicEdited(Base* control)
 {
-    redo_scale_ = true;
+    RecalculateScale();
 
 	auto p = control->GetPos();
 	p.y += control->Height();
@@ -229,68 +324,39 @@ void GraphCanvas::OnTopicEdited(Base* control)
 
 void GraphCanvas::OnTopicChanged(Base* control)
 {
-    redo_scale_ = true;
+    RecalculateScale();
+
  	auto tb = (TextBox*)control;
 	printf("%s\n", tb->GetText().c_str());
   
-  	auto sub = subscribers_.back();
-	if (sub->subscribed)
+  	auto channel = graph_channels_.back();
+	if (channel->subscribed)
 	{
         // if the topic didnt change, dont do anything
-        if (sub->topic_name == tb->GetText().c_str())
+        if (channel->topic_name == tb->GetText().c_str())
         {
             return;
         }
-		ps_sub_destroy(&sub->sub);
+		auto sub = _subscribers[channel->topic_name];
+		sub->AddListener(channel);
+		if (sub->listeners.size() == 0)
+		{
+			_subscribers.erase(channel->topic_name);
+		}
 	}
+
 	// store the topic name somewhere safe since the subscriber doesnt make a copy
-	sub->topic_name = tb->GetText().c_str();
-    sub->channel->topic_name = sub->topic_name;
-	sub->subscribed = true;
-	sub->channel->data.clear();
-  
-	// now create the subscriber
-	struct ps_subscriber_options options;
-	ps_subscriber_options_init(&options);
-	options.skip = 0;
-	options.queue_size = 0;
-	options.want_message_def = true;
-	options.allocator = 0;
-	options.ignore_local = false;
-	options.preferred_transport = false ? 1 : 0;
-	options.cb_data = (void*)sub;
-	options.cb = [](void* message, unsigned int size, void* data, const ps_msg_info_t* info)
+	channel->topic_name = tb->GetText().c_str();
+    channel->channel->topic_name = channel->topic_name;
+	channel->subscribed = true;
+	channel->channel->data.clear();
+	auto sub = _subscribers[channel->topic_name];
+	if (sub == 0)
 	{
-		// get and deserialize the messages
-		Subscriber* sub = (Subscriber*)data;
-		if (sub->sub.received_message_def.fields == 0)
-		{
-			//printf("WARN: got message but no message definition yet...\n");
-			// queue it up, then print them out once I get it
-			//todo_msgs.push_back({ message, *info });
-            return;
-		}
-
-        // Populate the list of fields
-        if (sub == sub->canvas->subscribers_.back() && sub->canvas->field_list_->GetTable()->RowCount(0) == 0)
-        {
-            //sub->canvas->field_list_->ClearItems();
-            struct ps_deserialize_iterator iter = ps_deserialize_start((const char*)message, &sub->sub.received_message_def);
-	        const struct ps_msg_field_t* field; uint32_t length; const char* ptr;
-	        while (ptr = ps_deserialize_iterate(&iter, &field, &length))
-	        {
-		        sub->canvas->field_list_->AddItem(field->name, field->name);
-	        }
-        }
-
-		if (!sub->canvas->canvas_->Paused())
-		{
-			sub->canvas->AddMessageSample(sub->channel, pubsub::Time::now(), message, &sub->sub.received_message_def, true, true);
-		}
-		free(message);
-	};
-
-	ps_node_create_subscriber_adv(&node, sub->topic_name.c_str(), 0, &sub->sub, &options);
+		sub = new GraphSubscriber(channel->topic_name);
+		_subscribers[channel->topic_name] = sub;
+	}
+	sub->AddListener(channel);
 }
 
 void GraphCanvas::Layout( Gwen::Skin::Base* skin )

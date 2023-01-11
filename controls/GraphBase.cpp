@@ -232,7 +232,7 @@ void GraphBase::AddMessageSample(Channel* channel, pubsub::Time msg_time, const 
 	const struct ps_msg_field_t* field; uint32_t length; const char* ptr;
 	while (ptr = ps_deserialize_iterate(&iter, &field, &length))
 	{
-		if (field_name.length() && strcmp(field_name.c_str(), field->name) != 0)
+		if (strcmp(field_name.c_str(), field->name) != 0)
 		{
 			continue;
 		}

@@ -66,10 +66,11 @@ void SackViewer::OnFieldRightClick(Gwen::Controls::Base* pControl)
 {
     auto item = (Gwen::Controls::TreeNode*)pControl;
 
-    auto topic = item->UserData.Get<std::string>("topic");
-    auto field = item->UserData.Get<std::string>("field");
+    //auto topic = item->UserData.Get<std::string>("topic");
+    //auto field = item->UserData.Get<std::string>("field");
+	auto parent = item->UserData.Get<Gwen::Controls::TreeNode*>("base");
 
-    printf("Want to plot: %s\n", topic.c_str());
+    //printf("Want to plot: %s\n", topic.c_str());
 	auto menu = new Gwen::Controls::Menu(GetCanvas());
 	menu->AddItem("Plot")->SetAction(this, &ThisClass::OnMenuItemSelect);
     menu->SetDeleteOnClose(true);
@@ -94,14 +95,22 @@ void SackViewer::OnFieldRightClick(Gwen::Controls::Base* pControl)
 	graph->Dock(Pos::Fill);
     page->GetParent()->GetParent()->SetWidth(580);
 
-    // now add all the data
-    auto ch = graph->CreateChannel(topic, field);
+	auto selected = parent->GetSelectedChildNodes();
+	for (auto& item: selected)
+	{
+		auto topic = item->UserData.Get<std::string>("topic");
+    	auto field = item->UserData.Get<std::string>("field");
 
-    auto data = bag_data_[topic];
-    for (auto& msg: data.messages)
-    {
-        graph->AddMessageSample(ch, msg.time, msg.msg, &data.def, false, false);
-    }
+    	printf("Want to plot: %s:%s\n", topic.c_str(), field.c_str());
+
+    	auto ch = graph->CreateChannel(topic, field);
+
+    	auto data = bag_data_[topic];
+    	for (auto& msg: data.messages)
+    	{
+        	graph->AddMessageSample(ch, msg.time, msg.msg, &data.def, false, false);
+    	}
+	}
 }
 
 void SackViewer::CloseBag()
@@ -520,7 +529,8 @@ void SackViewer::UpdateViewers()
 		// Clear and add the timestamp
 		tree->Clear();
 		std::string str = "timestamp: " + std::to_string(msg.time/1000000.0);
-		tree->AddNode(str);
+		auto node = tree->AddNode(str);
+		node->SetSelectable(false);
 
         const int max_array_length = 100;
 		
@@ -625,6 +635,7 @@ void SackViewer::UpdateViewers()
 			auto node = tree->AddNode(str);
             node->UserData.Set<std::string>("topic", t.first);
             node->UserData.Set<std::string>("field", field->name);
+			node->UserData.Set<Gwen::Controls::TreeNode*>("base", tree);
             node->onRightPress.Add(this, &ThisClass::OnFieldRightClick);
 		}
 		tree->ExpandAll();
@@ -655,8 +666,8 @@ std::string format_time(uint64_t dt, int period)
 	}
 }
 
-const int num_periods = 9;
-int periods[] = {1000, 5000, 10000, 100000, 500000, 1000000, 5000000, 15000000, 30000000, 60000000};
+const int num_periods = 15;
+int periods[] = {1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 15000000, 30000000, 60000000};
 
 void SackViewer::Render( Skin::Base* skin )
 {

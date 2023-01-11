@@ -76,6 +76,11 @@ public:
 	    return b.w - left_padding - other_padding;
     }
 
+	void RecalculateScale()
+	{
+		redo_scale_ = true;
+	}
+
 protected:
 
     void Layout(Gwen::Skin::Base* skin);
@@ -103,7 +108,10 @@ protected:
 	double max_y_ = 100.0;
 
     bool autoscale_y_ = true;
+
+private:
     bool redo_scale_ = true;
+protected:
 		
 	pubsub::Time start_time_;// the time we opened this graph, used for making time values smaller
 };

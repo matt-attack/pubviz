@@ -40,6 +40,7 @@
 #include "Gwen/Controls/Dialogs/FileOpen.h"
 
 #include "SackViewer.h"
+#include "SackGraph.h"
 
 
 using namespace Gwen;
@@ -58,7 +59,14 @@ void SackViz::MenuItemSelect(Controls::Base* pControl)
 	}
 	else if (pMenuItem->GetText() == L"Plot")
 	{
-
+		auto button = GetRight()->GetTabControl()->AddPage("Graph");
+		button->SetPopoutable(true);
+		button->SetClosable(true);
+		auto page = button->GetPage();
+		auto graph = new SackGraph(page);
+    	graph->SetViewer(viewer_);
+		graph->Dock(Pos::Fill);
+    	page->GetParent()->GetParent()->SetWidth(580);
 	}
 	else if (pMenuItem->GetText() == L"Open")
 	{
@@ -80,6 +88,8 @@ void SackViz::Open(const std::string& file)
     play_button_->SetText("Play");
 	play_button_->onToggle.Add( this, &ThisClass::OnPlay );
 	viewer_->OpenFile(file);
+
+	((Gwen::Controls::WindowCanvas*)GetParent())->SetTitle("Sackviz (" + file + ")");
 }
 
 void SackViz::Layout(Skin::Base* skin)
@@ -104,6 +114,7 @@ GWEN_CONTROL_CONSTRUCTOR(SackViz)
 	}
 	{
 		Gwen::Controls::MenuItem* pRoot = menu_->AddItem(L"View");
+		pRoot->GetMenu()->AddItem(L"Plot", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
 	}
 	
 	viewer_ = new SackViewer(this);
@@ -166,7 +177,6 @@ static int val = 0;
 void SackViz::Render(Gwen::Skin::Base* skin)
 {
 	m_iFrames++;
-	//show current line number of active tab, also need to figure out how to display active tab
 	if (m_fLastSecond < Gwen::Platform::GetTimeInSeconds())
 	{
 		val = m_iFrames;
@@ -174,7 +184,9 @@ void SackViz::Render(Gwen::Skin::Base* skin)
 		m_iFrames = 0;
 	}
 
-	m_StatusBar->SetText(Gwen::Utility::Format(L"%i fps", val * 2));
+	double dT = (viewer_->GetPlayheadTime() - viewer_->GetStartTime())/1000000.0;
+
+	m_StatusBar->SetText(Gwen::Utility::Format(L"%3i fps    %lf    %lfs   %s", val * 2, viewer_->GetPlayheadTime()/1000000.0, dT, pubsub::Time(viewer_->GetPlayheadTime()).toString().c_str()));
 
 	BaseClass::Render(skin);
 }
