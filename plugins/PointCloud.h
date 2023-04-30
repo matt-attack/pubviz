@@ -646,4 +646,6 @@ color_buf_[i] = (alpha << 24) | gt_max_color.r | (gt_max_color.g << 8) | (gt_max
 	}
 };
 
+REGISTER_PLUGIN("pointcloud", PointCloudPlugin)
+
 #endif

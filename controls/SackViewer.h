@@ -92,8 +92,8 @@ protected:
 		}
 	};
 	std::map<std::string, Stream> bag_data_;
-	uint64_t start_time_, end_time_;// in uS
-	uint64_t playhead_time_;
+	uint64_t start_time_ = 0, end_time_ = 0;// in uS
+	uint64_t playhead_time_ = 0;
 
     // Used if we enable playback mode
     struct IndexedMessage
@@ -123,7 +123,7 @@ protected:
 	void OnMouseClickRight( int x, int y, bool bDown) override;
 		
 	void OnMenuItemSelect(Gwen::Controls::Base* pControl);
-	void OnViewerClose(Gwen::Event::Info info);
+	void OnViewerClose(Gwen::Controls::Base* pControl);
 
     void OnFieldRightClick(Gwen::Controls::Base* pControl);
 

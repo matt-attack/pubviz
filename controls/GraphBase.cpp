@@ -363,7 +363,7 @@ double CalcStepSize(double range, double targetSteps)
     return magMsd*magPow;
 }
 
-const static float colors[][3] = {{1,0,0},{0,1,0},{0,0,1}, {0,1,1}, {1,0,1}, {1,1,0}};
+const float graph_colors[6][3] = {{1,0,0},{0,1,0},{0,0,1}, {0,1,1}, {1,0,1}, {1,1,0}};
 
 void CalculateDivisions(std::vector<double>& divisions, double min, double max, int max_divisions)
 {
@@ -577,7 +577,7 @@ void GraphBase::Render( Skin::Base* skin )
 	for (auto& sub: channels_)
 	{
 		glBegin(GL_LINE_STRIP);
-		glColor3f(colors[j%6][0], colors[j%6][1], colors[j%6][2]);
+		glColor3f(graph_colors[j%6][0], graph_colors[j%6][1], graph_colors[j%6][2]);
 		for (auto& pt: sub->data)
 		{
 			glVertex2f(start_x + graph_width*(pt.first - min_x_)/(max_x_ - min_x_),
@@ -604,6 +604,8 @@ void GraphBase::Render( Skin::Base* skin )
 	
 	// reset matrices
 	r->Begin();
+
+	PaintOnGraph(start_x, start_y, graph_width, graph_height);
 	
     // return if we dont actually have any channels to plot so we dont draw a silly empty box
     if (channels_.size() == 0)
@@ -629,7 +631,7 @@ void GraphBase::Render( Skin::Base* skin )
 	int q = 0;
 	for (auto& sub: channels_)
 	{
-		r->SetDrawColor(Gwen::Color(colors[q%6][0]*255,colors[q%6][1]*255,colors[q%6][2]*355,255));
+		r->SetDrawColor(Gwen::Color(graph_colors[q%6][0]*255,graph_colors[q%6][1]*255,graph_colors[q%6][2]*355,255));
 		std::string str = sub->topic_name + "." + sub->field_name;
 		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( b.w - 195, 104 + q*20), str);
 		q++;

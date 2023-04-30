@@ -114,6 +114,12 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		{
 			wgs84_mode_ = wgs84;
 		}
+
+		bool show_origin_ = true;
+		void ShowOrigin(bool yn)
+		{
+			show_origin_ = yn;
+		}
 		
 		virtual void Layout( Gwen::Skin::Base* skin ) override;
 		

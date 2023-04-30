@@ -195,24 +195,27 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		glDepthFunc(GL_LEQUAL);
 	}
 
-	// Draw axes
-	glLineWidth(6.0f);
-	glBegin(GL_LINES);
-	// Red line to the right (x)
-	glColor3f(1, 0, 0);
-	glVertex3f(0, 0, 0);
-	glVertex3f(55, 0, 0);
+	// Draw axes at origin
+	if (show_origin_)
+	{
+		glLineWidth(6.0f);
+		glBegin(GL_LINES);
+		// Red line to the right (x)
+		glColor3f(1, 0, 0);
+		glVertex3f(0, 0, 0);
+		glVertex3f(55, 0, 0);
 
-	// Green line to the top (y)
-	glColor3f(0, 1, 0);
-	glVertex3f(0, 0, 0);
-	glVertex3f(0, 55, 0);
+		// Green line to the top (y)
+		glColor3f(0, 1, 0);
+		glVertex3f(0, 0, 0);
+		glVertex3f(0, 55, 0);
 	
-	// Blue line up (z)
-	glColor3f(0, 0, 1);
-	glVertex3f(0, 0, 0);
-	glVertex3f(0, 0, 55);
-	glEnd();
+		// Blue line up (z)
+		glColor3f(0, 0, 1);
+		glVertex3f(0, 0, 0);
+		glVertex3f(0, 0, 55);
+		glEnd();
+	}
 	
 	// Now draw all the plugins
 	for (auto plugin: plugins_)

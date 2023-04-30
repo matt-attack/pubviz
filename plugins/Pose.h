@@ -267,4 +267,6 @@ public:
 	}
 };
 
+REGISTER_PLUGIN("pose", PosePlugin)
+
 #endif

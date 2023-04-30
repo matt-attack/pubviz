@@ -294,8 +294,10 @@ void SackViewer::OnMenuItemSelect(Gwen::Controls::Base* pControl)
 	Gwen::Controls::MenuItem* pMenuItem = (Gwen::Controls::MenuItem*) pControl;
 	if (pMenuItem->GetText() == L"View")
 	{
+		int index = pMenuItem->GetParent()->UserData.Get<int>("message_index");
+		//todo do something besides this to get which viewer its for
 		// create a new viewer
-		int index = (CanvasPosToLocal(pMenuItem->GetParent()->GetPos()).y-40)/40;
+		//int index = (CanvasPosToLocal(pMenuItem->GetParent()->GetPos()).y-40)/40;
 		
 		std::string title; int i = 0;
 		for (const auto& row: bag_data_)
@@ -317,7 +319,8 @@ void SackViewer::OnMenuItemSelect(Gwen::Controls::Base* pControl)
 		button->SetPopoutable(true);
 		button->SetClosable(true);
 		auto page = button->GetPage();
-		button->onClose.Add(this, &ThisClass::OnViewerClose, new std::string(title));
+		button->UserData.Set<std::string>("title", title);
+		button->onClose.Add(this, &ThisClass::OnViewerClose);
 				
 		auto tree = new Gwen::Controls::TreeControl( page );
 		tree->Dock(Pos::Fill);
@@ -329,13 +332,15 @@ void SackViewer::OnMenuItemSelect(Gwen::Controls::Base* pControl)
 		
 		UpdateViewers();
 	}
+	else if (pMenuItem->GetText() == L"Plot")
+	{
+		
+	}
 }
 
-void SackViewer::OnViewerClose(Gwen::Event::Info info)
+void SackViewer::OnViewerClose(Gwen::Controls::Base* pControl)
 {
-	std::string* topic_name = (std::string*)info.Data;
-	viewers_.erase(*topic_name);
-    delete topic_name;
+	viewers_.erase(pControl->UserData.Get<std::string>("title"));
 }
 
 bool SackViewer::OnMouseWheeled( int delta )
@@ -397,6 +402,7 @@ void SackViewer::OpenFile(const std::string& file)
     UpdateViewers();
 }
 
+#include <Gwen/Application.h>
 void SackViewer::OnMouseClickRight(int x, int y, bool bDown)
 {
 	if (bDown)
@@ -404,11 +410,19 @@ void SackViewer::OnMouseClickRight(int x, int y, bool bDown)
 		auto pos = CanvasPosToLocal(Gwen::Point(x, y));
 		if (pos.y > 40 && pos.y < bag_data_.size()*40 + 40)
 		{
-	        auto menu = new Gwen::Controls::Menu(GetCanvas());
+			auto current_win = (Gwen::Controls::WindowCanvas*)GetCanvas();
+			auto wpos = current_win->WindowPosition();
+			auto window = Gwen::gApplication->AddWindow("", 1, 100, wpos.x + x, wpos.y + y, true);
+			window->SetRemoveWhenChildless(true);
+//make a function which can pop this out automatically
+	        auto menu = new Gwen::Controls::Menu(window);
     	    menu->AddItem("View")->SetAction(this, &ThisClass::OnMenuItemSelect);
     	    menu->SetDeleteOnClose(true);
-            menu->SetPos(Gwen::Point(x, y));
+			menu->UserData.Set<int>("message_index", (pos.y-40)/40);
             menu->Show();
+			window->DoThink();
+			auto size = menu->GetSize();
+			window->SetWindowSize(size.x, size.y);
 		}
 	}
 }
@@ -511,26 +525,16 @@ void SackViewer::UpdateViewers()
 		
 		auto tree = viewer->second.second;
 		
+		tree->Clear();
 		if (!msg.msg)
 		{
-			tree->Clear();
 			continue;
 		}
 		
-		// todo use binary search later
-		/*for (int i = 0; i < topic.messages.size(); i++)
-		{
-			if (topic.messages[i].time > playhead_time_)
-				break;
-			
-			msg = topic.messages[i];
-		}*/
-		
-		// Clear and add the timestamp
-		tree->Clear();
+		// Add the timestamp
 		std::string str = "timestamp: " + std::to_string(msg.time/1000000.0);
 		auto node = tree->AddNode(str);
-		node->SetSelectable(false);
+		node->SetSelectable(false);// not plottable, so dont allow selecting
 
         const int max_array_length = 100;
 		
@@ -677,6 +681,11 @@ void SackViewer::Render( Skin::Base* skin )
 	auto bounds = GetRenderBounds();
 	skin->GetRender()->SetDrawColor( Gwen::Color( 250, 250, 250, 255 ) );
 	skin->GetRender()->DrawFilledRect( bounds );
+
+	if (end_time_ == 0 && start_time_ == 0)
+	{
+		return;
+	}
 	
 	// Now draw all the topic names
 	skin->GetRender()->SetDrawColor( Gwen::Color(0,0,0,255) );

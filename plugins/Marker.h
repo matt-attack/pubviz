@@ -268,4 +268,6 @@ public:
 	}
 };
 
+REGISTER_PLUGIN("marker", MarkerPlugin)
+
 #endif

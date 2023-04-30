@@ -24,7 +24,10 @@ extern std::vector<std::string> split(std::string s, std::string delimiter);
 class PubViz;
 class Plugin: public Gwen::Event::Handler
 {
+	std::string type_;
+
 	friend class PubViz;
+	friend class BaseRegisterObject;
 	bool enabled_ = true;
 	ps_node_t* node_;
 	Gwen::Controls::Properties* props_;
@@ -78,6 +81,7 @@ public:
 	}
 	
 	virtual std::string GetTitle() = 0;
+	std::string GetType() { return type_; }
 	
 	std::string GetConfiguration()
 	{

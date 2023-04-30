@@ -186,7 +186,14 @@ void SackViz::Render(Gwen::Skin::Base* skin)
 
 	double dT = (viewer_->GetPlayheadTime() - viewer_->GetStartTime())/1000000.0;
 
-	m_StatusBar->SetText(Gwen::Utility::Format(L"%3i fps    %lf    %lfs   %s", val * 2, viewer_->GetPlayheadTime()/1000000.0, dT, pubsub::Time(viewer_->GetPlayheadTime()).toString().c_str()));
+	if (viewer_->GetStartTime() == 0 && viewer_->GetEndTime() == 0)
+	{
+		m_StatusBar->SetText(Gwen::Utility::Format(L"%3i fps", val * 2));
+	}
+	else
+	{
+		m_StatusBar->SetText(Gwen::Utility::Format(L"%3i fps    %lf    %lfs   %s", val * 2, viewer_->GetPlayheadTime()/1000000.0, dT, pubsub::Time(viewer_->GetPlayheadTime()).toString().c_str()));
+	}
 
 	BaseClass::Render(skin);
 }

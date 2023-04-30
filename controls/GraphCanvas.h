@@ -89,6 +89,8 @@ class GraphCanvas : public GraphBase
 
         virtual void DrawOnGraph(double start_x, double start_y, double graph_width, double graph_height);
 
+		void AddPlot(std::string topic, std::string field);
+
 	protected:
 
         void RemoveChannel(GraphChannel* sub)

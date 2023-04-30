@@ -269,4 +269,6 @@ public:
 	}
 };
 
+REGISTER_PLUGIN("costmap", CostmapPlugin)
+
 #endif

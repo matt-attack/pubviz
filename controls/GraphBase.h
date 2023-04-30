@@ -17,6 +17,8 @@
 
 #include <pubsub_cpp/Node.h>
 
+extern const float graph_colors[6][3];
+
 class PubViz;
 class GraphBase : public Gwen::Controls::Base
 {
@@ -60,6 +62,7 @@ public:
     Channel* CreateChannel(const std::string& topic, const std::string& field);
 
     virtual void DrawOnGraph(double start_x, double start_y, double graph_width, double graph_height) {}
+	virtual void PaintOnGraph(double start_x, double start_y, double graph_width, double graph_height) {};
 
     double GraphStartPosition() { return 80; };
 

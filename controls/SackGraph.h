@@ -32,6 +32,7 @@ public:
 
 	virtual void Render( Gwen::Skin::Base* skin );
 
+	virtual void PaintOnGraph(double start_x, double start_y, double graph_width, double graph_height);
     virtual void DrawOnGraph(double start_x, double start_y, double graph_width, double graph_height);
 
     void SetViewer(SackViewer* viewer);

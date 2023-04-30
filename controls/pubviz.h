@@ -34,7 +34,37 @@ namespace Gwen
 	}
 }
 
-class PubViz : public Gwen::Controls::DockBase
+class BaseRegisterObject
+{
+public:
+
+	virtual Plugin* Construct() = 0;
+
+	static void Add(const std::string& type, BaseRegisterObject* builder);
+
+	static Plugin* Construct(const std::string& type);
+};
+
+std::map<std::string, BaseRegisterObject*>& GetPluginList();
+
+template<class T>
+struct RegisterObject: public BaseRegisterObject
+{
+	RegisterObject(std::string name)
+	{
+		printf("Registered plugin %s as %s\n", typeid(T).name(), name.c_str());
+		BaseRegisterObject::Add(name, this);
+	}
+
+	virtual Plugin* Construct()
+	{
+		return new T;
+	}
+};
+
+#define REGISTER_PLUGIN(name, class) static RegisterObject<class> register_##class(name);
+
+class PubViz: public Gwen::Controls::DockBase
 {
 	public:
 
@@ -58,6 +88,7 @@ class PubViz : public Gwen::Controls::DockBase
 		void OnAddPluginFinish(Gwen::Controls::Base* control);
 		void OnBackgroundChange(Gwen::Controls::Base* control);
 		void OnFrameChange(Gwen::Controls::Base* control);
+		void OnShowOriginChange(Gwen::Controls::Base* control);
 		void OnCenter(Gwen::Controls::Base* control);
         void OnShowConfigChanged(Gwen::Controls::Base* control);
         void OnPause(Gwen::Controls::Base* control);

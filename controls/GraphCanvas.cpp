@@ -72,6 +72,7 @@ GraphSubscriber::GraphSubscriber(const std::string& topic)
         	if (channel == channel->canvas->graph_channels_.back() && 
 				channel->canvas->field_list_->GetTable()->RowCount(0) == 0)
         	{
+				printf("Updated fields for %s with %s\n", channel->topic_name.c_str(), sub->topic_name.c_str());
         	    //sub->canvas->field_list_->ClearItems();
         	    struct ps_deserialize_iterator iter = ps_deserialize_start((const char*)message, &sub->subscriber.received_message_def);
 	    	    const struct ps_msg_field_t* field; uint32_t length; const char* ptr;
@@ -145,13 +146,6 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 	topic_list_->onRowSelected.Add( this, &ThisClass::OnTopicSuggestionClicked );
 
 	field_list_ = new Gwen::Controls::ListBox(this);
-	field_list_->AddItem("A");
-	field_list_->AddItem("B");
-	field_list_->AddItem("C");
-	field_list_->AddItem("D");
-	field_list_->AddItem("E");
-	field_list_->AddItem("F");
-	field_list_->AddItem("G");
 	field_list_->Hide();
 	field_list_->onRowSelected.Add( this, &ThisClass::OnFieldSuggestionClicked );
 
@@ -338,7 +332,7 @@ void GraphCanvas::OnTopicChanged(Base* control)
             return;
         }
 		auto sub = _subscribers[channel->topic_name];
-		sub->AddListener(channel);
+		sub->RemoveListener(channel);
 		if (sub->listeners.size() == 0)
 		{
 			_subscribers.erase(channel->topic_name);
@@ -357,6 +351,29 @@ void GraphCanvas::OnTopicChanged(Base* control)
 		_subscribers[channel->topic_name] = sub;
 	}
 	sub->AddListener(channel);
+}
+
+void GraphCanvas::AddPlot(std::string topic, std::string field)
+{
+//todo shift down the first one
+	// duplicate the current topic
+	auto new_sub = new GraphChannel();
+	new_sub->canvas = this;
+	new_sub->subscribed = true;
+	new_sub->topic_name = topic;
+	new_sub->field_name = field;
+	new_sub->channel = CreateChannel(new_sub->topic_name, new_sub->field_name);
+	new_sub->channel->can_remove = true;
+	new_sub->channel->on_remove = [new_sub, this]() { RemoveChannel(new_sub); delete new_sub; };
+	graph_channels_.push_back(new_sub);
+
+	auto sub = _subscribers[new_sub->topic_name];
+	if (sub == 0)
+	{
+		sub = new GraphSubscriber(new_sub->topic_name);
+		_subscribers[new_sub->topic_name] = sub;
+	}
+	sub->AddListener(new_sub);
 }
 
 void GraphCanvas::Layout( Gwen::Skin::Base* skin )

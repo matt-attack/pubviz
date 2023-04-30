@@ -54,7 +54,29 @@
 #include <Gwen/Controls/Dialogs/FileSave.h>
 
 
+std::map<std::string, BaseRegisterObject*>& GetPluginList()
+{
+	static std::map<std::string, BaseRegisterObject*> list;
+	return list;
+}
 using namespace Gwen;
+
+void BaseRegisterObject::Add(const std::string& type, BaseRegisterObject* builder)
+{
+	GetPluginList()[type] = builder;
+}
+
+Plugin* BaseRegisterObject::Construct(const std::string& type)
+{
+	auto builder = GetPluginList()[type];
+	if (builder == 0)
+	{
+		return 0;
+	}
+	auto obj = builder->Construct();
+	obj->type_ = type;
+	return obj;
+}
 
 PubViz::~PubViz()
 {
@@ -66,7 +88,7 @@ void PubViz::OnConfigSave(Gwen::Event::Info info)
 	std::string config;
 	for (auto p: plugins_)
 	{
-		config += p->GetTitle();
+		config += p->GetType();
 		config += ":";
 		config += p->GetConfiguration();
 		config += "\n";
@@ -123,7 +145,30 @@ void PubViz::OnConfigLoad(Gwen::Event::Info info)
 		{
 			continue;
 		}
-		
+
+		if (data[0] == "plot")
+		{
+			auto button = GetRight()->GetTabControl()->AddPage("Graph");
+			button->SetPopoutable(true);
+			button->SetClosable(true);
+			auto page = button->GetPage();
+			auto graph = new GraphCanvas(page);
+			graph->canvas_ = canvas_;
+			graph->Dock(Pos::Fill);
+        	page->GetParent()->GetParent()->SetWidth(580);
+
+			for (int i = 1; i < data.size(); i+= 2)
+			{
+				auto topic = data[i+0];
+				auto field = data[i+1];
+
+				// add each field
+				graph->AddPlot(topic, field);
+			}
+
+			continue;
+		}
+		printf("add plugin %s\n", data[0].c_str());
 		auto plugin = AddPlugin(data[0]);
 		if (plugin)
 		{
@@ -168,6 +213,8 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 		graph->canvas_ = canvas_;
 		graph->Dock(Pos::Fill);
         page->GetParent()->GetParent()->SetWidth(580);
+
+		// todo need a way to clear out graphs
 	}
 	else if (pMenuItem->GetText() == L"Save Config As")
 	{
@@ -228,7 +275,7 @@ void PubViz::Layout(Skin::Base* skin)
 	Invalidate();
 }
 
-static std::map<std::string, std::vector<std::string>> _topics;
+//static std::map<std::string, std::vector<std::string>> _topics;
 
 GWEN_CONTROL_CONSTRUCTOR(PubViz)
 {
@@ -281,7 +328,9 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	row->onChange.Add(this, &ThisClass::OnBackgroundChange);
 	auto row2 = props->Add(L"WGS84 Frame", new Gwen::Controls::Property::Checkbox(props), L"false");
 	row2->onChange.Add(this, &ThisClass::OnFrameChange);
-	
+	auto row3 = props->Add(L"Show Origin", new Gwen::Controls::Property::Checkbox(props), L"true");
+	row3->onChange.Add(this, &ThisClass::OnShowOriginChange);
+
 	plugin_tree_->ExpandAll();
 	
 	//Controls::Button* remove_button = new Controls::Button( page );
@@ -311,18 +360,9 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 
 		//printf("Discovered topic %s..\n", topic);
 		
-		_topics[type].push_back(topic);
+		//_topics[type].push_back(topic);
 		//_topics[topic] = true;
 	};
-	
-	// make a test for the graph
-	/*{
-		auto button = GetRight()->GetTabControl()->AddPage("Graph");
-		button->SetClosable(true);
-		auto page = button->GetPage();
-		auto graph = new GraphCanvas(page);
-		graph->Dock(Pos::Fill);
-	}*/
 	
 	canvas_ = new OpenGLCanvas(this);
 	canvas_->Dock(Pos::Fill);
@@ -402,6 +442,14 @@ void PubViz::OnFrameChange(Gwen::Controls::Base* control)
 	canvas_->SetFrame(wgs84);
 }
 
+void PubViz::OnShowOriginChange(Gwen::Controls::Base* control)
+{
+	auto prop = ((Gwen::Controls::PropertyRow*)control)->GetProperty();
+	Gwen::Controls::Property::Checkbox* selector = (Gwen::Controls::Property::Checkbox*)prop;
+	bool yn = selector->GetPropertyValue() == L"1" ? true : false;
+	canvas_->ShowOrigin(yn);
+}
+
 void PubViz::OnBackgroundChange(Gwen::Controls::Base* control)
 {
 	auto prop = ((Gwen::Controls::PropertyRow*)control)->GetProperty();
@@ -411,32 +459,8 @@ void PubViz::OnBackgroundChange(Gwen::Controls::Base* control)
 
 Plugin* PubViz::AddPlugin(const std::string& name)
 {
-	Plugin* plugin;
-	if (name == "grid")
-	{
-		plugin = new GridPlugin();
-	}
-	else if (name == "costmap")
-	{
-		plugin = new CostmapPlugin();
-	}
-	else if (name == "marker")
-	{
-		plugin = new MarkerPlugin();
-	}
-	else if (name == "pointcloud")
-	{
-		plugin = new PointCloudPlugin();
-	}
-	else if (name == "pose")
-	{
-		plugin = new PosePlugin();
-	}
-	/*else if (name == "path")
-	{
-		plugin = new PathPlugin();
-	}*/
-	else
+	Plugin* plugin = BaseRegisterObject::Construct(name);
+	if (plugin == 0)
 	{
 		printf("Unknown plugin name '%s'!\n", name.c_str());
 		return 0;
@@ -479,12 +503,12 @@ void PubViz::OnAddPlugin(Gwen::Controls::Base* control)
 	combo->Dock(Pos::Top);
 	combo->SetPos( 50, 50 );
 	combo->SetWidth( 200 );
-	combo->AddItem( L"Grid", "grid" );
-	combo->AddItem( L"Costmap", "costmap" );
-	combo->AddItem( L"Marker", "marker" );
-	combo->AddItem( L"Point Cloud", "pointcloud" );
-	combo->AddItem( L"Pose", "pose");
-	combo->AddItem( L"Path", "path");
+	for (auto plugin: GetPluginList())
+	{
+		auto thing = plugin.second->Construct();
+		combo->AddItem(Gwen::Utility::StringToUnicode(thing->GetTitle()), plugin.first);
+		//delete thing;
+	}
 	
 	Controls::Button* add_button = new Controls::Button( window );
 	add_button->Dock(Pos::Bottom);

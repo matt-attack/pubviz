@@ -104,4 +104,6 @@ public:
 	}
 };
 
+REGISTER_PLUGIN("grid", GridPlugin)
+
 #endif

@@ -256,4 +256,6 @@ public:
 	}
 };
 
+REGISTER_PLUGIN("path", PathPlugin)
+
 #endif
