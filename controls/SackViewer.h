@@ -131,6 +131,8 @@ protected:
 		
 public:
 	void UpdateViewers();
+
+	void PlotSelected();
 protected:
     void CloseBag();
 

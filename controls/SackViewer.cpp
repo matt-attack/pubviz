@@ -86,7 +86,7 @@ void SackViewer::OnFieldRightClick(Gwen::Controls::Base* pControl)
 
     // add a plot!
 
-    auto button = ((Gwen::Controls::DockBase*)GetParent())->GetRight()->GetTabControl()->AddPage("Graph");
+    /*auto button = ((Gwen::Controls::DockBase*)GetParent())->GetRight()->GetTabControl()->AddPage("Graph");
 	button->SetPopoutable(true);
 	button->SetClosable(true);
 	auto page = button->GetPage();
@@ -110,7 +110,7 @@ void SackViewer::OnFieldRightClick(Gwen::Controls::Base* pControl)
     	{
         	graph->AddMessageSample(ch, msg.time, msg.msg, &data.def, false, false);
     	}
-	}
+	}*/
 }
 
 void SackViewer::CloseBag()
@@ -334,7 +334,53 @@ void SackViewer::OnMenuItemSelect(Gwen::Controls::Base* pControl)
 	}
 	else if (pMenuItem->GetText() == L"Plot")
 	{
-		
+		PlotSelected();
+	}
+}
+
+void SackViewer::PlotSelected()
+{
+	Gwen::Controls::TreeNode* parent = 0;
+	for (auto& viewer: viewers_)
+	{
+		// todo this isnt the best if multiple are visible
+		// maybe deselect when another is clicked on?
+		if (viewer.second.second->Visible())
+		{
+			parent = viewer.second.second;
+			break;
+		}
+	}
+
+	if (parent == 0)
+	{
+		return;
+	}
+	
+    auto button = ((Gwen::Controls::DockBase*)GetParent())->GetRight()->GetTabControl()->AddPage("Graph");
+	button->SetPopoutable(true);
+	button->SetClosable(true);
+	auto page = button->GetPage();
+	auto graph = new SackGraph(page);
+    graph->SetViewer(this);
+	graph->Dock(Pos::Fill);
+    page->GetParent()->GetParent()->SetWidth(580);
+
+	auto selected = parent->GetSelectedChildNodes();
+	for (auto& item: selected)
+	{
+		auto topic = item->UserData.Get<std::string>("topic");
+   		auto field = item->UserData.Get<std::string>("field");
+
+   		printf("Want to plot: %s:%s\n", topic.c_str(), field.c_str());
+
+   		auto ch = graph->CreateChannel(topic, field);
+
+   		auto data = bag_data_[topic];
+   		for (auto& msg: data.messages)
+   		{
+       		graph->AddMessageSample(ch, msg.time, msg.msg, &data.def, false, false);
+   		}
 	}
 }
 

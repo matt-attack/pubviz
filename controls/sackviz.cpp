@@ -59,14 +59,7 @@ void SackViz::MenuItemSelect(Controls::Base* pControl)
 	}
 	else if (pMenuItem->GetText() == L"Plot")
 	{
-		auto button = GetRight()->GetTabControl()->AddPage("Graph");
-		button->SetPopoutable(true);
-		button->SetClosable(true);
-		auto page = button->GetPage();
-		auto graph = new SackGraph(page);
-    	graph->SetViewer(viewer_);
-		graph->Dock(Pos::Fill);
-    	page->GetParent()->GetParent()->SetWidth(580);
+		viewer_->PlotSelected();
 	}
 	else if (pMenuItem->GetText() == L"Open")
 	{
