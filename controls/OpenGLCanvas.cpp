@@ -149,7 +149,8 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 
     float vp[4];
     glGetFloatv(GL_VIEWPORT, vp);
-    glViewport(origin.x, origin.y, width, height);
+	auto scale = GetCanvas()->Scale();
+    glViewport(origin.x*scale, origin.y*scale, width*scale, height*scale);
 	
 	if (view_type_ == ViewType::TopDown)
 	{

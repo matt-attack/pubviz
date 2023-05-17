@@ -45,10 +45,10 @@
 
 #include "../plugins/Costmap.h"
 #include "../plugins/Grid.h"
-#include "../plugins/Marker.h"
+//#include "../plugins/Marker.h"
 #include "../plugins/PointCloud.h"
 #include "../plugins/Pose.h"
-//#include "plugins/Path.h"
+#include "../plugins/Path.h"
 
 #include <Gwen/Controls/Dialogs/FileOpen.h>
 #include <Gwen/Controls/Dialogs/FileSave.h>
@@ -257,6 +257,10 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 	{
 		canvas_->SetViewAngle(0, -90);
 	}
+	else if (pMenuItem->GetText() == L"Back")
+	{
+		canvas_->SetViewAngle(0, 90);
+	}
 	else if (pMenuItem->GetText() == L"Left")
 	{
 		canvas_->SetViewAngle(0, 180);
@@ -310,6 +314,7 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 		pRoot->GetMenu()->AddItem(L"Top", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Left", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Front", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddItem(L"Back", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddDivider();
 		pRoot->GetMenu()->AddItem(L"Reset", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 	}	
@@ -370,11 +375,13 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	canvas_->SetFrame(false);
 	
 	AddPlugin("grid");
-		AddPlugin("costmap");
-		AddPlugin("marker");
-		AddPlugin("pointcloud");
-		AddPlugin("pose");
-		AddPlugin("path");
+	//AddPlugin("pointcloud");
+	AddPlugin("lidar_calibration");
+		//AddPlugin("costmap");
+		//AddPlugin("marker");
+		//AddPlugin("pointcloud");
+		//AddPlugin("pose");
+		//AddPlugin("path");
 	
 	add_button->onPress.Add( this, &ThisClass::OnAddPlugin );
 

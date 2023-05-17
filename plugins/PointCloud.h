@@ -29,7 +29,8 @@
 #include <GL/glx.h>
 #endif
 
-
+#undef max
+#undef min
 
 class PointCloudPlugin: public Plugin
 {
@@ -67,8 +68,6 @@ class PointCloudPlugin: public Plugin
 	bool sub_open_ = false;
 	ps_sub_t subscriber_;
 	
-	pubsub::msg::Marker last_msg_;
-	
 	struct Cloud
 	{
 		int num_points;
@@ -77,8 +76,6 @@ class PointCloudPlugin: public Plugin
 	};
 	
 	std::deque<Cloud> clouds_;
-	
-	std::map<int, pubsub::msg::Marker> markers_;
 	
 	void HistoryLengthChange(int length)
 	{
@@ -222,8 +219,6 @@ class PointCloudPlugin: public Plugin
 		{
 			ps_sub_destroy(&subscriber_);
 		}
-		
-		markers_.clear();
 		
 		for (auto cloud: clouds_)
 		{
@@ -389,10 +384,16 @@ public:
                     float byte_scale = 255.0/(max-min);
                     float scale = 1.0/(max-min);
 
+					if (std::abs(max - min) < 0.0001)
+					{
+						byte_scale = 0.0;
+						scale = 0.0;
+					}
+
                     auto mode = coloring_mode_->GetValue();
                     if (mode == "Jet" || mode == "Rainbow")
                     {
-                        auto& table = mode == "Jet" ? jet_table_ : rainbow_table_;
+                        auto table = mode == "Jet" ? jet_table_ : rainbow_table_;
 					    for (int i = 0; i < data->num_points; i++)
 					    {
 					    	point_buf_[i].x = ((float*)data->data)[i*4];
@@ -410,7 +411,7 @@ public:
 						    color_buf_[i] = (alpha << 24) | r | (g << 8) | (b << 16);
 					    }
                     }
-                    else if (coloring_mode_->GetValue() == "Single Color")
+                    else if (mode == "Single Color")
                     {
                         auto color = single_color_->GetValue();
 					    for (int i = 0; i < data->num_points; i++)
@@ -563,7 +564,7 @@ color_buf_[i] = (alpha << 24) | gt_max_color.r | (gt_max_color.g << 8) | (gt_max
 		// add any properties
 		alpha_ = AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1, "Point transparency.");
 		
-		topic_ = AddTopicProperty(tree, "Topic", "/pointcloud");
+		topic_ = AddTopicProperty(tree, "Topic", "/raw_pointcloud");
 		topic_->onChange = std::bind(&PointCloudPlugin::Subscribe, this, std::placeholders::_1);
 		
 		point_text_ = AddStringProperty(tree, "Text", "", "If set, visualize the points as the given characters.");
@@ -578,7 +579,7 @@ color_buf_[i] = (alpha << 24) | gt_max_color.r | (gt_max_color.g << 8) | (gt_max
 		coloring_mode_ = AddEnumProperty(tree, "Coloring Mode", "Interpolated", {"Interpolated", "Clamped", "Jet", "Rainbow", "Single Color"}, "Coloring mode.");
 		coloring_mode_->onChange = std::bind(&PointCloudPlugin::ColoringModeChange, this, std::placeholders::_1);
 
-		coloring_field_ = AddEnumProperty(tree, "Coloring Mode", "Intensity", {"Intensity", "X", "Y", "Z"}, "Point field to use for coloring points.");
+		coloring_field_ = AddEnumProperty(tree, "Coloring Field", "Intensity", {"Intensity", "X", "Y", "Z"}, "Point field to use for coloring points.");
 
 		floored_color_ = AddColorProperty(tree, "Floor Color", Gwen::Color(0,255,0), "Color for points below the minimum value.");
 		ceiled_color_ = AddColorProperty(tree, "Ceiling Color", Gwen::Color(255,255,0), "Color for points above the minimum value.");

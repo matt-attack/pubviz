@@ -101,7 +101,7 @@ public:
 			{
 				if (Paused())
 				{
-				    free(data->data);
+				    free(data->points);
 				    free(data);//todo use allocator free
 					continue;
 				}

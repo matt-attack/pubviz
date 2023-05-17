@@ -89,7 +89,7 @@ void SackViz::Open(const std::string& file)
 	play_button_->onToggle.Add( this, &ThisClass::OnPlay );
 	viewer_->OpenFile(file);
 
-	((Gwen::Controls::WindowCanvas*)GetParent())->SetTitle("Sackviz (" + file + ")");
+	//((Gwen::Controls::WindowCanvas*)GetParent())->SetTitle("Sackviz (" + file + ")");
 }
 
 void SackViz::Layout(Skin::Base* skin)

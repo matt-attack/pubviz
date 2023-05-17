@@ -335,7 +335,7 @@ void CANViz::OnBagOpen(Gwen::Event::Info info)
 
 void CANViz::Open(const std::string& file)
 {
-	((Gwen::Controls::WindowCanvas*)GetParent())->SetTitle("Sackviz (" + file + ")");
+	//((Gwen::Controls::WindowCanvas*)GetParent())->SetTitle("Sackviz (" + file + ")");
 }
 
 static pubsub::Time start_time = pubsub::Time::now();

@@ -116,7 +116,7 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 	topic_name_box_->onTextChanged.Add( this, &ThisClass::OnTopicEdited );
 	topic_name_box_->onReturnPressed.Add( this, &ThisClass::OnTopicChanged );
 	topic_name_box_->onFocusLost.Add( this, &ThisClass::OnTopicEditFinished );
-    topic_name_box_->onFocusGained.Add( this, &ThisClass::OnTopicEditStart );
+    //topic_name_box_->onFocusGained.Add( this, &ThisClass::OnTopicEditStart );
 	
 	field_name_box_ = new Gwen::Controls::TextBox( this );
 	field_name_box_->SetText( "" );
@@ -124,7 +124,7 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 	field_name_box_->SetWidth(150);
 	field_name_box_->onTextChanged.Add( this, &ThisClass::OnFieldChanged );
 	field_name_box_->onFocusLost.Add( this, &ThisClass::OnFieldEditFinished );
-    field_name_box_->onFocusGained.Add( this, &ThisClass::OnFieldEditStart );
+    //field_name_box_->onFocusGained.Add( this, &ThisClass::OnFieldEditStart );
 	//label->onReturnPressed.Add( this, &ThisClass::OnTopicChanged );
 	
 	auto add_button = new Gwen::Controls::Button( this );

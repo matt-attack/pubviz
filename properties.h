@@ -192,6 +192,12 @@ public:
 	{
 		return value_;
 	}
+
+	void SetValue(double value)
+	{
+		property_->m_Numeric->SetValue(value);
+		value_ = value;
+	}
 	
 	virtual std::string Serialize()
 	{
@@ -214,7 +220,7 @@ public:
         property_->GetParent()->Show();
     }
 
-	std::function<void(int)> onChange;
+	std::function<void(double)> onChange;
 };
 
 class TopicProperty: public PropertyBase
