@@ -44,6 +44,10 @@ protected:
     bool mouse_down_ = false;
     SackViewer* viewer_;
 
+	bool selecting_ = false;
+	double selection_start_;
+	double selection_end_;
+
     //void Layout(Gwen::Skin::Base* skin);
 	
 	//void OnRemove(Base* control);
@@ -54,6 +58,7 @@ protected:
 	void OnMouseMoved(int x, int y, int dx, int dy) override;
 	bool OnMouseWheeled( int iDelta ) override;
 	void OnMouseClickLeft( int /*x*/, int /*y*/, bool /*bDown*/ ) override;
+	void OnMouseClickRight( int /*x*/, int /*y*/, bool /*bDown*/ ) override;
 };
 
 #endif

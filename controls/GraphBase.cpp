@@ -371,7 +371,7 @@ void CalculateDivisions(std::vector<double>& divisions, double min, double max, 
     // for this we want enough divisions to fit and to minimize significant figures
     //printf("Max divs: %i\n", max_divisions);
     double period = CalcStepSize(max - min, std::max(max_divisions, 1));
-    if (period < 0)
+    if (period <= 0)
     {
         period = 1 + max - min;
     }

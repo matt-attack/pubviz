@@ -50,6 +50,27 @@ void SackGraph::OnMouseClickLeft( int x, int y, bool down )
     OnMouseMoved(x, y, 0, 0);
 }
 
+void SackGraph::OnMouseClickRight( int x, int y, bool down )
+{
+    selecting_ = down;
+
+	auto start_x = GraphStartPosition();
+    auto graph_width = GraphWidth();
+
+    double x_rel = CanvasPosToLocal(Gwen::Point(x, y)).x;
+
+	if (!selecting_)
+	{
+		min_x_ = std::min(selection_start_, selection_end_);
+		max_x_ = std::max(selection_start_, selection_end_);
+	}
+
+	double rel_time = ((x_rel - start_x)/graph_width)*(max_x_ - min_x_) + min_x_;
+	selection_start_ = rel_time;
+    OnMouseMoved(x, y, 0, 0);
+	Redraw();
+}
+
 void SackGraph::OnMouseMoved(int x, int y, int dx, int dy)
 {
     // move playhead if we are currently mouse down
@@ -66,6 +87,18 @@ void SackGraph::OnMouseMoved(int x, int y, int dx, int dy)
         viewer_->SetPlayheadTime(abs_time);
         Redraw();
     }
+
+	if (selecting_)
+	{
+        auto start_x = GraphStartPosition();
+        auto graph_width = GraphWidth();
+
+        x = CanvasPosToLocal(Gwen::Point(x, y)).x;
+
+		double rel_time = ((x - start_x)/graph_width)*(max_x_ - min_x_) + min_x_;
+        selection_end_ = rel_time;
+		Redraw();
+	}
 }
 
 void SackGraph::SetViewer(SackViewer* viewer)
@@ -125,6 +158,25 @@ void SackGraph::DrawOnGraph(double start_x, double start_y, double graph_width, 
 		j++;*/
 	glEnd();
 
+	// draw the selection
+	if (selecting_)
+	{
+		glEnable(GL_BLEND);
+		glBegin(GL_TRIANGLES);
+		glColor4f(1.0, 0.0, 0.0, 0.5);
+ 		double pt1x = start_x + graph_width*(selection_start_/*position here*/ - min_x_)/(max_x_ - min_x_);
+		double pt2x = start_x + graph_width*(selection_end_/*position here*/ - min_x_)/(max_x_ - min_x_);
+    	glVertex2f(pt1x, start_y);
+    	glVertex2f(pt1x, start_y + graph_height);
+		glVertex2f(pt2x, start_y + graph_height);
+
+		glVertex2f(pt2x, start_y);
+    	glVertex2f(pt1x, start_y);
+		glVertex2f(pt2x, start_y + graph_height);
+
+		glEnd();
+    	glDisable(GL_BLEND);
+	}
 
 	double x,y;
 	// also draw the nearest value
