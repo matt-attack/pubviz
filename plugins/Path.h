@@ -101,7 +101,7 @@ public:
 			{
 				if (Paused())
 				{
-				    free(data->data);
+				    free(data->points);
 				    free(data);//todo use allocator free
 					continue;
 				}
@@ -252,7 +252,7 @@ public:
 	
 	std::string GetTitle() override
 	{
-		return "Marker";
+		return "Path";
 	}
 };
 

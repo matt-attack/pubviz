@@ -355,7 +355,10 @@ void GraphCanvas::OnTopicChanged(Base* control)
 
 void GraphCanvas::AddPlot(std::string topic, std::string field)
 {
-//todo shift down the first one
+	auto backc = channels_.back();
+	channels_.pop_back();
+	auto back = graph_channels_.back();
+	graph_channels_.pop_back();
 	// duplicate the current topic
 	auto new_sub = new GraphChannel();
 	new_sub->canvas = this;
@@ -366,6 +369,8 @@ void GraphCanvas::AddPlot(std::string topic, std::string field)
 	new_sub->channel->can_remove = true;
 	new_sub->channel->on_remove = [new_sub, this]() { RemoveChannel(new_sub); delete new_sub; };
 	graph_channels_.push_back(new_sub);
+	graph_channels_.push_back(back);
+	channels_.push_back(backc);
 
 	auto sub = _subscribers[new_sub->topic_name];
 	if (sub == 0)
@@ -386,7 +391,49 @@ void GraphCanvas::Layout( Gwen::Skin::Base* skin )
 
 void GraphCanvas::DrawOnGraph(double start_x, double start_y, double graph_width, double graph_height)
 {
+	// convert timestamp to bag time
+	if (hover_time_ != std::numeric_limits<double>::infinity())
+	{
+		// draw the hovered area
+		glLineWidth(4.0f);
+		glBegin(GL_LINE_STRIP);
+		glColor3f(1.0, 0.0, 0.0);
+		double sx = start_x + graph_width * (hover_time_/*position here*/ - min_x_) / (max_x_ - min_x_);
+		glVertex2f(sx, start_y);
+		glVertex2f(sx, start_y + graph_height);
+		glEnd();
+	}
+}
 
+void GraphCanvas::PaintOnGraph(double start_x, double start_y, double graph_width, double graph_height)
+{
+	if (hover_time_ != std::numeric_limits<double>::infinity())
+	{
+		auto r = GetSkin()->GetRender();
+		double slider_time = hover_time_;
+		int j = 0;
+		char buffer[50];
+		for (auto channel : channels_)
+		{
+			for (int i = channel->data.size() - 1; i >= 0; i--)
+			{
+				auto& pt = channel->data[i];
+				if (pt.first < slider_time)
+				{
+					double x = start_x + graph_width * (slider_time - min_x_) / (max_x_ - min_x_);
+					double y = start_y + j * 20;
+					glVertex2f(x, y);
+
+					sprintf(buffer, "%lf", pt.second);
+					r->SetDrawColor(Gwen::Color(graph_colors[j][0] * 255, graph_colors[j][1] * 255, graph_colors[j][2] * 255, 255));
+					r->RenderText(GetSkin()->GetDefaultFont(), Gwen::PointF(x + 15, y - 15), (std::string)buffer);
+
+					break;
+				}
+			}
+			j++;
+		}
+	}
 }
 
 bool GraphCanvas::OnMouseWheeled( int delta )
@@ -401,5 +448,24 @@ void GraphCanvas::OnMouseClickLeft( int /*x*/, int /*y*/, bool down )
 
 void GraphCanvas::OnMouseMoved(int x, int y, int dx, int dy)
 {
+	auto start_x = GraphStartPosition();
+	auto graph_width = GraphWidth();
 
+	x = CanvasPosToLocal(Gwen::Point(x, y)).x;
+
+	double rel_time = ((x - start_x) / graph_width) * (max_x_ - min_x_) + min_x_;
+
+	if (rel_time < min_x_ || rel_time > max_x_)
+	{
+		if (hover_time_ != std::numeric_limits<double>::infinity())
+		{
+			Redraw();
+		}
+		hover_time_ = std::numeric_limits<double>::infinity();
+	}
+	else
+	{
+		hover_time_ = rel_time;
+		Redraw();
+	}
 }

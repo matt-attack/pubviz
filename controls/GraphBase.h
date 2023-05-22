@@ -50,6 +50,11 @@ public:
 		}
 	}
 
+	std::vector<Channel*>& GetChannels()
+	{
+		return channels_;
+	}
+
 	virtual void Render( Gwen::Skin::Base* skin );
 
 	const Gwen::Color & GetColor() { return m_Color; }

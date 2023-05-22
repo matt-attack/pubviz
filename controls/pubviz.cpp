@@ -48,11 +48,10 @@
 #include "../plugins/Marker.h"
 #include "../plugins/PointCloud.h"
 #include "../plugins/Pose.h"
-//#include "plugins/Path.h"
+#include "../plugins/Path.h"
 
 #include <Gwen/Controls/Dialogs/FileOpen.h>
 #include <Gwen/Controls/Dialogs/FileSave.h>
-
 
 std::map<std::string, BaseRegisterObject*>& GetPluginList()
 {
@@ -68,12 +67,12 @@ void BaseRegisterObject::Add(const std::string& type, BaseRegisterObject* builde
 
 Plugin* BaseRegisterObject::Construct(const std::string& type)
 {
-	auto builder = GetPluginList()[type];
-	if (builder == 0)
+	auto builder = GetPluginList().find(type);
+	if (builder == GetPluginList().end())
 	{
 		return 0;
 	}
-	auto obj = builder->Construct();
+	auto obj = builder->second->Construct();
 	obj->type_ = type;
 	return obj;
 }
@@ -86,6 +85,13 @@ PubViz::~PubViz()
 void PubViz::OnConfigSave(Gwen::Event::Info info)
 {
 	std::string config;
+	// save our own configuration first
+	config += "pubviz:";
+	config += "view,";
+	config += (canvas_->view_type_ == ViewType::Orbit ? "orbit" : "topdown");
+	config += ",yaw," + std::to_string(canvas_->yaw_) + ",";
+	config += "pitch," + std::to_string(canvas_->pitch_) + "";
+	config += "\n";
 	for (auto p: plugins_)
 	{
 		config += p->GetType();
@@ -94,6 +100,22 @@ void PubViz::OnConfigSave(Gwen::Event::Info info)
 		config += "\n";
 	}
 	//printf("%s\n", config.c_str());
+
+	// save graphs
+	for (auto g : graphs_)
+	{
+		config += "plot:";
+		for (auto& ch : g.first->GetChannels())
+		{
+			if (ch->topic_name.length() == 0 || ch->field_name.length() == 0)
+			{
+				continue;
+			}
+
+			config += ch->topic_name + ":" + ch->field_name + ":";
+		}
+		config += "\n";
+	}
 	
 	FILE* f = fopen(info.String.c_str(), "wb");
 	fwrite(config.c_str(), 1, config.length(), f);
@@ -155,9 +177,10 @@ void PubViz::OnConfigLoad(Gwen::Event::Info info)
 			auto graph = new GraphCanvas(page);
 			graph->canvas_ = canvas_;
 			graph->Dock(Pos::Fill);
+			graph->UserData.Set<Gwen::Controls::TabButton*>("button", button);
         	page->GetParent()->GetParent()->SetWidth(580);
-
-			for (int i = 1; i < data.size(); i+= 2)
+			graphs_[graph] = true;
+			for (int i = 1; i < data.size() - 1; i+= 2)
 			{
 				auto topic = data[i+0];
 				auto field = data[i+1];
@@ -166,6 +189,38 @@ void PubViz::OnConfigLoad(Gwen::Event::Info info)
 				graph->AddPlot(topic, field);
 			}
 
+			continue;
+		}
+		else if (data[0] == "pubviz")
+		{
+			auto pts = split(data[1], ",");
+			if (pts.size() % 2 != 0)
+			{
+				printf("Invalid config\n");
+				return;
+			}
+			double pitch = 0.0;
+			double yaw = 0.0;
+			for (int i = 0; i < pts.size(); i += 2)
+			{
+				auto key = pts[i];
+				auto value = pts[i + 1];
+
+				if (key == "view")
+				{
+					canvas_->SetViewType(value == "orbit" ? ViewType::Orbit : ViewType::TopDown);
+				}
+				else if (key == "pitch")
+				{
+					pitch = std::atof(value.c_str());
+					canvas_->SetViewAngle(pitch, yaw);
+				}
+				else if (key == "yaw")
+				{
+					yaw = std::atof(value.c_str());
+					canvas_->SetViewAngle(pitch, yaw);
+				}
+			}
 			continue;
 		}
 		printf("add plugin %s\n", data[0].c_str());
@@ -186,6 +241,14 @@ void PubViz::ClearPlugins()
 	}
 	plugins_.clear();
 	canvas_->plugins_.clear();
+
+	// clear graphs
+	for (auto graph : graphs_)
+	{
+		auto button = graph.first->UserData.Get<Gwen::Controls::TabButton*>("button");
+		button->Close();
+	}
+	graphs_.clear();
 }
 
 void PubViz::MenuItemSelect(Controls::Base* pControl)
@@ -212,9 +275,11 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 		auto graph = new GraphCanvas(page);
 		graph->canvas_ = canvas_;
 		graph->Dock(Pos::Fill);
+		graph->UserData.Set<Gwen::Controls::TabButton*>("button", button);
+		button->onClose.Add(this, &ThisClass::OnGraphClosed);
         page->GetParent()->GetParent()->SetWidth(580);
 
-		// todo need a way to clear out graphs
+		graphs_[graph] = true;
 	}
 	else if (pMenuItem->GetText() == L"Save Config As")
 	{
@@ -265,6 +330,11 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 	{
 		canvas_->ResetView();
 	}
+}
+
+void PubViz::OnGraphClosed(Gwen::Controls::Base* base)
+{
+	graphs_.erase((GraphCanvas*)base->GetChild(0));
 }
 
 void PubViz::Layout(Skin::Base* skin)
@@ -373,8 +443,8 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 		AddPlugin("costmap");
 		AddPlugin("marker");
 		AddPlugin("pointcloud");
-		AddPlugin("pose");
 		AddPlugin("path");
+		AddPlugin("pose");
 	
 	add_button->onPress.Add( this, &ThisClass::OnAddPlugin );
 

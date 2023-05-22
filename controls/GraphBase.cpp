@@ -545,7 +545,9 @@ void GraphBase::Render( Skin::Base* skin )
 	Gwen::Point pos = r->GetRenderOffset();
 	glLoadIdentity();
 	//glRotatef(yaw, 0, 0, 1);
-	glTranslatef(pos.x, pos.y, 0);// shift it so 0, 0 is _our_ top left corner
+	auto scale = GetCanvas()->Scale();
+	glTranslatef(pos.x*scale, pos.y*scale, 0);// shift it so 0, 0 is _our_ top left corner
+	glScalef(scale, scale, 1.0);
 	
 	// Draw graph grid lines
 	glLineWidth(3.0f);

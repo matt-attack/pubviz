@@ -24,7 +24,7 @@ target_include_directories(pubviz PUBLIC
 target_link_libraries(pubviz GWEN_opengl GWEN_static pubsub)
 
 # Sackviz
-add_executable(sackviz
+add_executable(sackviz WIN32
   controls/sackviz.cpp
   tools/sackviz.cpp
   controls/GraphBase.cpp

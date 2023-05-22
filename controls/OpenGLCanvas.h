@@ -127,6 +127,10 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		{
 			if (view_type_ == ViewType::Orbit)
 			{
+				if (pitch_ != pitch || yaw_ != yaw)
+				{
+					Redraw();
+				}
 				pitch_ = pitch;
 				yaw_ = yaw;
 			}

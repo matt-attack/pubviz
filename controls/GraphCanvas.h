@@ -88,6 +88,7 @@ class GraphCanvas : public GraphBase
 		~GraphCanvas();
 
         virtual void DrawOnGraph(double start_x, double start_y, double graph_width, double graph_height);
+		virtual void PaintOnGraph(double start_x, double start_y, double graph_width, double graph_height);
 
 		void AddPlot(std::string topic, std::string field);
 
@@ -136,6 +137,8 @@ class GraphCanvas : public GraphBase
 		
 		// these change as we get more samples
 		double x_width_ = 10.0;// in seconds, this is constant and set by user
+
+		double hover_time_ = std::numeric_limits<double>::infinity();
 };
 
 #endif

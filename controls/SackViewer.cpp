@@ -1,5 +1,7 @@
 // todo license
 
+#include <pubsub/TCPTransport.h>
+
 #include "Gwen/Anim.h"
 #include <Gwen/Platform.h>
 
@@ -22,8 +24,8 @@
 
 #include <rucksack/rucksack.h>
 
-
-#include <pubsub/TCPTransport.h>
+#undef min
+#undef max
 
 using namespace Gwen;
 using namespace Gwen::Controls;
@@ -321,6 +323,39 @@ void SackViewer::OnMenuItemSelect(Gwen::Controls::Base* pControl)
 		auto page = button->GetPage();
 		button->UserData.Set<std::string>("title", title);
 		button->onClose.Add(this, &ThisClass::OnViewerClose);
+
+		auto topbar = new Gwen::Controls::Base(page);
+		topbar->Dock(Pos::Bottom);
+		topbar->UserData.Set<std::string>("topic", title);
+
+		auto button2 = new Gwen::Controls::Button(topbar);
+		button2->SetText("|<");
+		button2->SetToolTip("First Message");
+		button2->SetSize(25, 25);
+		button2->Dock(Pos::Left);
+		button2->onDown.Add(this, &ThisClass::OnFirstMessage);
+		auto button22 = new Gwen::Controls::Button(topbar);
+		button22->SetText("<");
+		button22->SetToolTip("Previous Message");
+		button22->SetSize(25, 25);
+		button22->Dock(Pos::Left);
+		button22->onDown.Add(this, &ThisClass::OnPreviousMessage);
+
+
+		auto button222 = new Gwen::Controls::Button(topbar);
+		button222->SetText(">|");
+		button222->SetToolTip("Last Message");
+		button222->SetSize(25, 25);
+		button222->Dock(Pos::Right);
+		button222->onDown.Add(this, &ThisClass::OnLastMessage);
+		auto button3 = new Gwen::Controls::Button(topbar);
+		button3->SetText(">");
+		button3->SetToolTip("Next Message");
+		button3->SetSize(25, 25);
+		button3->Dock(Pos::Right);
+		button3->onDown.Add(this, &ThisClass::OnNextMessage);
+
+		topbar->SizeToChildren();
 				
 		auto tree = new Gwen::Controls::TreeControl( page );
 		tree->Dock(Pos::Fill);
@@ -336,6 +371,62 @@ void SackViewer::OnMenuItemSelect(Gwen::Controls::Base* pControl)
 	{
 		PlotSelected();
 	}
+}
+
+void SackViewer::OnPreviousMessage(Gwen::Controls::Base* control)
+{
+	std::string topic = control->GetParent()->UserData.Get<std::string>("topic");
+	auto& data = bag_data_[topic];
+	auto& viewer = viewers_[topic];
+
+	if (data.messages.size() == 0)
+	{
+		return;
+	}
+	
+	SetPlayheadTime(data.messages[std::max(viewer.current_message - 1, 0)].time);
+}
+
+void SackViewer::OnNextMessage(Gwen::Controls::Base* control)
+{
+	std::string topic = control->GetParent()->UserData.Get<std::string>("topic");
+	auto& data = bag_data_[topic];
+	auto& viewer = viewers_[topic];
+
+	if (data.messages.size() == 0)
+	{
+		return;
+	}
+
+	SetPlayheadTime(data.messages[std::min<int>(viewer.current_message + 1, data.messages.size() - 1)].time);
+}
+
+void SackViewer::OnLastMessage(Gwen::Controls::Base* control)
+{
+	std::string topic = control->GetParent()->UserData.Get<std::string>("topic");
+	auto& data = bag_data_[topic];
+
+	if (data.messages.size() == 0)
+	{
+		return;
+	}
+
+	auto time = data.messages[data.messages.size() - 1].time;
+	SetPlayheadTime(time);
+}
+
+void SackViewer::OnFirstMessage(Gwen::Controls::Base* control)
+{
+	std::string topic = control->GetParent()->UserData.Get<std::string>("topic");
+	auto& data = bag_data_[topic];
+
+	if (data.messages.size() == 0)
+	{
+		return;
+	}
+
+	auto time = data.messages[0].time;
+	SetPlayheadTime(time);
 }
 
 void SackViewer::PlotSelected()
@@ -376,7 +467,7 @@ void SackViewer::PlotSelected()
 
    		auto ch = graph->CreateChannel(topic, field);
 
-   		auto data = bag_data_[topic];
+   		auto& data = bag_data_[topic];
    		for (auto& msg: data.messages)
    		{
        		graph->AddMessageSample(ch, msg.time, msg.msg, &data.def, false, false);
@@ -458,17 +549,18 @@ void SackViewer::OnMouseClickRight(int x, int y, bool bDown)
 		{
 			auto current_win = (Gwen::Controls::WindowCanvas*)GetCanvas();
 			auto wpos = current_win->WindowPosition();
-			auto window = Gwen::gApplication->AddWindow("", 1, 100, wpos.x + x, wpos.y + y, true);
-			window->SetRemoveWhenChildless(true);
+			//auto window = Gwen::gApplication->AddWindow("", 1, 100, wpos.x + x, wpos.y + y, true);
+			//window->SetRemoveWhenChildless(true);
 //make a function which can pop this out automatically
-	        auto menu = new Gwen::Controls::Menu(window);
+	        auto menu = new Gwen::Controls::Menu(GetCanvas());
+			menu->SetPos(x, y);
     	    menu->AddItem("View")->SetAction(this, &ThisClass::OnMenuItemSelect);
     	    menu->SetDeleteOnClose(true);
 			menu->UserData.Set<int>("message_index", (pos.y-40)/40);
             menu->Show();
-			window->DoThink();
+			//window->DoThink();
 			auto size = menu->GetSize();
-			window->SetWindowSize(size.x, size.y);
+			//window->SetWindowSize(size.x, size.y);
 		}
 	}
 }
@@ -505,11 +597,13 @@ void SackViewer::OnMouseMoved(int x, int y, int dx, int dy)
 	playhead_time_ = std::min(end_time_, playhead_time_);
 
     reseek_ = true;
+
+	Redraw();
 	
 	UpdateViewers();
 }
 
-SackViewer::Message BinarySearch(uint64_t target_time, const std::vector<SackViewer::Message>& array)
+int BinarySearch(uint64_t target_time, const std::vector<SackViewer::Message>& array)
 {
 	SackViewer::Message msg;
 	msg.time = 0;
@@ -521,7 +615,7 @@ SackViewer::Message BinarySearch(uint64_t target_time, const std::vector<SackVie
 		int middle = (left + right)/2;
 		if (array[middle].time == target_time)
 		{
-			return array[middle];
+			return middle;
 		}
 		if (target_time > array[middle].time)
 		{
@@ -540,14 +634,12 @@ SackViewer::Message BinarySearch(uint64_t target_time, const std::vector<SackVie
 	
 	// pick one less if we just overshot possible
 	if (left != 0 && array[left].time > target_time)
-		return array[left-1];
+		return left-1;
 	else if (array[left].time < target_time)
-		return array[left];
+		return left;
 
 	// nothing was before this time
-	msg.time = 0;
-	msg.msg = 0;
-	return msg;
+	return -1;
 }
 
 void SackViewer::UpdateViewers()
@@ -565,18 +657,18 @@ void SackViewer::UpdateViewers()
 		
 		// find the topic and visualize it
 		auto topic = t.second;
-		auto msg = topic.messages[0];
-		
-		msg = BinarySearch(current_time, topic.messages);
+		auto msg_index = BinarySearch(current_time, topic.messages);
 		
 		auto tree = viewer->second.second;
-		
+		viewer->second.current_message = msg_index;
 		tree->Clear();
-		if (!msg.msg)
+		if (msg_index < 0)
 		{
 			continue;
 		}
-		
+
+		auto msg = topic.messages[msg_index];
+
 		// Add the timestamp
 		std::string str = "timestamp: " + std::to_string(msg.time/1000000.0);
 		auto node = tree->AddNode(str);
@@ -766,31 +858,19 @@ void SackViewer::Render( Skin::Base* skin )
 		}
 	}
 	
-	// Actually draw the time labels and bars
-	r->SetDrawColor( Gwen::Color(0, 0, 0, 255));
-	uint64_t time = start_time_;
-	while (time < end_time_)
-	{
-		double x = (time - start_time_)*px_per_usec;
-		r->RenderText(skin->GetDefaultFont(), Gwen::PointF(title_width + x + 5, 20), format_time(time-start_time_, period));
-		time += period;
-		r->DrawFilledRect(Rect(title_width + x, 20, 2, bag_data_.size()*40 + 20));
-	}
-	
-	
 	skin->GetRender()->SetDrawColor( Gwen::Color(0,0,0,255) );
 	off = 40;
 	for (auto& topic: bag_data_)
 	{
-		skin->GetRender()->SetDrawColor( Gwen::Color(0,0,0,255) );
-		r->DrawLinedRect(Rect(title_width, off, graph_width, 38));
-		
 		skin->GetRender()->SetDrawColor( Gwen::Color(0,0,200,255) );
-		for (auto& msg: topic.second.messages)
+		for (auto& msg : topic.second.messages)
 		{
 			double x = (msg.time - start_time_)*px_per_usec;
 			r->DrawFilledRect(Rect(title_width + x, off, 2, 38));
 		}
+
+		skin->GetRender()->SetDrawColor(Gwen::Color(0, 0, 0, 255));
+		r->DrawLinedRect(Rect(title_width, off, graph_width, 38));
 		
 		off += 40;
 	}
@@ -799,4 +879,15 @@ void SackViewer::Render( Skin::Base* skin )
 	r->SetDrawColor( Gwen::Color(255, 0, 0, 255));
 	double x = (playhead_time_ - start_time_)*px_per_usec;
 	r->DrawFilledRect(Rect(title_width + x, 20, 4, bag_data_.size()*40 + 20));
+
+	// Actually draw the time labels and bars
+	r->SetDrawColor(Gwen::Color(0, 0, 0, 255));
+	uint64_t time = start_time_;
+	while (time < end_time_)
+	{
+		double x = (time - start_time_) * px_per_usec;
+		r->RenderText(skin->GetDefaultFont(), Gwen::PointF(title_width + x + 5, 20), format_time(time - start_time_, period));
+		time += period;
+		r->DrawFilledRect(Rect(title_width + x, 20, 2, bag_data_.size() * 40 + 20));
+	}
 }

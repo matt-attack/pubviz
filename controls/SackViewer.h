@@ -72,6 +72,8 @@ public:
             playhead_time_ = time;
         }
 
+        reseek_ = true;
+
 		UpdateViewers();
     }
 
@@ -112,8 +114,15 @@ protected:
     bool loop_playback_ = false;
     bool should_publish_ = false;
     std::thread playback_thread_;
+
+    struct Viewer
+    {
+        Gwen::Controls::TabButton* first;
+        Gwen::Controls::TreeControl* second;
+        int current_message;
+    };
 		
-	std::map<std::string, std::pair<Gwen::Controls::TabButton*, Gwen::Controls::TreeControl*>> viewers_;
+	std::map<std::string, Viewer> viewers_;
 		
 	//Gwen::Controls::Menu* context_menu_;
 	
@@ -124,6 +133,11 @@ protected:
 		
 	void OnMenuItemSelect(Gwen::Controls::Base* pControl);
 	void OnViewerClose(Gwen::Controls::Base* pControl);
+
+    void OnPreviousMessage(Gwen::Controls::Base* control);
+    void OnNextMessage(Gwen::Controls::Base* control);
+    void OnFirstMessage(Gwen::Controls::Base* control);
+    void OnLastMessage(Gwen::Controls::Base* control);
 
     void OnFieldRightClick(Gwen::Controls::Base* pControl);
 

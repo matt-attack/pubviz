@@ -185,7 +185,10 @@ void SackViz::Render(Gwen::Skin::Base* skin)
 	}
 	else
 	{
-		m_StatusBar->SetText(Gwen::Utility::Format(L"%3i fps    %lf    %lfs   %s", val * 2, viewer_->GetPlayheadTime()/1000000.0, dT, pubsub::Time(viewer_->GetPlayheadTime()).toString().c_str()));
+		auto string = pubsub::Time(viewer_->GetPlayheadTime()).toString();
+		char buf[1000];
+		sprintf(buf, "%3i fps    %lf    %lfs   %s", val * 2, viewer_->GetPlayheadTime() / 1000000.0, dT, string.c_str());
+		m_StatusBar->SetText(buf);
 	}
 
 	BaseClass::Render(skin);

@@ -64,6 +64,7 @@ struct RegisterObject: public BaseRegisterObject
 
 #define REGISTER_PLUGIN(name, class) static RegisterObject<class> register_##class(name);
 
+class GraphCanvas;
 class PubViz: public Gwen::Controls::DockBase
 {
 	public:
@@ -100,6 +101,7 @@ class PubViz: public Gwen::Controls::DockBase
 		
 		void OnConfigSave(Gwen::Event::Info info);
 		void OnConfigLoad(Gwen::Event::Info info);
+		void OnGraphClosed(Gwen::Controls::Base* base);
 		
 		void ClearPlugins();
 		
@@ -113,6 +115,8 @@ class PubViz: public Gwen::Controls::DockBase
 		ps_node_t node_;
 		
 		std::vector<Plugin*> plugins_;
+
+		std::map<GraphCanvas*, bool> graphs_;
 
 		Gwen::Controls::StatusBar*	m_StatusBar;
 		unsigned int				m_iFrames;

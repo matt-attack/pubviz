@@ -61,8 +61,24 @@ void SackGraph::OnMouseClickRight( int x, int y, bool down )
 
 	if (!selecting_)
 	{
-		min_x_ = std::min(selection_start_, selection_end_);
-		max_x_ = std::max(selection_start_, selection_end_);
+		if (selection_start_ == selection_end_)
+		{
+			min_x_ = 0.0;
+			max_x_ = 0.0;
+
+			for (auto& sub : channels_)
+			{
+				if (sub->data.size())
+				{
+					max_x_ = std::max(max_x_, sub->data.back().first);
+				}
+			}
+		}
+		else
+		{
+			min_x_ = std::min(selection_start_, selection_end_);
+			max_x_ = std::max(selection_start_, selection_end_);
+		}
 	}
 
 	double rel_time = ((x_rel - start_x)/graph_width)*(max_x_ - min_x_) + min_x_;
@@ -150,12 +166,6 @@ void SackGraph::DrawOnGraph(double start_x, double start_y, double graph_width, 
     double sx = start_x + graph_width*(slider_time/*position here*/ - min_x_)/(max_x_ - min_x_);
     glVertex2f(sx, start_y);
     glVertex2f(sx, start_y + graph_height);
-		/*for (auto& pt: sub->data)
-		{
-			glVertex2f(start_x + graph_width*(pt.first - min_x_)/(max_x_ - min_x_),
-		           start_y + y_count*y_cell_size - graph_height*(pt.second - min_y_)/(max_y_ - min_y_));
-		}
-		j++;*/
 	glEnd();
 
 	// draw the selection
@@ -181,7 +191,7 @@ void SackGraph::DrawOnGraph(double start_x, double start_y, double graph_width, 
 	double x,y;
 	// also draw the nearest value
 	// todo use binary search
-	glPointSize(30);
+	glPointSize(20);
 	glBegin(GL_POINTS);
     glColor4f(0.0, 1.0, 1.0, 0.5);
 	glEnable(GL_BLEND);

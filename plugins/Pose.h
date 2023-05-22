@@ -263,7 +263,7 @@ public:
 	
 	std::string GetTitle() override
 	{
-		return "Marker";
+		return "Pose";
 	}
 };
 
