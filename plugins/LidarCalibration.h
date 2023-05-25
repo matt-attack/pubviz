@@ -495,7 +495,7 @@ public:
 			auto pt = (PointXYZI*)cld.data;
 			for (int i = 0; i < cld.num_points; i++)// um, wat, why did it error at a high number?
 			{
-				auto pos = Vec3(pt[i].x * 0.001, pt[i].y * 0.001, pt[i].z * 0.001);
+				auto pos = Vec3(pt[i].x, pt[i].y, pt[i].z);
 				//if (pt[i].x == 0.0 && pt[i].y == 0.0 && )
 				//pos = lidar_to_vehicle.transform(pos);
 				cloud->points[p].x = pos.x;
