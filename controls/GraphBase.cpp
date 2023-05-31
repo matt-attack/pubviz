@@ -2,6 +2,7 @@
 
 #include <Gwen/Platform.h>
 #include <Gwen/Controls/CheckBox.h>
+#include <Gwen/Controls/ComboBox.h>
 #include <Gwen/Controls/Menu.h>
 #include <Gwen/Controls/TextBox.h>
 #include <Gwen/Controls/WindowControl.h>
@@ -46,6 +47,7 @@ struct ConfigureDialog
 {
 	Gwen::Controls::TextBoxNumeric* left_, *right_, *bottom_, *top_;
 	Gwen::Controls::CheckBox* autoscale_y_;
+	Gwen::Controls::ComboBox* style_;
 
 	GraphBase* graph_;
 
@@ -81,7 +83,7 @@ void GraphBase::OnConfigure(Base* control)
 {
 	Controls::WindowControl* pWindow = new Controls::WindowControl( GetCanvas() );
 	pWindow->SetTitle( L"Configure Graph" );
-	pWindow->SetSize( 200, 250 );
+	pWindow->SetSize( 200, 255 + 25 );
 	pWindow->MakeModal( true );
 	//pWindow->Position( Pos::Center );// doesnt work if we have no inner space left
     auto pos = GetCanvas()->GetRenderBounds();
@@ -90,6 +92,12 @@ void GraphBase::OnConfigure(Base* control)
     pWindow->DisableResizing();
 
 	auto dialog = new ConfigureDialog(this);
+
+	auto button = new Gwen::Controls::Button( pWindow );
+	button->SetText("Apply");
+	button->SetPos( 70, 20 + 25*8);
+	button->SetWidth(70);
+	button->onPress.Add(this, &ThisClass::OnConfigureClosed, dialog);
 
     // add settings
     {
@@ -161,7 +169,20 @@ void GraphBase::OnConfigure(Base* control)
 		dialog->top_ = box;
     }
 
-	pWindow->onWindowClosed.Add(this, &ThisClass::OnConfigureClosed, dialog);
+	{
+		Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
+		label->SetText( "Line Style" );
+		label->SizeToContents();
+		label->SetPos( 10, 20 + 25*7 );
+		auto box = new Gwen::Controls::ComboBox( pWindow );
+		box->SetPos( 110, 20 + 25*7 );
+        box->SetWidth(70);
+		box->AddItem(L"Line", "Line");
+		box->AddItem(L"Dots", "Dots");
+		box->AddItem(L"Both", "Both");
+		box->SelectItemByName(style_);
+		dialog->style_ = box;
+	}
 }
 
 void GraphBase::OnConfigureClosed(Gwen::Event::Info info)
@@ -173,8 +194,8 @@ void GraphBase::OnConfigureClosed(Gwen::Event::Info info)
 
 	min_x_ = dialog->left_->GetFloatFromText();
 	max_x_ = dialog->right_->GetFloatFromText();
-	
-	delete dialog;
+
+	style_ = dialog->style_->GetSelectedItem()->GetText().c_str();
 }
 
 GraphBase::Channel* GraphBase::CreateChannel(const std::string& topic, const std::string& field)
@@ -590,18 +611,48 @@ void GraphBase::Render( Skin::Base* skin )
 	r->SetClipRegion(Gwen::Rect(start_pos.x, start_pos.y, graph_width, graph_height));
 	r->StartClip();
 	
-	// Draw the graph line
-	glLineWidth(4.0f);
-	for (int j = 0; j < channels_.size(); j++)
+	// Draw the graph line (if enabled)
+	bool draw_dots = style_ == "Dots";
+	bool draw_lines = style_ == "Line";
+	if (style_ == "Both")
 	{
-		auto sub = channels_[j];
-		if (sub->hidden) { continue; }
-		glBegin(GL_LINE_STRIP);
-		glColor3f(graph_colors[j%6][0], graph_colors[j%6][1], graph_colors[j%6][2]);
-		for (auto& pt: sub->data)
+		draw_dots = true;
+		draw_lines = true;
+	}
+
+	if (draw_lines)
+	{
+		glLineWidth(4.0f);
+		for (int j = 0; j < channels_.size(); j++)
 		{
-			glVertex2f(start_x + graph_width*(pt.first - min_x_)/(max_x_ - min_x_),
+			auto sub = channels_[j];
+			if (sub->hidden) { continue; }
+			glBegin(GL_LINE_STRIP);
+			glColor3f(graph_colors[j%6][0], graph_colors[j%6][1], graph_colors[j%6][2]);
+			for (auto& pt: sub->data)
+			{
+				glVertex2f(start_x + graph_width*(pt.first - min_x_)/(max_x_ - min_x_),
 		           start_y + y_count*y_cell_size - graph_height*(pt.second - min_y_)/(max_y_ - min_y_));
+			}
+			glEnd();
+		}
+	}
+
+	// Draw graph dots (if enabled)
+	if (draw_dots)
+	{
+		glPointSize(8.0f);
+		glBegin(GL_POINTS);
+		for (int j = 0; j < channels_.size(); j++)
+		{
+			auto sub = channels_[j];
+			if (sub->hidden) { continue; }
+			glColor3f(graph_colors[j%6][0], graph_colors[j%6][1], graph_colors[j%6][2]);
+			for (auto& pt: sub->data)
+			{
+				glVertex2f(start_x + graph_width*(pt.first - min_x_)/(max_x_ - min_x_),
+		           start_y + y_count*y_cell_size - graph_height*(pt.second - min_y_)/(max_y_ - min_y_));
+			}
 		}
 		glEnd();
 	}

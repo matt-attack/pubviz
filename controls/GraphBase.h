@@ -119,6 +119,7 @@ protected:
     bool autoscale_y_ = true;
 
 	int key_width_ = 70;
+	std::string style_ = "Line";// line, dots or both
 
 private:
     bool redo_scale_ = true;
