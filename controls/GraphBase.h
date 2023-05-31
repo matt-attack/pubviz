@@ -38,6 +38,7 @@ public:
 
         bool can_remove = true;
         std::function<void()> on_remove;
+		bool hidden = false;
     };
 
 	GWEN_CONTROL( GraphBase, Gwen::Controls::Base );
@@ -116,6 +117,8 @@ protected:
 	double max_y_ = 100.0;
 
     bool autoscale_y_ = true;
+
+	int key_width_ = 70;
 
 private:
     bool redo_scale_ = true;

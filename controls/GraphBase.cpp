@@ -55,6 +55,28 @@ struct ConfigureDialog
 	}
 };
 
+void GraphBase::OnMouseClickLeft( int x, int y, bool down )
+{
+	// toggle hidden when you click on a key label
+	if (down)
+	{
+		Gwen::Point lp = CanvasPosToLocal(Gwen::Point(x, y));
+		//		key.x = b.w - key_width + 5 - 50;
+		//key.y = 104 + q*20 + 3;
+		int c = lp.y - 104 - 3;
+		c /= 20;
+		if (c >= 0 && c < GetChannels().size())
+		{
+			auto b = GetRenderBounds();
+			int key_start = b.w - key_width_ - 50;
+			if (lp.x > key_start && lp.x < key_start + key_width_)
+			{
+				GetChannels()[c]->hidden = !GetChannels()[c]->hidden;
+			}
+		}
+	}
+}
+
 void GraphBase::OnConfigure(Base* control)
 {
 	Controls::WindowControl* pWindow = new Controls::WindowControl( GetCanvas() );
@@ -323,11 +345,6 @@ void GraphBase::AddSample(Channel* sub, double value, pubsub::Time time, bool sc
     Redraw();
 }
 
-void GraphBase::OnMouseClickLeft( int /*x*/, int /*y*/, bool down )
-{
-
-}
-
 void GraphBase::OnMouseMoved(int x, int y, int dx, int dy)
 {
 
@@ -363,7 +380,7 @@ double CalcStepSize(double range, double targetSteps)
     return magMsd*magPow;
 }
 
-const float graph_colors[6][3] = {{1,0,0},{0,1,0},{0,0,1}, {0,1,1}, {1,0,1}, {1,1,0}};
+const float graph_colors[6][3] = {{1,0,0},{0,1,0},{0,0,1}, {0,1,1}, {1,0,1}, {0.7,0.7,0}};
 
 void CalculateDivisions(std::vector<double>& divisions, double min, double max, int max_divisions)
 {
@@ -505,11 +522,11 @@ void GraphBase::Render( Skin::Base* skin )
         double x = x_ppu*(label - min_x_) + start_x;
 		if (std::abs(val) > 1.0 || val == 0.0)
 		{
-			sprintf(buffer, "%lf", val);
+			sprintf(buffer, "%lg", val);
 		}
 		else
 		{
-			sprintf(buffer, "%lf", val);
+			sprintf(buffer, "%lg", val);
 		}
 		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( x, b.h - 30 ), (std::string)buffer);
     }
@@ -520,11 +537,11 @@ void GraphBase::Render( Skin::Base* skin )
         double y = y_ppu*(max_y_ - label) + start_y;
 		if (std::abs(val) > 1.0 || val == 0.0)
 		{
-			sprintf(buffer, "%lf", val);
+			sprintf(buffer, "%lg", val);
 		}
 		else
 		{
-			sprintf(buffer, "%lf", val);
+			sprintf(buffer, "%lg", val);
 		}
 		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( 10, y - 7 ), (std::string)buffer);
     }
@@ -575,9 +592,10 @@ void GraphBase::Render( Skin::Base* skin )
 	
 	// Draw the graph line
 	glLineWidth(4.0f);
-	int j = 0;
-	for (auto& sub: channels_)
+	for (int j = 0; j < channels_.size(); j++)
 	{
+		auto sub = channels_[j];
+		if (sub->hidden) { continue; }
 		glBegin(GL_LINE_STRIP);
 		glColor3f(graph_colors[j%6][0], graph_colors[j%6][1], graph_colors[j%6][2]);
 		for (auto& pt: sub->data)
@@ -585,7 +603,6 @@ void GraphBase::Render( Skin::Base* skin )
 			glVertex2f(start_x + graph_width*(pt.first - min_x_)/(max_x_ - min_x_),
 		           start_y + y_count*y_cell_size - graph_height*(pt.second - min_y_)/(max_y_ - min_y_));
 		}
-		j++;
 		glEnd();
 	}
 
@@ -615,12 +632,21 @@ void GraphBase::Render( Skin::Base* skin )
         return;
     }
 
+	// guess how wide to make the key box, so we dont make it wider than necessary
+	int key_width = 70;
+	for (auto& sub: channels_)
+	{
+		int len = sub->topic_name.length() + 1 + sub->field_name.length();
+		key_width = std::max<int>(len*8 + 25, key_width);
+	}
+	key_width_ = key_width;
+
 	// do whatever we want here
 	Rect rr;
-	rr.x = b.w - 200;
-	rr.w = 150;
+	rr.x = b.w - key_width - 50;
+	rr.w = key_width;
 	rr.y = 100;
-	rr.h = channels_.size()*20;
+	rr.h = channels_.size()*20 + 3;
 	r->SetDrawColor( Gwen::Color(0,0,0,255) );// start by clearing to background color
 	r->DrawFilledRect( rr );
 	rr.x += 2;
@@ -633,9 +659,23 @@ void GraphBase::Render( Skin::Base* skin )
 	int q = 0;
 	for (auto& sub: channels_)
 	{
-		r->SetDrawColor(Gwen::Color(graph_colors[q%6][0]*255,graph_colors[q%6][1]*255,graph_colors[q%6][2]*355,255));
+		r->SetDrawColor(Gwen::Color(graph_colors[q%6][0]*255,graph_colors[q%6][1]*255,graph_colors[q%6][2]*255,255));
+		Rect key;
+		key.w = 10;
+		key.h = 10;
+		key.x = b.w - key_width + 5 - 50;
+		key.y = 104 + q*20 + 3;
+		r->DrawFilledRect(key);
+		if (sub->hidden)
+		{
+			r->SetDrawColor(Gwen::Color(100, 100, 100));
+		}
+		else
+		{
+			r->SetDrawColor(Gwen::Color(0, 0, 0));
+		}
 		std::string str = sub->topic_name + "." + sub->field_name;
-		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( b.w - 195, 104 + q*20), str);
+		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( 15 + b.w - key_width + 5 - 50, 104 + q*20), str);
 		q++;
 	}
 }
