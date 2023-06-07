@@ -19,6 +19,13 @@
 
 extern const float graph_colors[6][3];
 
+struct DataSample
+{
+	double first;
+	double second;
+	pubsub::Time time;
+};
+
 class PubViz;
 class GraphBase : public Gwen::Controls::Base
 {
@@ -33,11 +40,24 @@ public:
     public:
         friend class GraphBase;
         std::string topic_name;
-		std::string field_name;
-        std::deque<std::pair<double, double>> data;
+		std::string field_name_x;// optional
+		std::string field_name_y;
+        std::deque<DataSample> data;
 
         bool can_remove = true;
         std::function<void()> on_remove;
+
+		std::string GetTitle()
+		{
+			if (field_name_x.length())
+			{
+				return topic_name + "[" + field_name_x + "," + field_name_y + "]";
+			}
+			else
+			{
+				return topic_name + "." + field_name_y;
+			}
+		}
     };
 
 	GWEN_CONTROL( GraphBase, Gwen::Controls::Base );
@@ -64,6 +84,10 @@ public:
 
     void AddMessageSample(Channel* channel, pubsub::Time time, const void* message, const ps_message_definition_t* def, bool scroll_to_fit, bool remove_old);
 
+	// 2D Plot
+	Channel* CreateChannel(const std::string& topic, const std::string& field_x, const std::string& field_y);
+
+	// 1D Time Plot
     Channel* CreateChannel(const std::string& topic, const std::string& field);
 
     virtual void DrawOnGraph(double start_x, double start_y, double graph_width, double graph_height) {}
@@ -107,6 +131,8 @@ protected:
 	Gwen::Color		m_Color;
 		
 	std::vector<Channel*> channels_;
+
+	bool is_2d_ = false;
 		
 	// these change as we get more samples
 	double min_x_ = 0.0;
@@ -115,6 +141,7 @@ protected:
 	double min_y_ = -100.0;
 	double max_y_ = 100.0;
 
+	bool autoscale_x_ = true;// only used in a 2d plot
     bool autoscale_y_ = true;
 
 private:

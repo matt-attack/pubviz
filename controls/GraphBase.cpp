@@ -45,7 +45,7 @@ GWEN_CONTROL_CONSTRUCTOR( GraphBase ) , remove_button_(this), configure_button_(
 struct ConfigureDialog
 {
 	Gwen::Controls::TextBoxNumeric* left_, *right_, *bottom_, *top_;
-	Gwen::Controls::CheckBox* autoscale_y_;
+	Gwen::Controls::CheckBox* autoscale_y_, *autoscale_x_;
 
 	GraphBase* graph_;
 
@@ -59,7 +59,7 @@ void GraphBase::OnConfigure(Base* control)
 {
 	Controls::WindowControl* pWindow = new Controls::WindowControl( GetCanvas() );
 	pWindow->SetTitle( L"Configure Graph" );
-	pWindow->SetSize( 200, 250 );
+	pWindow->SetSize( 200, 250 + (is_2d_ ? 25 : 0) );
 	pWindow->MakeModal( true );
 	//pWindow->Position( Pos::Center );// doesnt work if we have no inner space left
     auto pos = GetCanvas()->GetRenderBounds();
@@ -76,67 +76,87 @@ void GraphBase::OnConfigure(Base* control)
 		label->SizeToContents();
 		label->SetPos( 10, 10 );
     }
+	int current_x = 10 + 25;
+	if (is_2d_)
+	{
+		Gwen::Controls::Label* label = new Gwen::Controls::Label(pWindow);
+		label->SetText("Auto Scale");
+		label->SizeToContents();
+		label->SetPos(20, current_x);
+		Gwen::Controls::CheckBox* check = new Gwen::Controls::CheckBox(pWindow);
+		check->SetPos(110, current_x);
+		check->SetChecked(autoscale_x_);
+		dialog->autoscale_x_ = check;
+		current_x += 25;
+	}
     {
 		Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
 		label->SetText( "Left" );
 		label->SizeToContents();
-		label->SetPos( 20, 10 + 25 );
+		label->SetPos( 20, current_x);
         Gwen::Controls::TextBoxNumeric* box = new Gwen::Controls::TextBoxNumeric( pWindow );
 		box->SetText( std::to_string(min_x_) );
-		box->SetPos( 110, 10 + 25 );
+		box->SetPos( 110, current_x);
         box->SetWidth(70);
 		dialog->left_ = box;
+		current_x += 25;
     }
     {
 		Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
 		label->SetText( "Right" );
 		label->SizeToContents();
-		label->SetPos( 20, 10 + 25*2 );
+		label->SetPos( 20, current_x);
         Gwen::Controls::TextBoxNumeric* box = new Gwen::Controls::TextBoxNumeric( pWindow );
 		box->SetText( std::to_string(max_x_) );
-		box->SetPos( 110, 10 + 25*2 );
+		box->SetPos( 110, current_x);
         box->SetWidth(70);
 		dialog->right_ = box;
+		current_x += 25;
     }
 
 
+	current_x += 10;
     {
         Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
 		label->SetText( "Y-Axis" );
 		label->SizeToContents();
-		label->SetPos( 10, 20 + 25*3 );
+		label->SetPos( 10, current_x);
+		current_x += 25;
     }
     {
 		Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
 		label->SetText( "Auto Scale" );
 		label->SizeToContents();
-		label->SetPos( 20, 20 + 25*4 );
+		label->SetPos( 20, current_x);
 		Gwen::Controls::CheckBox* check = new Gwen::Controls::CheckBox( pWindow );
-		check->SetPos( 110, 20 + 25*4 );
+		check->SetPos( 110, current_x);
         check->SetChecked(autoscale_y_);
 		dialog->autoscale_y_ = check;
+		current_x += 25;
     }
     {
 		Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
 		label->SetText( "Bottom" );
 		label->SizeToContents();
-		label->SetPos( 20, 20 + 25*5 );
+		label->SetPos( 20, current_x);
         Gwen::Controls::TextBoxNumeric* box = new Gwen::Controls::TextBoxNumeric( pWindow );
 		box->SetText( std::to_string(min_y_) );
-		box->SetPos( 110, 20 + 25*5 );
+		box->SetPos( 110, current_x);
         box->SetWidth(70);
 		dialog->bottom_ = box;
+		current_x += 25;
     }
     {
 		Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
 		label->SetText( "Top" );
 		label->SizeToContents();
-		label->SetPos( 20, 20 + 25*6 );
+		label->SetPos( 20, current_x);
         Gwen::Controls::TextBoxNumeric* box = new Gwen::Controls::TextBoxNumeric( pWindow );
 		box->SetText( std::to_string(max_y_) );
-		box->SetPos( 110, 20 + 25*6 );
+		box->SetPos( 110, current_x );
         box->SetWidth(70);
 		dialog->top_ = box;
+		current_x += 25;
     }
 
 	pWindow->onWindowClosed.Add(this, &ThisClass::OnConfigureClosed, dialog);
@@ -155,12 +175,22 @@ void GraphBase::OnConfigureClosed(Gwen::Event::Info info)
 	delete dialog;
 }
 
+GraphBase::Channel* GraphBase::CreateChannel(const std::string& topic, const std::string& field_x, const std::string& field_y)
+{
+	is_2d_ = true;
+	auto ch = new GraphBase::Channel();
+	ch->topic_name = topic;
+	ch->field_name_x = field_x;
+	ch->field_name_y = field_y;
+	channels_.push_back(ch);
+	return ch;
+}
+
 GraphBase::Channel* GraphBase::CreateChannel(const std::string& topic, const std::string& field)
 {
-    // add it!
     auto ch = new GraphBase::Channel();
     ch->topic_name = topic;
-    ch->field_name = field;
+    ch->field_name_y = field;
     channels_.push_back(ch);
     return ch;
 }
@@ -189,7 +219,7 @@ void GraphBase::OnRemove(Base* control)
         auto sub = channels_[i];
         if (sub->can_remove)
         {
-            menu->AddItem(sub->topic_name + "." + sub->field_name)->SetAction(this, &ThisClass::OnRemoveSelect);
+            menu->AddItem(sub->GetTitle())->SetAction(this, &ThisClass::OnRemoveSelect);
         }
     }
 	menu->AddDivider();
@@ -209,7 +239,7 @@ void GraphBase::OnRemoveSelect(Gwen::Controls::Base* pControl)
     for (int i = 0; i < channels_.size(); i++)
     {
         auto channel = channels_[i];
-        std::string current_name = channel->topic_name + "." + channel->field_name;
+		std::string current_name = channel->GetTitle();
         //printf("%s vs %s\n", name.c_str(), current_name.c_str());
         if (name == current_name && channel->can_remove)
         {
@@ -226,17 +256,18 @@ void GraphBase::OnRemoveSelect(Gwen::Controls::Base* pControl)
 
 void GraphBase::AddMessageSample(Channel* channel, pubsub::Time msg_time, const void* message, const ps_message_definition_t* definition, bool scroll_to_fit, bool remove_old)
 {
-	std::string field_name = channel->field_name;
+	const std::string& field_name = channel->field_name_y;
+
+	double x = std::numeric_limits<double>::quiet_NaN();
+	double y = std::numeric_limits<double>::quiet_NaN();
+
+	const char* x_name = channel->field_name_x.length() ? channel->field_name_x.c_str() : 0;
+	const char* y_name = channel->field_name_y.c_str();
 	
 	struct ps_deserialize_iterator iter = ps_deserialize_start((const char*)message, definition);
 	const struct ps_msg_field_t* field; uint32_t length; const char* ptr;
 	while (ptr = ps_deserialize_iterate(&iter, &field, &length))
 	{
-		if (strcmp(field_name.c_str(), field->name) != 0)
-		{
-			continue;
-		}
-		
 		if (field->type == FT_String)
 		{
 			// strings are already null terminated
@@ -285,10 +316,29 @@ void GraphBase::AddMessageSample(Channel* channel, pubsub::Time msg_time, const 
 					printf("ERROR: unhandled field type when parsing....\n");
 				}
 				
-				AddSample(channel, value, msg_time, scroll_to_fit, remove_old);
-                break;
+				if (x_name && strcmp(x_name, field->name) == 0)
+				{
+					x = value;
+				}
+				else if (strcmp(y_name, field->name) == 0)
+				{
+					y = value;
+				}
 			}
 		}
+	}
+	
+	if (!x_name && !std::isnan(y))
+	{
+		// 1d
+		AddSample(channel, y, msg_time, scroll_to_fit, remove_old);
+	}
+	else if (x_name && !std::isnan(x) && !std::isnan(y))
+	{
+		// 2d
+		channel->data.push_back({ x, y, msg_time });
+
+		Redraw();
 	}
 }
 
@@ -301,7 +351,7 @@ void GraphBase::AddSample(Channel* sub, double value, pubsub::Time time, bool sc
 {
 	pubsub::Duration dt = time - start_time_;
 	
-	sub->data.push_back({dt.toSec(), value});
+	sub->data.push_back({dt.toSec(), value, time});
 
     //if resize to fit, just make graph wider to show it
     if (scroll_to_fit)
@@ -473,6 +523,52 @@ void GraphBase::Render( Skin::Base* skin )
             min_y_ -= 0.0001;
         }
     }
+	if (is_2d_ && autoscale_x_)
+	{
+		bool data_point = false;
+		double current_min_x = std::numeric_limits<double>::max();
+		double current_max_x = -std::numeric_limits<double>::max();
+		for (auto& sub : channels_)
+		{
+			for (auto& pt : sub->data)
+			{
+				current_min_x = std::min(current_min_x, pt.first);
+				current_max_x = std::max(current_max_x, pt.first);
+				data_point = true;
+			}
+		}
+
+		if (redo_scale_ && data_point)
+		{
+			redo_scale_ = false;
+			min_x_ = std::numeric_limits<double>::max();
+			max_x_ = -std::numeric_limits<double>::max();
+		}
+
+		if (redo_scale_)
+		{
+			min_x_ = -1.0;
+			max_x_ = 1.0;
+		}
+		else
+		{
+			// add a bit of a buffer on each edge (5% of difference)
+			const double difference = std::abs(current_min_x - current_max_x);
+			double buffer = difference * 0.05;
+			current_max_x += buffer;
+			current_min_x -= buffer;
+
+			max_x_ = current_max_x;// std::max(max_x_, current_max_x);
+			min_x_ = current_min_x;// std::min(min_x_, current_min_x);
+		}
+
+		// handle max and min being identical resulting in bad graphs
+		if (std::abs(min_x_ - max_x_) < 0.0001)
+		{
+			max_x_ += 0.0001;
+			min_x_ -= 0.0001;
+		}
+	}
 
     // now determine the period to use
     // for this we want enough divisions to fit and to minimize significant figures
@@ -505,11 +601,11 @@ void GraphBase::Render( Skin::Base* skin )
         double x = x_ppu*(label - min_x_) + start_x;
 		if (std::abs(val) > 1.0 || val == 0.0)
 		{
-			sprintf(buffer, "%lf", val);
+			sprintf(buffer, "%lg", val);
 		}
 		else
 		{
-			sprintf(buffer, "%lf", val);
+			sprintf(buffer, "%lg", val);
 		}
 		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( x, b.h - 30 ), (std::string)buffer);
     }
@@ -520,11 +616,11 @@ void GraphBase::Render( Skin::Base* skin )
         double y = y_ppu*(max_y_ - label) + start_y;
 		if (std::abs(val) > 1.0 || val == 0.0)
 		{
-			sprintf(buffer, "%lf", val);
+			sprintf(buffer, "%lg", val);
 		}
 		else
 		{
-			sprintf(buffer, "%lf", val);
+			sprintf(buffer, "%lg", val);
 		}
 		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( 10, y - 7 ), (std::string)buffer);
     }
@@ -634,8 +730,7 @@ void GraphBase::Render( Skin::Base* skin )
 	for (auto& sub: channels_)
 	{
 		r->SetDrawColor(Gwen::Color(graph_colors[q%6][0]*255,graph_colors[q%6][1]*255,graph_colors[q%6][2]*355,255));
-		std::string str = sub->topic_name + "." + sub->field_name;
-		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( b.w - 195, 104 + q*20), str);
+		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( b.w - 195, 104 + q*20), sub->GetTitle());
 		q++;
 	}
 }

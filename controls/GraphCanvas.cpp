@@ -286,7 +286,7 @@ void GraphCanvas::OnFieldChanged(Base* control)
 
     auto sub = graph_channels_.back();
     sub->field_name = field_name_box_->GetText().c_str();
-    sub->channel->field_name = sub->field_name;
+    sub->channel->field_name_y = sub->field_name;
     
 	sub->channel->data.clear();
 }

@@ -85,34 +85,6 @@ void SackViewer::OnFieldRightClick(Gwen::Controls::Base* pControl)
     mp.y /= canvas->Scale();
 
     menu->SetPos(mp);
-
-    // add a plot!
-
-    /*auto button = ((Gwen::Controls::DockBase*)GetParent())->GetRight()->GetTabControl()->AddPage("Graph");
-	button->SetPopoutable(true);
-	button->SetClosable(true);
-	auto page = button->GetPage();
-	auto graph = new SackGraph(page);
-    graph->SetViewer(this);
-	graph->Dock(Pos::Fill);
-    page->GetParent()->GetParent()->SetWidth(580);
-
-	auto selected = parent->GetSelectedChildNodes();
-	for (auto& item: selected)
-	{
-		auto topic = item->UserData.Get<std::string>("topic");
-    	auto field = item->UserData.Get<std::string>("field");
-
-    	printf("Want to plot: %s:%s\n", topic.c_str(), field.c_str());
-
-    	auto ch = graph->CreateChannel(topic, field);
-
-    	auto data = bag_data_[topic];
-    	for (auto& msg: data.messages)
-    	{
-        	graph->AddMessageSample(ch, msg.time, msg.msg, &data.def, false, false);
-    	}
-	}*/
 }
 
 void SackViewer::CloseBag()
@@ -369,7 +341,11 @@ void SackViewer::OnMenuItemSelect(Gwen::Controls::Base* pControl)
 	}
 	else if (pMenuItem->GetText() == L"Plot")
 	{
-		PlotSelected();
+		PlotSelected(false);
+	}
+	else if (pMenuItem->GetText() == L"Plot 2D")
+	{
+		PlotSelected(true);
 	}
 }
 
@@ -429,7 +405,7 @@ void SackViewer::OnFirstMessage(Gwen::Controls::Base* control)
 	SetPlayheadTime(time);
 }
 
-void SackViewer::PlotSelected()
+void SackViewer::PlotSelected(bool twod)
 {
 	Gwen::Controls::TreeNode* parent = 0;
 	for (auto& viewer: viewers_)
@@ -447,6 +423,19 @@ void SackViewer::PlotSelected()
 	{
 		return;
 	}
+
+	auto selected = parent->GetSelectedChildNodes();
+
+	if (twod && selected.size() != 2)
+	{
+		// cant do it
+		return;
+	}
+	else if (twod)
+	{
+		// todo display a prompt asking what is x and y
+		// for now just go in order
+	}
 	
     auto button = ((Gwen::Controls::DockBase*)GetParent())->GetRight()->GetTabControl()->AddPage("Graph");
 	button->SetPopoutable(true);
@@ -457,13 +446,31 @@ void SackViewer::PlotSelected()
 	graph->Dock(Pos::Fill);
     page->GetParent()->GetParent()->SetWidth(580);
 
-	auto selected = parent->GetSelectedChildNodes();
+	if (twod)
+	{
+		// display a prompt asking 
+		auto topic = selected.front()->UserData.Get<std::string>("topic");
+		auto field_x = selected.front()->UserData.Get<std::string>("field");
+		auto iter = ++selected.begin();
+		auto field_y = (*iter)->UserData.Get<std::string>("field");
+
+		auto ch = graph->CreateChannel(topic, field_x, field_y);
+
+		auto& data = bag_data_[topic];
+		for (auto& msg : data.messages)
+		{
+			graph->AddMessageSample(ch, msg.time, msg.msg, &data.def, false, false);
+		}
+
+		return;
+	}
+
 	for (auto& item: selected)
 	{
 		auto topic = item->UserData.Get<std::string>("topic");
    		auto field = item->UserData.Get<std::string>("field");
 
-   		printf("Want to plot: %s:%s\n", topic.c_str(), field.c_str());
+   		//printf("Want to plot: %s:%s\n", topic.c_str(), field.c_str());
 
    		auto ch = graph->CreateChannel(topic, field);
 

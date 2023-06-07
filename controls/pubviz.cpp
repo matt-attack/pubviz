@@ -49,6 +49,7 @@
 #include "../plugins/PointCloud.h"
 #include "../plugins/Pose.h"
 #include "../plugins/Path.h"
+#include "../plugins/Image.h"
 
 #include <Gwen/Controls/Dialogs/FileOpen.h>
 #include <Gwen/Controls/Dialogs/FileSave.h>
@@ -107,12 +108,12 @@ void PubViz::OnConfigSave(Gwen::Event::Info info)
 		config += "plot:";
 		for (auto& ch : g.first->GetChannels())
 		{
-			if (ch->topic_name.length() == 0 || ch->field_name.length() == 0)
+			if (ch->topic_name.length() == 0 || ch->field_name_y.length() == 0)
 			{
 				continue;
 			}
 
-			config += ch->topic_name + ":" + ch->field_name + ":";
+			config += ch->topic_name + ":" + ch->field_name_y + ":";
 		}
 		config += "\n";
 	}

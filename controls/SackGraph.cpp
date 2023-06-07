@@ -158,15 +158,18 @@ void SackGraph::DrawOnGraph(double start_x, double start_y, double graph_width, 
 
     // convert timestamp to bag time
     double slider_time = (viewer_->GetPlayheadTime() - viewer_->GetStartTime())/1000000.0;
-
+	pubsub::Time st(viewer_->GetPlayheadTime());
     // draw the playhead
-    glLineWidth(4.0f);
-	glBegin(GL_LINE_STRIP);
-	glColor3f(1.0, 0.0, 0.0);
-    double sx = start_x + graph_width*(slider_time/*position here*/ - min_x_)/(max_x_ - min_x_);
-    glVertex2f(sx, start_y);
-    glVertex2f(sx, start_y + graph_height);
-	glEnd();
+	if (!is_2d_)
+	{
+		glLineWidth(4.0f);
+		glBegin(GL_LINE_STRIP);
+		glColor3f(1.0, 0.0, 0.0);
+		double sx = start_x + graph_width * (slider_time/*position here*/ - min_x_) / (max_x_ - min_x_);
+		glVertex2f(sx, start_y);
+		glVertex2f(sx, start_y + graph_height);
+		glEnd();
+	}
 
 	// draw the selection
 	if (selecting_)
@@ -200,7 +203,7 @@ void SackGraph::DrawOnGraph(double start_x, double start_y, double graph_width, 
 		for (int i = channel->data.size() - 1; i >= 0; i--)
 		{
 			auto& pt = channel->data[i];
-			if (pt.first < slider_time)
+			if (pt.time < st)
 			{
 				x = start_x + graph_width*(pt.first - min_x_)/(max_x_ - min_x_);
 				y = start_y + graph_height - graph_height*(pt.second - min_y_)/(max_y_ - min_y_);

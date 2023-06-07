@@ -59,7 +59,11 @@ void SackViz::MenuItemSelect(Controls::Base* pControl)
 	}
 	else if (pMenuItem->GetText() == L"Plot")
 	{
-		viewer_->PlotSelected();
+		viewer_->PlotSelected(false);
+	}
+	else if (pMenuItem->GetText() == L"Plot 2D")
+	{
+		viewer_->PlotSelected(true);
 	}
 	else if (pMenuItem->GetText() == L"Open")
 	{
@@ -108,6 +112,7 @@ GWEN_CONTROL_CONSTRUCTOR(SackViz)
 	{
 		Gwen::Controls::MenuItem* pRoot = menu_->AddItem(L"View");
 		pRoot->GetMenu()->AddItem(L"Plot", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddItem(L"Plot 2D", "", "Shift+P")->SetAction(this, &ThisClass::MenuItemSelect);
 	}
 	
 	viewer_ = new SackViewer(this);

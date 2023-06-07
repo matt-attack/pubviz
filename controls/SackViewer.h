@@ -146,7 +146,7 @@ protected:
 public:
 	void UpdateViewers();
 
-	void PlotSelected();
+	void PlotSelected(bool twod);
 protected:
     void CloseBag();
 
