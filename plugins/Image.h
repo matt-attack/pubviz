@@ -12,6 +12,7 @@
 #include <Gwen/Controls/StatusBar.h>
 #include <Gwen/Controls/PropertyTree.h>
 #include <Gwen/Controls/Property/Numeric.h>
+#include <Gwen/Controls/ImagePanel.h>
 
 #define GLEW_STATIC
 #include <GL/glew.h>
@@ -32,9 +33,13 @@ class ImagePlugin: public Plugin
 {
 	FloatProperty* alpha_;
 	ColorProperty* color_;
-	BooleanProperty* show_outline_;
+	BooleanProperty* stretch_;
+	BooleanProperty* keep_aspect_;
 	
 	TopicProperty* topic_;
+
+	Gwen::Controls::ImagePanel* image_panel_;
+	Gwen::Controls::TabButton* page_;
 	
 	bool sub_open_ = false;
 	ps_sub_t subscriber_;
@@ -162,11 +167,19 @@ class ImagePlugin: public Plugin
 
 		glBindTexture(GL_TEXTURE_2D, 0);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+
+		
+		Gwen::Texture tex;
+		tex.width = last_msg_.width;
+		tex.height = last_msg_.height;
+		tex.data = (void*)&texture_;
+		image_panel_->SetTexture(tex);
 	}
 	
 	std::string current_topic_;
 	void Subscribe(std::string str)
 	{
+		page_->SetText("Image: " + str);
 		if (sub_open_)
 		{
 			ps_sub_destroy(&subscriber_);
@@ -201,9 +214,9 @@ public:
 	
 	virtual ~ImagePlugin()
 	{
-		//delete color_;
-		delete alpha_;
-		//delete show_outline_;
+		Gwen::Texture tex;
+		image_panel_->SetTexture(tex);
+		page_->Close();
 		
 		if (sub_open_)
 		{
@@ -244,80 +257,40 @@ public:
 	}
 	
 	virtual void Render()
-	{		
-		// exit early if we dont have a messag
-		if (last_msg_.data_length == 0)
-		{
-			return;
-		}
-
-		if (GetCanvas()->wgs84_mode_)
-		{
-			return;// not supported for the moment
-		}
-		
-		double width = 50;// last_msg_.resolution* last_msg_.width;
-		double height = 50;// last_msg_.resolution* last_msg_.height;
-		double left = 0;
-		double bottom = 0;
-		
-		// draw the bounds of the costmap
-		/*if (show_outline_->GetValue())
-		{
-			glLineWidth(4.0f);
-			glBegin(GL_LINE_STRIP);
-			
-			Gwen::Color color = color_->GetValue();
-			glColor3f(color.r/255.0, color.g/255.0, color.b/255.0);
-			
-			glVertex2f(left, bottom);
-			glVertex2f(left, bottom + height);
-			glVertex2f(left + width, bottom + height);
-			glVertex2f(left + width, bottom);
-			glVertex2f(left, bottom);
-			
-			glEnd();
-		}*/
-		
-		// Now draw the costmap itself
-		glEnable(GL_TEXTURE_2D);
-		glBindTexture(GL_TEXTURE_2D, texture_);
-		glBegin(GL_TRIANGLES);
-
-		glColor4f(1.0f, 1.0f, 1.0f, alpha_->GetValue() );
-
-		glTexCoord2d(0, 0);
-		glVertex2d(left + 0, bottom + 0);
-		glTexCoord2d(1.0, 0);
-		glVertex2d(left + width, bottom + 0);
-		glTexCoord2d(1.0, 1.0);
-		glVertex2d(left + width, bottom + height);
-
-		glTexCoord2d(0, 0);
-		glVertex2d(left + 0, bottom + 0);
-		glTexCoord2d(1.0, 1.0);
-		glVertex2d(left + width, bottom + height);
-		glTexCoord2d(0, 1.0);
-		glVertex2d(left + 0, bottom + height);
-
-		glEnd();
-
-		glBindTexture(GL_TEXTURE_2D, 0);
-		glDisable(GL_TEXTURE_2D);
+	{
+		// nothing to do here since we dont render to the world
 	}
-	
+
 	virtual void Initialize(Gwen::Controls::Properties* tree)
 	{
+		auto pubviz = (PubViz*)GetCanvas()->GetParent();
+		auto page = pubviz->GetRight()->GetTabControl()->AddPage("Image");
+		page_ = page;
+		image_panel_ = new Gwen::Controls::ImagePanel(page->GetPage());
+		image_panel_->Dock(Gwen::Pos::Fill);
+		image_panel_->SetKeepAspectRatio(true);
+
 		// add any properties
-		alpha_ = AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1, "Costmap transparency.");
-		
 		topic_ = AddTopicProperty(tree, "Topic", "/image", "");
 		topic_->onChange = std::bind(&ImagePlugin::Subscribe, this, std::placeholders::_1);
+
+		stretch_ = AddBooleanProperty(tree, "Stretch", true, "If true, stretch the image to fill the control.");
+		stretch_->onChange = std::bind(&ImagePlugin::StretchChanged, this, std::placeholders::_1);
 		
-		//show_outline_ = AddBooleanProperty(tree, "Show Outline", true, "If true, draw an outline around the costmap.");
-		//color_ = AddColorProperty(tree, "Outline Color", Gwen::Color(255,50,50), "Color to use to draw border of costmap.");
+		keep_aspect_ = AddBooleanProperty(tree, "Keep Aspect Ratio", true, "If true, keep the aspect ratio when stretching the image.");
+		keep_aspect_->onChange = std::bind(&ImagePlugin::KeepAspectChanged, this, std::placeholders::_1);
 		
 		Subscribe(topic_->GetValue());
+	}
+
+	void KeepAspectChanged(bool b)
+	{
+		image_panel_->SetKeepAspectRatio(b);
+	}
+
+	void StretchChanged(bool b)
+	{
+		image_panel_->SetStretch(b);
 	}
 	
 	std::string GetTitle() override

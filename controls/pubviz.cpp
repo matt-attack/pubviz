@@ -81,6 +81,7 @@ Plugin* BaseRegisterObject::Construct(const std::string& type)
 
 PubViz::~PubViz()
 {
+	ClearPlugins();
 	ps_node_destroy(&node_);
 }
 
@@ -284,6 +285,7 @@ void PubViz::ClearPlugins()
 	for (auto p: plugins_)
 	{
 		p->props_->GetParent()->DelayedDelete();
+		delete p;
 	}
 	plugins_.clear();
 	canvas_->plugins_.clear();
