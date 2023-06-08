@@ -13,7 +13,8 @@
 enum class ViewType
 {
 	TopDown = 0,
-	Orbit = 1
+	Orbit = 1,
+	FPS = 2
 };
 
 class Plugin;
@@ -49,6 +50,11 @@ class OpenGLCanvas : public Gwen::Controls::Base
 			ResetView();
 			
 			Redraw();
+		}
+
+		inline ViewType GetViewType()
+		{
+			return view_type_;
 		}
 
 		inline bool Paused()

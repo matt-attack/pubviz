@@ -67,6 +67,7 @@ struct RegisterObject: public BaseRegisterObject
 class GraphCanvas;
 class PubViz: public Gwen::Controls::DockBase
 {
+		std::map<std::string, PropertyBase*> properties_;
 	public:
 
 		GWEN_CONTROL(PubViz, Gwen::Controls::DockBase);
@@ -87,9 +88,6 @@ class PubViz: public Gwen::Controls::DockBase
 		void OnAddPlugin(Gwen::Controls::Base* control);
 		void OnRemovePlugin( Gwen::Controls::Base* control);
 		void OnAddPluginFinish(Gwen::Controls::Base* control);
-		void OnBackgroundChange(Gwen::Controls::Base* control);
-		void OnFrameChange(Gwen::Controls::Base* control);
-		void OnShowOriginChange(Gwen::Controls::Base* control);
 		void OnCenter(Gwen::Controls::Base* control);
         void OnShowConfigChanged(Gwen::Controls::Base* control);
         void OnPause(Gwen::Controls::Base* control);

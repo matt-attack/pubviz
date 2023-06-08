@@ -405,12 +405,16 @@ class ColorProperty: public PropertyBase
 	
 	Gwen::Color value_;
 	
-	void onChange(Gwen::Controls::Base* control)
+	void cbOnChange(Gwen::Controls::Base* control)
 	{
 		property_->Redraw();
 		auto prop = ((Gwen::Controls::PropertyRow*)control)->GetProperty();
 		Gwen::Controls::Property::ColorSelector* selector = (Gwen::Controls::Property::ColorSelector*)prop;
 		value_ = selector->m_Button->m_Color;
+		if (onChange)
+		{
+			onChange(value_);
+		}
 	}
 	
 public:
@@ -421,7 +425,7 @@ public:
 		c_str += std::to_string(color.g) + " " + std::to_string(color.b);
 		property_ = new Gwen::Controls::Property::ColorSelector(tree);
 		auto item = tree->Add(name, property_, c_str);
-		item->onChange.Add(this, &ColorProperty::onChange);
+		item->onChange.Add(this, &ColorProperty::cbOnChange);
         if (description.length())
         {
             item->SetToolTip(description);
@@ -453,6 +457,8 @@ public:
     {
         property_->GetParent()->Show();
     }
+
+	std::function<void(Gwen::Color)> onChange;
 };
 
 #endif
