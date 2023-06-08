@@ -58,6 +58,7 @@ public:
 				return topic_name + "." + field_name_y;
 			}
 		}
+		bool hidden = false;
     };
 
 	GWEN_CONTROL( GraphBase, Gwen::Controls::Base );
@@ -143,6 +144,9 @@ protected:
 
 	bool autoscale_x_ = true;// only used in a 2d plot
     bool autoscale_y_ = true;
+
+	int key_width_ = 70;
+	std::string style_ = "Line";// line, dots or both
 
 private:
     bool redo_scale_ = true;

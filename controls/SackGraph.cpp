@@ -48,6 +48,8 @@ void SackGraph::OnMouseClickLeft( int x, int y, bool down )
 {
     mouse_down_ = down;
     OnMouseMoved(x, y, 0, 0);
+
+    BaseClass::OnMouseClickLeft(x, y, down);
 }
 
 void SackGraph::OnMouseClickRight( int x, int y, bool down )
@@ -128,10 +130,11 @@ void SackGraph::PaintOnGraph(double start_x, double start_y, double graph_width,
 {
     auto r = GetSkin()->GetRender();
 	double slider_time = (viewer_->GetPlayheadTime() - viewer_->GetStartTime())/1000000.0;
-	int j = 0;
 	char buffer[50];
-	for (auto channel: channels_)
+	for (int j = 0; j < channels_.size(); j++)
 	{
+		auto channel = channels_[j];
+		if (channel->hidden) { continue; }
 		for (int i = channel->data.size() - 1; i >= 0; i--)
 		{
 			auto& pt = channel->data[i];
@@ -148,7 +151,6 @@ void SackGraph::PaintOnGraph(double start_x, double start_y, double graph_width,
 				break;
 			}
 		}
-		j++;
 	}
 }
 
@@ -192,14 +194,15 @@ void SackGraph::DrawOnGraph(double start_x, double start_y, double graph_width, 
 	}
 
 	double x,y;
+	glEnable(GL_BLEND);
 	// also draw the nearest value
 	// todo use binary search
 	glPointSize(20);
 	glBegin(GL_POINTS);
     glColor4f(0.0, 1.0, 1.0, 0.5);
-	glEnable(GL_BLEND);
 	for (auto channel: channels_)
 	{
+		if (channel->hidden) { continue; }
 		for (int i = channel->data.size() - 1; i >= 0; i--)
 		{
 			auto& pt = channel->data[i];

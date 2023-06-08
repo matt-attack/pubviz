@@ -36,6 +36,10 @@ int main(int argc, char** args)
     window->SetMinimumSize(Gwen::Point(100, 100));
 	PubViz* ppUnit = new PubViz(window);
 	ppUnit->SetPos(0, 0);
+	if (argc > 1)
+	{
+		ppUnit->LoadConfig(args[1]);
+	}
 	
 	// Wait for exit, use this instead of spin
 	while (app.Okay())

@@ -28,17 +28,12 @@ class Plugin: public Gwen::Event::Handler
 
 	friend class PubViz;
 	friend class BaseRegisterObject;
-	bool enabled_ = true;
 	ps_node_t* node_;
 	Gwen::Controls::Properties* props_;
 	OpenGLCanvas* canvas_;
 	Gwen::Controls::Button* plugin_button_;
-	
-	void OnEnableChecked( Gwen::Controls::Base* pControl )
-	{
-		Gwen::Controls::PropertyRow* pRow = ( Gwen::Controls::PropertyRow* ) pControl;
-		enabled_ = pRow->GetProperty()->GetPropertyValue().GetUnicode() == L"1";
-	}
+
+	Gwen::Controls::CheckBox* enabled_;
 	
 public:
 	virtual ~Plugin() {};
@@ -54,7 +49,7 @@ public:
 	// Returns if the plugin is enabled and should be rendered
 	bool Enabled()
 	{
-		return enabled_;
+		return enabled_->IsChecked();
 	}
 
 	bool Paused()
@@ -86,14 +81,13 @@ public:
 	std::string GetConfiguration()
 	{
 		std::string out;
+		out += "enabled,";
+		out += (enabled_->IsChecked() ? "true" : "false");
 		// lets just write it as CSV
 		int i = 0;
 		for (auto& prop: properties_)
 		{
-			if (i++ != 0)
-			{
-				out += ",";
-			}
+			out += ",";
 			out += prop.first;
 			out += ",";
 			out += prop.second->Serialize();
@@ -112,6 +106,12 @@ public:
 		
 		for (int i = 0; i < pts.size(); i+=2)
 		{
+			if (pts[i] == "enabled")
+			{
+				enabled_->SetChecked(pts[i+1] == "true");
+				continue;
+			}
+
 			auto iter = properties_.find(pts[i]);
 			if (iter == properties_.end())
 			{

@@ -41,7 +41,29 @@ class ImagePlugin: public Plugin
 	
 	pubsub::msg::Image last_msg_;
 	
-	unsigned int texture_ = -1;
+	unsigned int texture_ = -1;//okay, now show image in a new popout
+
+	// returns false if the message is invalid
+	bool CheckSize(const pubsub::msg::Image& image, int bpp)
+	{
+		int expected = image.height*image.width*bpp;
+
+		if (image.data_length != expected)
+		{
+			printf("ERROR: Invalid image data length on topic '%s' got %i but expected %i\n",
+				topic_->GetValue().c_str(), image.data_length, expected);
+
+			// mark message as invalid
+			if (last_msg_.data)
+			{
+				free(last_msg_.data);
+				last_msg_.data = 0;
+				last_msg_.data_length = 0;
+			}
+			return false;
+		}
+		return true;
+	}
 	
 	void UpdateFromMessage()
 	{
@@ -52,36 +74,41 @@ class ImagePlugin: public Plugin
 			glDeleteTextures(1, &texture_);
 		}
 		
-		if (last_msg_.width* last_msg_.height != last_msg_.data_length)
-		{
-			last_msg_.data_length = 0;
-			printf("ERROR: bad costmap size\n");
-			return;
-		}
-		
 		// make the color buffer
 		std::vector<uint32_t> pixels;
 		pixels.resize(last_msg_.width*last_msg_.height);
 		
-		//todo image size matches what the format expects and error if it doesnt
 		// now fill in each pixel
 		if (last_msg_.type == pubsub::msg::Image::R8G8B8A8)
 		{
+			if (!CheckSize(last_msg_, 4)) { return; }
 			memcpy(pixels.data(), last_msg_.data, pixels.size());
 		}
 		else if (last_msg_.type == pubsub::msg::Image::R8G8B8)
 		{
+			if (!CheckSize(last_msg_, 3)) { return; }
 			for (int i = 0; i < pixels.size(); i++)
 			{
 				uint8_t a = 255;
 				uint8_t pr = last_msg_.data[i * 3];
 				uint8_t pg = last_msg_.data[i * 3 + 1];
 				uint8_t pb = last_msg_.data[i * 3 + 2];
-				pixels[i] = (a << 24) | (pr << 16) | (pg << 8) | pb;
+				pixels[i] = (a << 24) | (pb << 16) | (pg << 8) | pr;
+			}
+		}
+		else if (last_msg_.type == pubsub::msg::Image::R32)
+		{
+			if (!CheckSize(last_msg_, 4)) { return; }
+			for (int i = 0; i < last_msg_.data_length; i++)
+			{
+				uint8_t px = last_msg_.data[i*4 + 3];// just use the high byte
+				uint8_t a = 255;
+				pixels[i] = (a << 24) | (px << 16) | (px << 8) | px;
 			}
 		}
 		else if (last_msg_.type == pubsub::msg::Image::R16)
 		{
+			if (!CheckSize(last_msg_, 2)) { return; }
 			for (int i = 0; i < last_msg_.data_length; i++)
 			{
 				uint8_t px = last_msg_.data[i*2 + 1];// just use the high byte
@@ -91,6 +118,7 @@ class ImagePlugin: public Plugin
 		}
 		else if (last_msg_.type == pubsub::msg::Image::R8)
 		{
+			if (!CheckSize(last_msg_, 1)) { return; }
 			for (int i = 0; i < last_msg_.data_length; i++)
 			{
 				uint8_t px = last_msg_.data[i];
@@ -100,6 +128,7 @@ class ImagePlugin: public Plugin
 		}
 		else
 		{
+			printf("ERROR: Unhandled image type\n");
 			// just blank
 			for (int i = 0; i < pixels.size(); i++)
 			{
@@ -156,7 +185,7 @@ class ImagePlugin: public Plugin
     	struct ps_subscriber_options options;
     	ps_subscriber_options_init(&options);
     	options.preferred_transport = 1;// tcp yo
-    	ps_node_create_subscriber_adv(GetNode(), current_topic_.c_str(), &pubsub__Costmap_def, &subscriber_, &options);
+    	ps_node_create_subscriber_adv(GetNode(), current_topic_.c_str(), &pubsub__Image_def, &subscriber_, &options);
     	sub_open_ = true;
 	}
 	
@@ -233,7 +262,7 @@ public:
 		double bottom = 0;
 		
 		// draw the bounds of the costmap
-		if (show_outline_->GetValue())
+		/*if (show_outline_->GetValue())
 		{
 			glLineWidth(4.0f);
 			glBegin(GL_LINE_STRIP);
@@ -248,7 +277,7 @@ public:
 			glVertex2f(left, bottom);
 			
 			glEnd();
-		}
+		}*/
 		
 		// Now draw the costmap itself
 		glEnable(GL_TEXTURE_2D);

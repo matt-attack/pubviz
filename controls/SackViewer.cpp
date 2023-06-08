@@ -445,6 +445,7 @@ void SackViewer::PlotSelected(bool twod)
     graph->SetViewer(this);
 	graph->Dock(Pos::Fill);
     page->GetParent()->GetParent()->SetWidth(580);
+	button->GetTabControl()->SelectTab(button);
 
 	if (twod)
 	{
@@ -824,8 +825,8 @@ void SackViewer::Render( Skin::Base* skin )
 	
 	// fill the background
 	auto bounds = GetRenderBounds();
-	skin->GetRender()->SetDrawColor( Gwen::Color( 250, 250, 250, 255 ) );
-	skin->GetRender()->DrawFilledRect( bounds );
+	r->SetDrawColor( Gwen::Color( 250, 250, 250, 255 ) );
+	r->DrawFilledRect( bounds );
 
 	if (end_time_ == 0 && start_time_ == 0)
 	{
@@ -833,7 +834,7 @@ void SackViewer::Render( Skin::Base* skin )
 	}
 	
 	// Now draw all the topic names
-	skin->GetRender()->SetDrawColor( Gwen::Color(0,0,0,255) );
+	r->SetDrawColor( Gwen::Color(0,0,0,255) );
 	int off = 40;// top padding
 	for (auto& topic: bag_data_)
 	{
@@ -865,18 +866,18 @@ void SackViewer::Render( Skin::Base* skin )
 		}
 	}
 	
-	skin->GetRender()->SetDrawColor( Gwen::Color(0,0,0,255) );
+	r->SetDrawColor( Gwen::Color(0,0,0,255) );
 	off = 40;
 	for (auto& topic: bag_data_)
 	{
-		skin->GetRender()->SetDrawColor( Gwen::Color(0,0,200,255) );
+		r->SetDrawColor( Gwen::Color(0,0,200,255) );
 		for (auto& msg : topic.second.messages)
 		{
 			double x = (msg.time - start_time_)*px_per_usec;
 			r->DrawFilledRect(Rect(title_width + x, off, 2, 38));
 		}
 
-		skin->GetRender()->SetDrawColor(Gwen::Color(0, 0, 0, 255));
+		r->SetDrawColor(Gwen::Color(0, 0, 0, 255));
 		r->DrawLinedRect(Rect(title_width, off, graph_width, 38));
 		
 		off += 40;

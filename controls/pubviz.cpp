@@ -50,6 +50,7 @@
 #include "../plugins/Pose.h"
 #include "../plugins/Path.h"
 #include "../plugins/Image.h"
+#include "../plugins/GPS.h"
 
 #include <Gwen/Controls/Dialogs/FileOpen.h>
 #include <Gwen/Controls/Dialogs/FileSave.h>
@@ -89,9 +90,24 @@ void PubViz::OnConfigSave(Gwen::Event::Info info)
 	// save our own configuration first
 	config += "pubviz:";
 	config += "view,";
-	config += (canvas_->view_type_ == ViewType::Orbit ? "orbit" : "topdown");
-	config += ",yaw," + std::to_string(canvas_->yaw_) + ",";
-	config += "pitch," + std::to_string(canvas_->pitch_) + "";
+	if (canvas_->view_type_ == ViewType::FPS)
+	{
+		config += "fps";
+	}
+	else
+	{
+		config += (canvas_->view_type_ == ViewType::Orbit ? "orbit" : "topdown");
+	}
+	config += ",yaw," + std::to_string(canvas_->yaw_);
+	config += ",pitch," + std::to_string(canvas_->pitch_);
+	config += ",show_config,";
+	config += (show_config_->GetChecked() ? "true" : "false");
+	for (auto p: properties_)
+	{
+		config += ",";
+		config += p.first + ",";
+		config += p.second->Serialize();
+	}
 	config += "\n";
 	for (auto p: plugins_)
 	{
@@ -142,11 +158,20 @@ std::vector<std::string> split(std::string s, std::string delimiter)
 
 void PubViz::OnConfigLoad(Gwen::Event::Info info)
 {
+	LoadConfig(info.String.c_str());
+}
+
+void PubViz::LoadConfig(const char* filename)
+{
 	// first clear our plugins
 	ClearPlugins();
 	
 	// now load the new config
-	FILE *f = fopen(info.String.c_str(), "rb");
+	FILE *f = fopen(filename, "rb");
+	if (f == 0)
+	{
+		return;// failed to open file
+	}
 	fseek(f, 0, SEEK_END);
 	long fsize = ftell(f);
 	fseek(f, 0, SEEK_SET);  /* same as rewind(f); */
@@ -209,7 +234,14 @@ void PubViz::OnConfigLoad(Gwen::Event::Info info)
 
 				if (key == "view")
 				{
-					canvas_->SetViewType(value == "orbit" ? ViewType::Orbit : ViewType::TopDown);
+					if (value == "fps")
+					{
+						canvas_->SetViewType(ViewType::FPS);
+					}
+					else
+					{
+						canvas_->SetViewType(value == "orbit" ? ViewType::Orbit : ViewType::TopDown);
+					}
 				}
 				else if (key == "pitch")
 				{
@@ -221,10 +253,23 @@ void PubViz::OnConfigLoad(Gwen::Event::Info info)
 					yaw = std::atof(value.c_str());
 					canvas_->SetViewAngle(pitch, yaw);
 				}
+				else if (key == "show_config")
+				{
+					show_config_->SetChecked(value == "true");
+				}
+				else
+				{
+					// load to properties
+					auto prop = properties_.find(key);
+					if (prop != properties_.end())
+					{
+						prop->second->Deserialize(value);
+					}
+				}
 			}
 			continue;
 		}
-		printf("add plugin %s\n", data[0].c_str());
+		printf("loaded plugin %s\n", data[0].c_str());
 		auto plugin = AddPlugin(data[0]);
 		if (plugin)
 		{
@@ -315,6 +360,10 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 	{
 		canvas_->SetViewType(ViewType::Orbit);
 	}
+	else if (pMenuItem->GetText() == L"First Person")
+	{
+		canvas_->SetViewType(ViewType::FPS);
+	}
 	else if (pMenuItem->GetText() == L"Top")
 	{
 		canvas_->SetViewAngle(90, 0);
@@ -352,7 +401,7 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 {
 	Dock(Pos::Fill);
 	SetSize(1024, 768);
-	SetPadding(Gwen::Padding(0, 0, 0, 0));
+	SetPadding(Gwen::Margin(0, 0, 0, 0));
 
 	//add menu bar
 	menu_ = new Gwen::Controls::MenuStrip(this->GetParent());
@@ -371,12 +420,14 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 		pCheckable->SetCheckable( true );
 		pCheckable->SetChecked( true );
         pCheckable->onCheckChange.Add(this, &ThisClass::OnShowConfigChanged);
+		show_config_ = pCheckable;
 		pRoot->GetMenu()->AddItem(L"Plot", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Change Parameters", "", "Shift+P")->SetAction(this, &ThisClass::MenuItemSelect);
 		pause_item_ = pRoot->GetMenu()->AddItem(L"Pause", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddDivider();
 		pRoot->GetMenu()->AddItem(L"Orbit", "", "Ctrl+O")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Top Down", "", "Ctrl+T")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddItem(L"First Person", "", "Ctrl+T")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddDivider();
 		pRoot->GetMenu()->AddItem(L"Top", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Left", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
@@ -395,12 +446,35 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	
 	Gwen::Controls::Properties* props = plugin_tree_->Add( "Global Options" );
 	props->SetSplitWidth(150);
-	auto row = props->Add(L"Background Color", new Gwen::Controls::Property::ColorSelector(props), L"50 50 50");
-	row->onChange.Add(this, &ThisClass::OnBackgroundChange);
-	auto row2 = props->Add(L"WGS84 Frame", new Gwen::Controls::Property::Checkbox(props), L"false");
-	row2->onChange.Add(this, &ThisClass::OnFrameChange);
-	auto row3 = props->Add(L"Show Origin", new Gwen::Controls::Property::Checkbox(props), L"true");
-	row3->onChange.Add(this, &ThisClass::OnShowOriginChange);
+
+	auto bg_color = new ColorProperty(props, "Background Color", Gwen::Color(50, 50, 50));
+	bg_color->onChange = [this](Gwen::Color c)
+	{
+		canvas_->m_Color = c;
+	};
+	properties_["Background Color"] = bg_color;
+
+	auto wgs84 = new BooleanProperty(props, "WGS84 Frame", false);
+	wgs84->onChange = [this](bool b)
+	{
+		canvas_->SetFrame(b);
+	};
+	properties_["WGS84 Frame"] = wgs84;
+
+	auto origin = new BooleanProperty(props, "Show Origin", "true");
+	origin->onChange = [this](bool b)
+	{
+		canvas_->ShowOrigin(b);
+	};
+	properties_["Show Origin"] = origin;
+
+	//auto row = props->Add(L"Background Color", new Gwen::Controls::Property::ColorSelector(props), L"50 50 50");
+	//row->onChange.Add(this, &ThisClass::OnBackgroundChange);
+	//auto row2 = props->Add(L"WGS84 Frame", new Gwen::Controls::Property::Checkbox(props), L"false");
+	//row2->onChange.Add(this, &ThisClass::OnFrameChange);
+	//auto row3 = props->Add(L"Show Origin", new Gwen::Controls::Property::Checkbox(props), L"true");
+	//row3->onChange.Add(this, &ThisClass::OnShowOriginChange);
+
 
 	plugin_tree_->ExpandAll();
 	
@@ -440,12 +514,14 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	canvas_->plugins_ = plugins_;//todo lets not maintain two lists
 	canvas_->SetFrame(false);
 	
-	AddPlugin("grid");
+	AddPlugin("image");
+	/*AddPlugin("grid");
+	AddPlugin("gps");
 		AddPlugin("costmap");
 		AddPlugin("marker");
 		AddPlugin("pointcloud");
 		AddPlugin("path");
-		AddPlugin("pose");
+		AddPlugin("pose");*/
 	
 	add_button->onPress.Add( this, &ThisClass::OnAddPlugin );
 
@@ -505,29 +581,6 @@ void PubViz::OnCenter(Gwen::Controls::Base* control)
 	canvas_->ResetView();
 }
 
-void PubViz::OnFrameChange(Gwen::Controls::Base* control)
-{
-	auto prop = ((Gwen::Controls::PropertyRow*)control)->GetProperty();
-	Gwen::Controls::Property::Checkbox* selector = (Gwen::Controls::Property::Checkbox*)prop;
-	bool wgs84 = selector->GetPropertyValue() == L"1" ? true : false;
-	canvas_->SetFrame(wgs84);
-}
-
-void PubViz::OnShowOriginChange(Gwen::Controls::Base* control)
-{
-	auto prop = ((Gwen::Controls::PropertyRow*)control)->GetProperty();
-	Gwen::Controls::Property::Checkbox* selector = (Gwen::Controls::Property::Checkbox*)prop;
-	bool yn = selector->GetPropertyValue() == L"1" ? true : false;
-	canvas_->ShowOrigin(yn);
-}
-
-void PubViz::OnBackgroundChange(Gwen::Controls::Base* control)
-{
-	auto prop = ((Gwen::Controls::PropertyRow*)control)->GetProperty();
-	Gwen::Controls::Property::ColorSelector* selector = (Gwen::Controls::Property::ColorSelector*)prop;
-	canvas_->m_Color = selector->m_Button->m_Color;
-}
-
 Plugin* PubViz::AddPlugin(const std::string& name)
 {
 	Plugin* plugin = BaseRegisterObject::Construct(name);
@@ -540,15 +593,23 @@ Plugin* PubViz::AddPlugin(const std::string& name)
 	Gwen::Controls::Properties* props = plugin_tree_->Add( name );
 	auto node = (Gwen::Controls::TreeNode*)props->GetParent();
 	node->Open();
-	//node->GetButton()->SetTextColorOverride(Gwen::Color(255,0,0,255));
-	auto pRow = props->Add( L"Enable", new Gwen::Controls::Property::Checkbox( props ), L"1" );
-	pRow->onChange.Add( plugin, &Plugin::OnEnableChecked );
 	plugin->node_ = &node_;
 	plugin->plugin_button_ = node->GetButton();
 	plugin->canvas_ = canvas_;
+
+//use this for enable then make sure to save it
+	auto box = new Gwen::Controls::CheckBox(node->GetButton());
+	box->Dock(Pos::Right);
+	box->SetChecked(true);
+	box->SetMargin(Padding(0, 0, 5, 0));
+
+	plugin->enabled_ = box;
 	plugin->Initialize(props);
 	props->SetSplitWidth(150);
 	plugin->props_ = props;
+
+
+	node->Position(Pos::Right);
 	
 	// add the close button
 	auto pRow2 = props->Add( L"", new Gwen::Controls::Property::Button( props ), L"Close" );
@@ -628,11 +689,24 @@ void PubViz::Render(Gwen::Skin::Base* skin)
 		m_fLastSecond = Gwen::Platform::GetTimeInSeconds() + 0.5f;
 		m_iFrames = 0;
 	}
-	
-	double x, y;
-	canvas_->GetMousePosition(x, y);
 
-	m_StatusBar->SetText(Gwen::Utility::Format(L"%i fps    X: %f Y: %f", val * 2, x, y));
+	if (canvas_->GetViewType() == ViewType::TopDown)
+	{
+		double x, y;
+		canvas_->GetMousePosition(x, y);
+		m_StatusBar->SetText(Gwen::Utility::Format(L"%i fps    X: %f Y: %f", val * 2, x, y));
+	}
+	else
+	{
+		if (canvas_->wgs84_mode_)
+		{
+			m_StatusBar->SetText(Gwen::Utility::Format(L"%i fps    Lat: %f Lon: %f Alt: %f", val * 2, canvas_->view_lat_, canvas_->view_lon_, canvas_->view_alt_));
+		}
+		else
+		{
+			m_StatusBar->SetText(Gwen::Utility::Format(L"%i fps    X: %f Y: %f Z: %f", val * 2, canvas_->view_x_, canvas_->view_y_, canvas_->view_z_));
+		}
+	}
 
 	BaseClass::Render(skin);
 }

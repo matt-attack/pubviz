@@ -28,6 +28,21 @@ GWEN_CONTROL_CONSTRUCTOR( OpenGLCanvas )
 
 bool OpenGLCanvas::OnMouseWheeled( int delta )
 {
+	if (view_type_ == ViewType::FPS)
+	{
+		// move view along view axis
+		double dx = cos(-yaw_*M_PI/180.0)*cos(pitch_*M_PI/180.0);
+		double dy = sin(-yaw_*M_PI/180.0)*cos(pitch_*M_PI/180.0);
+		double dz = sin(pitch_*M_PI/180.0);
+		view_x_ += dx*delta*0.01;
+		view_y_ += dy*delta*0.01;
+		view_z_ += dz*delta*0.01;
+
+		Redraw();
+
+		return true;
+	}
+
 	if (delta < 0)
 	{
 		view_height_m_ += 0.1*(double)delta;
@@ -165,6 +180,45 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		glMatrixMode(GL_MODELVIEW);
 		Gwen::Point pos = GetPos();
 		glLoadIdentity();
+	}
+	else if (view_type_ == ViewType::FPS)
+	{
+		double near = 1.0;
+		double fov = 45*M_PI/180.0;// horizontal
+		double aspect_ratio = ((double)width)/((double)height);
+		double width = near*tan(fov);
+		double height = width/aspect_ratio;
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+		// x, y, z
+		glFrustum( -width/2, width/2, -height/2, height/2, near, 10000.0 );
+	
+		// now apply other transforms
+		glMatrixMode(GL_MODELVIEW);
+		Gwen::Point pos = GetPos();
+		glLoadIdentity();
+		
+		// eh, I dislike this but whatever
+		gluLookAt(view_x, view_y, view_z, /* look from camera XYZ */
+             view_x - cos(-yaw_*M_PI/180.0)*cos(pitch_*M_PI/180.0), view_y - sin(-yaw_*M_PI/180.0)*cos(pitch_*M_PI/180.0), view_z - sin(pitch_*M_PI/180.0), /* look at the origin */
+             0, 0, 1); /* positive Z up vector */
+		//glRotatef(-90, 1, 0, 0);
+		//glTranslatef(-view_x, -view_y, -view_z);
+	
+		//glRotatef(-90, 1, 0, 0);
+		//glRotatef(-90, 0, 1, 0);
+		//glRotatef(yaw_, 0, 0, 1);
+	
+		
+		float ax = cos((-yaw_)*3.14159/180.0);
+		float ay = sin((-yaw_)*3.14159/180.0);
+		//glRotatef(pitch_, 0,1,0);//ax, ay, 0);
+//glRotatef(yaw_, 0, 0, 1);
+		
+		// we want depth testing in this mode
+		glEnable(GL_DEPTH_TEST);
+		glClear(GL_DEPTH_BUFFER_BIT);
+		glDepthFunc(GL_LEQUAL);
 	}
 	else if (view_type_ == ViewType::Orbit)
 	{

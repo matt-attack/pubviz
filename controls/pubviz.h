@@ -67,6 +67,7 @@ struct RegisterObject: public BaseRegisterObject
 class GraphCanvas;
 class PubViz: public Gwen::Controls::DockBase
 {
+		std::map<std::string, PropertyBase*> properties_;
 	public:
 
 		GWEN_CONTROL(PubViz, Gwen::Controls::DockBase);
@@ -81,15 +82,14 @@ class PubViz: public Gwen::Controls::DockBase
 		
 		Plugin* AddPlugin(const std::string& name);
 
+		void LoadConfig(const char* filename);
+
 	private:
 		
 		void OnCategorySelect( Gwen::Event::Info info );
 		void OnAddPlugin(Gwen::Controls::Base* control);
 		void OnRemovePlugin( Gwen::Controls::Base* control);
 		void OnAddPluginFinish(Gwen::Controls::Base* control);
-		void OnBackgroundChange(Gwen::Controls::Base* control);
-		void OnFrameChange(Gwen::Controls::Base* control);
-		void OnShowOriginChange(Gwen::Controls::Base* control);
 		void OnCenter(Gwen::Controls::Base* control);
         void OnShowConfigChanged(Gwen::Controls::Base* control);
         void OnPause(Gwen::Controls::Base* control);
@@ -108,6 +108,7 @@ class PubViz: public Gwen::Controls::DockBase
 		Gwen::Controls::PropertyTree* plugin_tree_;
 		Gwen::Controls::Button* pause_button_;
 		Gwen::Controls::MenuItem* pause_item_;
+		Gwen::Controls::MenuItem* show_config_;
 		OpenGLCanvas* canvas_;
 		
 		Parameters* parameters_page_ = 0;

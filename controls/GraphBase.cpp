@@ -2,6 +2,7 @@
 
 #include <Gwen/Platform.h>
 #include <Gwen/Controls/CheckBox.h>
+#include <Gwen/Controls/ComboBox.h>
 #include <Gwen/Controls/Menu.h>
 #include <Gwen/Controls/TextBox.h>
 #include <Gwen/Controls/WindowControl.h>
@@ -46,6 +47,7 @@ struct ConfigureDialog
 {
 	Gwen::Controls::TextBoxNumeric* left_, *right_, *bottom_, *top_;
 	Gwen::Controls::CheckBox* autoscale_y_, *autoscale_x_;
+	Gwen::Controls::ComboBox* style_;
 
 	GraphBase* graph_;
 
@@ -54,6 +56,28 @@ struct ConfigureDialog
 		graph_ = graph;
 	}
 };
+
+void GraphBase::OnMouseClickLeft( int x, int y, bool down )
+{
+	// toggle hidden when you click on a key label
+	if (down)
+	{
+		Gwen::Point lp = CanvasPosToLocal(Gwen::Point(x, y));
+		//		key.x = b.w - key_width + 5 - 50;
+		//key.y = 104 + q*20 + 3;
+		int c = lp.y - 104 - 3;
+		c /= 20;
+		if (c >= 0 && c < GetChannels().size())
+		{
+			auto b = GetRenderBounds();
+			int key_start = b.w - key_width_ - 50;
+			if (lp.x > key_start && lp.x < key_start + key_width_)
+			{
+				GetChannels()[c]->hidden = !GetChannels()[c]->hidden;
+			}
+		}
+	}
+}
 
 void GraphBase::OnConfigure(Base* control)
 {
@@ -68,6 +92,12 @@ void GraphBase::OnConfigure(Base* control)
     pWindow->DisableResizing();
 
 	auto dialog = new ConfigureDialog(this);
+
+	auto button = new Gwen::Controls::Button( pWindow );
+	button->SetText("Apply");
+	button->SetPos( 70, 20 + 25*8);
+	button->SetWidth(70);
+	button->onPress.Add(this, &ThisClass::OnConfigureClosed, dialog);
 
     // add settings
     {
@@ -159,7 +189,20 @@ void GraphBase::OnConfigure(Base* control)
 		current_x += 25;
     }
 
-	pWindow->onWindowClosed.Add(this, &ThisClass::OnConfigureClosed, dialog);
+	{
+		Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
+		label->SetText( "Line Style" );
+		label->SizeToContents();
+		label->SetPos( 10, 20 + 25*7 );
+		auto box = new Gwen::Controls::ComboBox( pWindow );
+		box->SetPos( 110, 20 + 25*7 );
+        box->SetWidth(70);
+		box->AddItem(L"Line", "Line");
+		box->AddItem(L"Dots", "Dots");
+		box->AddItem(L"Both", "Both");
+		box->SelectItemByName(style_);
+		dialog->style_ = box;
+	}
 }
 
 void GraphBase::OnConfigureClosed(Gwen::Event::Info info)
@@ -171,8 +214,8 @@ void GraphBase::OnConfigureClosed(Gwen::Event::Info info)
 
 	min_x_ = dialog->left_->GetFloatFromText();
 	max_x_ = dialog->right_->GetFloatFromText();
-	
-	delete dialog;
+
+	style_ = dialog->style_->GetSelectedItem()->GetText().c_str();
 }
 
 GraphBase::Channel* GraphBase::CreateChannel(const std::string& topic, const std::string& field_x, const std::string& field_y)
@@ -373,11 +416,6 @@ void GraphBase::AddSample(Channel* sub, double value, pubsub::Time time, bool sc
     Redraw();
 }
 
-void GraphBase::OnMouseClickLeft( int /*x*/, int /*y*/, bool down )
-{
-
-}
-
 void GraphBase::OnMouseMoved(int x, int y, int dx, int dy)
 {
 
@@ -413,7 +451,7 @@ double CalcStepSize(double range, double targetSteps)
     return magMsd*magPow;
 }
 
-const float graph_colors[6][3] = {{1,0,0},{0,1,0},{0,0,1}, {0,1,1}, {1,0,1}, {1,1,0}};
+const float graph_colors[6][3] = {{1,0,0},{0,1,0},{0,0,1}, {0,1,1}, {1,0,1}, {0.7,0.7,0}};
 
 void CalculateDivisions(std::vector<double>& divisions, double min, double max, int max_divisions)
 {
@@ -669,19 +707,49 @@ void GraphBase::Render( Skin::Base* skin )
 	r->SetClipRegion(Gwen::Rect(start_pos.x, start_pos.y, graph_width, graph_height));
 	r->StartClip();
 	
-	// Draw the graph line
-	glLineWidth(4.0f);
-	int j = 0;
-	for (auto& sub: channels_)
+	// Draw the graph line (if enabled)
+	bool draw_dots = style_ == "Dots";
+	bool draw_lines = style_ == "Line";
+	if (style_ == "Both")
 	{
-		glBegin(GL_LINE_STRIP);
-		glColor3f(graph_colors[j%6][0], graph_colors[j%6][1], graph_colors[j%6][2]);
-		for (auto& pt: sub->data)
+		draw_dots = true;
+		draw_lines = true;
+	}
+
+	if (draw_lines)
+	{
+		glLineWidth(4.0f);
+		for (int j = 0; j < channels_.size(); j++)
 		{
-			glVertex2f(start_x + graph_width*(pt.first - min_x_)/(max_x_ - min_x_),
+			auto sub = channels_[j];
+			if (sub->hidden) { continue; }
+			glBegin(GL_LINE_STRIP);
+			glColor3f(graph_colors[j%6][0], graph_colors[j%6][1], graph_colors[j%6][2]);
+			for (auto& pt: sub->data)
+			{
+				glVertex2f(start_x + graph_width*(pt.first - min_x_)/(max_x_ - min_x_),
 		           start_y + y_count*y_cell_size - graph_height*(pt.second - min_y_)/(max_y_ - min_y_));
+			}
+			glEnd();
 		}
-		j++;
+	}
+
+	// Draw graph dots (if enabled)
+	if (draw_dots)
+	{
+		glPointSize(8.0f);
+		glBegin(GL_POINTS);
+		for (int j = 0; j < channels_.size(); j++)
+		{
+			auto sub = channels_[j];
+			if (sub->hidden) { continue; }
+			glColor3f(graph_colors[j%6][0], graph_colors[j%6][1], graph_colors[j%6][2]);
+			for (auto& pt: sub->data)
+			{
+				glVertex2f(start_x + graph_width*(pt.first - min_x_)/(max_x_ - min_x_),
+		           start_y + y_count*y_cell_size - graph_height*(pt.second - min_y_)/(max_y_ - min_y_));
+			}
+		}
 		glEnd();
 	}
 
@@ -711,12 +779,21 @@ void GraphBase::Render( Skin::Base* skin )
         return;
     }
 
+	// guess how wide to make the key box, so we dont make it wider than necessary
+	int key_width = 70;
+	for (auto& sub: channels_)
+	{
+		int len = sub->GetTitle().length();
+		key_width = std::max<int>(len*8 + 25, key_width);
+	}
+	key_width_ = key_width;
+
 	// do whatever we want here
 	Rect rr;
-	rr.x = b.w - 200;
-	rr.w = 150;
+	rr.x = b.w - key_width - 50;
+	rr.w = key_width;
 	rr.y = 100;
-	rr.h = channels_.size()*20;
+	rr.h = channels_.size()*20 + 3;
 	r->SetDrawColor( Gwen::Color(0,0,0,255) );// start by clearing to background color
 	r->DrawFilledRect( rr );
 	rr.x += 2;
@@ -729,8 +806,22 @@ void GraphBase::Render( Skin::Base* skin )
 	int q = 0;
 	for (auto& sub: channels_)
 	{
-		r->SetDrawColor(Gwen::Color(graph_colors[q%6][0]*255,graph_colors[q%6][1]*255,graph_colors[q%6][2]*355,255));
-		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( b.w - 195, 104 + q*20), sub->GetTitle());
+		r->SetDrawColor(Gwen::Color(graph_colors[q%6][0]*255,graph_colors[q%6][1]*255,graph_colors[q%6][2]*255,255));
+		Rect key;
+		key.w = 10;
+		key.h = 10;
+		key.x = b.w - key_width + 5 - 50;
+		key.y = 104 + q*20 + 3;
+		r->DrawFilledRect(key);
+		if (sub->hidden)
+		{
+			r->SetDrawColor(Gwen::Color(100, 100, 100));
+		}
+		else
+		{
+			r->SetDrawColor(Gwen::Color(0, 0, 0));
+		}
+		r->RenderText(skin->GetDefaultFont(), Gwen::PointF( 15 + b.w - key_width + 5 - 50, 104 + q*20), sub->GetTitle());
 		q++;
 	}
 }
