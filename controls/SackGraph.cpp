@@ -54,6 +54,11 @@ void SackGraph::OnMouseClickLeft( int x, int y, bool down )
 
 void SackGraph::OnMouseClickRight( int x, int y, bool down )
 {
+	if (is_2d_)
+	{
+		return;
+	}
+
     selecting_ = down;
 
 	auto start_x = GraphStartPosition();
@@ -81,6 +86,10 @@ void SackGraph::OnMouseClickRight( int x, int y, bool down )
 			min_x_ = std::min(selection_start_, selection_end_);
 			max_x_ = std::max(selection_start_, selection_end_);
 		}
+
+		//update other viewers with our selection
+		// todo only do this if we are synched, todo add option for that
+		viewer_->UpdateSelection(min_x_, max_x_);
 	}
 
 	double rel_time = ((x_rel - start_x)/graph_width)*(max_x_ - min_x_) + min_x_;
@@ -92,7 +101,7 @@ void SackGraph::OnMouseClickRight( int x, int y, bool down )
 void SackGraph::OnMouseMoved(int x, int y, int dx, int dy)
 {
     // move playhead if we are currently mouse down
-    if (mouse_down_)
+    if (mouse_down_ && !is_2d_)
     {
         auto start_x = GraphStartPosition();
         auto graph_width = GraphWidth();
@@ -128,9 +137,16 @@ void SackGraph::SetViewer(SackViewer* viewer)
 
 void SackGraph::PaintOnGraph(double start_x, double start_y, double graph_width, double graph_height)
 {
-    auto r = GetSkin()->GetRender();
+	if (is_2d_)
+	{
+		return;// dont draw the values in 2d mode
+	}
+
+	auto r = GetSkin()->GetRender();
 	double slider_time = (viewer_->GetPlayheadTime() - viewer_->GetStartTime())/1000000.0;
+	pubsub::Time st(viewer_->GetPlayheadTime());
 	char buffer[50];
+	int num = 0;
 	for (int j = 0; j < channels_.size(); j++)
 	{
 		auto channel = channels_[j];
@@ -138,16 +154,15 @@ void SackGraph::PaintOnGraph(double start_x, double start_y, double graph_width,
 		for (int i = channel->data.size() - 1; i >= 0; i--)
 		{
 			auto& pt = channel->data[i];
-			if (pt.first < slider_time)
+			if (pt.time <= st)
 			{
 				double x = start_x + graph_width*(slider_time - min_x_)/(max_x_ - min_x_);
-				double y = start_y + j * 20;
-				glVertex2f(x, y);
+				double y = start_y + num * 20;
 
 				sprintf(buffer, "%lf", pt.second);
 				r->SetDrawColor( Gwen::Color(graph_colors[j][0]*255,graph_colors[j][1]*255,graph_colors[j][2]*255,255) );
 				r->RenderText(GetSkin()->GetDefaultFont(), Gwen::PointF(x + 15, y - 15), (std::string)buffer);
-
+				num++;
 				break;
 			}
 		}
@@ -156,7 +171,7 @@ void SackGraph::PaintOnGraph(double start_x, double start_y, double graph_width,
 
 void SackGraph::DrawOnGraph(double start_x, double start_y, double graph_width, double graph_height)
 {
-    auto r = GetSkin()->GetRender();
+	auto r = GetSkin()->GetRender();
 
     // convert timestamp to bag time
     double slider_time = (viewer_->GetPlayheadTime() - viewer_->GetStartTime())/1000000.0;
@@ -190,10 +205,9 @@ void SackGraph::DrawOnGraph(double start_x, double start_y, double graph_width, 
 		glVertex2f(pt2x, start_y + graph_height);
 
 		glEnd();
-    	glDisable(GL_BLEND);
+		glDisable(GL_BLEND);
 	}
 
-	double x,y;
 	glEnable(GL_BLEND);
 	// also draw the nearest value
 	// todo use binary search
@@ -206,17 +220,17 @@ void SackGraph::DrawOnGraph(double start_x, double start_y, double graph_width, 
 		for (int i = channel->data.size() - 1; i >= 0; i--)
 		{
 			auto& pt = channel->data[i];
-			if (pt.time < st)
+			if (pt.time <= st)
 			{
-				x = start_x + graph_width*(pt.first - min_x_)/(max_x_ - min_x_);
-				y = start_y + graph_height - graph_height*(pt.second - min_y_)/(max_y_ - min_y_);
+				double x = start_x + graph_width*(pt.first - min_x_)/(max_x_ - min_x_);
+				double y = start_y + graph_height - graph_height*(pt.second - min_y_)/(max_y_ - min_y_);
 				glVertex2f(x, y);
 				break;
 			}
 		}
 	}
 	glEnd();
-    glDisable(GL_BLEND);
+	glDisable(GL_BLEND);
 }
 
 void SackGraph::Render( Skin::Base* skin )

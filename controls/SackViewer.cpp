@@ -75,6 +75,7 @@ void SackViewer::OnFieldRightClick(Gwen::Controls::Base* pControl)
     //printf("Want to plot: %s\n", topic.c_str());
 	auto menu = new Gwen::Controls::Menu(GetCanvas());
 	menu->AddItem("Plot")->SetAction(this, &ThisClass::OnMenuItemSelect);
+	menu->AddItem("Plot 2D")->SetAction(this, &ThisClass::OnMenuItemSelect);
     menu->SetDeleteOnClose(true);
 	menu->Show();
 
@@ -289,7 +290,7 @@ void SackViewer::OnMenuItemSelect(Gwen::Controls::Base* pControl)
 			return;
 		}
 		
-		auto button = ((Gwen::Controls::DockBase*)GetParent())->GetRight()->GetTabControl()->AddPage(title);
+		auto button = GetParentDock()->GetRight()->GetTabControl()->AddPage(title);
 		button->SetPopoutable(true);
 		button->SetClosable(true);
 		auto page = button->GetPage();
@@ -437,7 +438,7 @@ void SackViewer::PlotSelected(bool twod)
 		// for now just go in order
 	}
 	
-    auto button = ((Gwen::Controls::DockBase*)GetParent())->GetRight()->GetTabControl()->AddPage("Graph");
+	auto button = GetParentDock()->GetRight()->GetTabControl()->AddPage("Graph");
 	button->SetPopoutable(true);
 	button->SetClosable(true);
 	auto page = button->GetPage();
@@ -481,6 +482,8 @@ void SackViewer::PlotSelected(bool twod)
        		graph->AddMessageSample(ch, msg.time, msg.msg, &data.def, false, false);
    		}
 	}
+
+	graphs_[graph] = true;
 }
 
 void SackViewer::OnViewerClose(Gwen::Controls::Base* pControl)
@@ -648,6 +651,14 @@ int BinarySearch(uint64_t target_time, const std::vector<SackViewer::Message>& a
 
 	// nothing was before this time
 	return -1;
+}
+
+void SackViewer::UpdateSelection(double min_x, double max_x)
+{
+	for (auto& graph: graphs_)
+	{
+		graph.first->SetXRange(min_x, max_x);
+	}
 }
 
 void SackViewer::UpdateViewers()

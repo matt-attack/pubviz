@@ -17,6 +17,8 @@
 
 #include <thread>
 
+#include "SackGraph.h"
+
 
 class PubViz;
 class SackViewer : public Gwen::Controls::Base
@@ -123,6 +125,10 @@ protected:
     };
 		
 	std::map<std::string, Viewer> viewers_;
+
+	std::map<SackGraph*, bool> graphs_;
+
+	inline Gwen::Controls::DockBase* GetParentDock() { return (Gwen::Controls::DockBase*)GetParent()->GetParent(); }
 		
 	//Gwen::Controls::Menu* context_menu_;
 	
@@ -147,6 +153,10 @@ public:
 	void UpdateViewers();
 
 	void PlotSelected(bool twod);
+
+	void UpdateSelection(double min_x, double max_x);
+
+	Gwen::Point GetMinimumSize() override { return Gwen::Point(50, bag_data_.size()*40 + 45); }
 protected:
     void CloseBag();
 

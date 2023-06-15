@@ -115,7 +115,11 @@ GWEN_CONTROL_CONSTRUCTOR(SackViz)
 		pRoot->GetMenu()->AddItem(L"Plot 2D", "", "Shift+P")->SetAction(this, &ThisClass::MenuItemSelect);
 	}
 	
-	viewer_ = new SackViewer(this);
+	auto scroll = new Gwen::Controls::ScrollControl(this);
+	scroll->SetScroll(false, true);
+	scroll->Dock(Pos::Fill);
+
+	viewer_ = new SackViewer(scroll);
 	viewer_->Dock(Pos::Fill);
 
 	m_StatusBar = new Controls::StatusBar(this->GetParent());

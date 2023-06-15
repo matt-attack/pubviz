@@ -114,6 +114,14 @@ public:
 		redo_scale_ = true;
 	}
 
+	void SetXRange(double min, double max)
+	{
+		if (is_2d_) { return; }
+		autoscale_x_ = false;
+		min_x_ = min;
+		max_x_ = max;
+	}
+
 protected:
 
     void Layout(Gwen::Skin::Base* skin);

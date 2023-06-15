@@ -74,6 +74,7 @@ void GraphBase::OnMouseClickLeft( int x, int y, bool down )
 			if (lp.x > key_start && lp.x < key_start + key_width_)
 			{
 				GetChannels()[c]->hidden = !GetChannels()[c]->hidden;
+				Redraw();
 			}
 		}
 	}
@@ -83,7 +84,7 @@ void GraphBase::OnConfigure(Base* control)
 {
 	Controls::WindowControl* pWindow = new Controls::WindowControl( GetCanvas() );
 	pWindow->SetTitle( L"Configure Graph" );
-	pWindow->SetSize( 200, 250 + (is_2d_ ? 25 : 0) );
+	pWindow->SetSize( 200, 275 + (is_2d_ ? 25 : 0) );
 	pWindow->MakeModal( true );
 	//pWindow->Position( Pos::Center );// doesnt work if we have no inner space left
     auto pos = GetCanvas()->GetRenderBounds();
@@ -95,7 +96,7 @@ void GraphBase::OnConfigure(Base* control)
 
 	auto button = new Gwen::Controls::Button( pWindow );
 	button->SetText("Apply");
-	button->SetPos( 70, 20 + 25*8);
+	button->SetPos( 70, 20 + 25*8 + (is_2d_ ? 25 : 0));
 	button->SetWidth(70);
 	button->onPress.Add(this, &ThisClass::OnConfigureClosed, dialog);
 
@@ -193,14 +194,15 @@ void GraphBase::OnConfigure(Base* control)
 		Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
 		label->SetText( "Line Style" );
 		label->SizeToContents();
-		label->SetPos( 10, 20 + 25*7 );
+		label->SetPos( 10, current_x );
 		auto box = new Gwen::Controls::ComboBox( pWindow );
-		box->SetPos( 110, 20 + 25*7 );
+		box->SetPos( 110, current_x );
         box->SetWidth(70);
 		box->AddItem(L"Line", "Line");
 		box->AddItem(L"Dots", "Dots");
 		box->AddItem(L"Both", "Both");
 		box->SelectItemByName(style_);
+		current_x += 25;
 		dialog->style_ = box;
 	}
 }
