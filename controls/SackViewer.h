@@ -139,6 +139,7 @@ protected:
 		
 	void OnMenuItemSelect(Gwen::Controls::Base* pControl);
 	void OnViewerClose(Gwen::Controls::Base* pControl);
+	void OnGraphClose(Gwen::Controls::Base* pControl);
 
     void OnPreviousMessage(Gwen::Controls::Base* control);
     void OnNextMessage(Gwen::Controls::Base* control);

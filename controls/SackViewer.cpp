@@ -447,6 +447,9 @@ void SackViewer::PlotSelected(bool twod)
 	graph->Dock(Pos::Fill);
     page->GetParent()->GetParent()->SetWidth(580);
 	button->GetTabControl()->SelectTab(button);
+	button->UserData.Set<SackGraph*>("graph", graph);
+	button->onClose.Add(this, &ThisClass::OnGraphClose);
+	graphs_[graph] = true;
 
 	if (twod)
 	{
@@ -489,6 +492,12 @@ void SackViewer::PlotSelected(bool twod)
 void SackViewer::OnViewerClose(Gwen::Controls::Base* pControl)
 {
 	viewers_.erase(pControl->UserData.Get<std::string>("title"));
+}
+
+void SackViewer::OnGraphClose(Gwen::Controls::Base* pControl)
+{
+	auto graph = pControl->UserData.Get<SackGraph*>("graph");
+	graphs_.erase(graph);
 }
 
 bool SackViewer::OnMouseWheeled( int delta )
