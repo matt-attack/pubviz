@@ -67,7 +67,7 @@ void BaseRegisterObject::Add(const std::string& type, BaseRegisterObject* builde
 	GetPluginList()[type] = builder;
 }
 
-Plugin* BaseRegisterObject::Construct(const std::string& type)
+pubviz::Plugin* BaseRegisterObject::Construct(const std::string& type)
 {
 	auto builder = GetPluginList().find(type);
 	if (builder == GetPluginList().end())
@@ -281,7 +281,7 @@ void PubViz::LoadConfig(const char* filename)
 
 void PubViz::ClearPlugins()
 {
-	std::vector<Plugin*> plugins;
+	std::vector<pubviz::Plugin*> plugins;
 	for (auto p: plugins_)
 	{
 		p->props_->GetParent()->DelayedDelete();
@@ -309,6 +309,10 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 	else if (pMenuItem->GetText() == L"Quit")
 	{
 		exit(0);
+	}
+	else if (pMenuItem->GetText() == L"Screenshot")
+	{
+		canvas_->Screenshot();
 	}
 	else if (pMenuItem->GetText() == L"Clear Plugins")
 	{
@@ -414,6 +418,8 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 		pRoot->GetMenu()->AddItem(L"Load Config", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Save Config As", "", "Ctrl+S")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddDivider();
+		pRoot->GetMenu()->AddItem(L"Screenshot", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddDivider();
 		pRoot->GetMenu()->AddItem(L"Quit", "", "Ctrl+Q")->SetAction(this, &ThisClass::MenuItemSelect);
 	}
 	{
@@ -516,14 +522,14 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	canvas_->plugins_ = plugins_;//todo lets not maintain two lists
 	canvas_->SetFrame(false);
 	
-	AddPlugin("image");
-	/*AddPlugin("grid");
+	//AddPlugin("image");
+	AddPlugin("grid");
 	AddPlugin("gps");
 		AddPlugin("costmap");
 		AddPlugin("marker");
 		AddPlugin("pointcloud");
 		AddPlugin("path");
-		AddPlugin("pose");*/
+		AddPlugin("pose");
 	
 	add_button->onPress.Add( this, &ThisClass::OnAddPlugin );
 
@@ -583,9 +589,9 @@ void PubViz::OnCenter(Gwen::Controls::Base* control)
 	canvas_->ResetView();
 }
 
-Plugin* PubViz::AddPlugin(const std::string& name)
+pubviz::Plugin* PubViz::AddPlugin(const std::string& name)
 {
-	Plugin* plugin = BaseRegisterObject::Construct(name);
+	auto plugin = BaseRegisterObject::Construct(name);
 	if (plugin == 0)
 	{
 		printf("Unknown plugin name '%s'!\n", name.c_str());
@@ -616,7 +622,7 @@ Plugin* PubViz::AddPlugin(const std::string& name)
 	// add the close button
 	auto pRow2 = props->Add( L"", new Gwen::Controls::Property::Button( props ), L"Close" );
 	pRow2->onChange.Add( this, &PubViz::OnRemovePlugin );
-	pRow2->UserData.Set<Plugin*>("plugin", plugin);
+	pRow2->UserData.Set<pubviz::Plugin*>("plugin", plugin);
 	
 	plugins_.push_back(plugin);
 	canvas_->plugins_ = plugins_;
@@ -660,13 +666,13 @@ void PubViz::OnAddPluginFinish(Gwen::Controls::Base* control)
 
 void PubViz::OnRemovePlugin(Gwen::Controls::Base* control)
 {
-	Plugin* plugin = control->UserData.Get<Plugin*>("plugin");
+	auto plugin = control->UserData.Get<pubviz::Plugin*>("plugin");
 	
 	// remove the properties for this plugin
 	plugin->props_->GetParent()->DelayedDelete();
 	
 	// now lets remove it
-	std::vector<Plugin*> plugins;
+	std::vector<pubviz::Plugin*> plugins;
 	for (auto p: plugins_)
 	{
 		if (p != plugin)

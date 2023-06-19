@@ -33,7 +33,7 @@
 #undef min
 #undef max
 
-class PointCloudPlugin: public Plugin
+class PointCloudPlugin: public pubviz::Plugin
 {
 	FloatProperty* alpha_;
 	StringProperty* point_text_;

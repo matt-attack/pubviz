@@ -38,11 +38,11 @@ class BaseRegisterObject
 {
 public:
 
-	virtual Plugin* Construct() = 0;
+	virtual pubviz::Plugin* Construct() = 0;
 
 	static void Add(const std::string& type, BaseRegisterObject* builder);
 
-	static Plugin* Construct(const std::string& type);
+	static pubviz::Plugin* Construct(const std::string& type);
 };
 
 std::map<std::string, BaseRegisterObject*>& GetPluginList();
@@ -56,7 +56,7 @@ struct RegisterObject: public BaseRegisterObject
 		BaseRegisterObject::Add(name, this);
 	}
 
-	virtual Plugin* Construct()
+	virtual pubviz::Plugin* Construct()
 	{
 		return new T;
 	}
@@ -80,7 +80,7 @@ class PubViz: public Gwen::Controls::DockBase
 
 		virtual void Layout(Gwen::Skin::Base* skin) override;
 		
-		Plugin* AddPlugin(const std::string& name);
+		pubviz::Plugin* AddPlugin(const std::string& name);
 
 		void LoadConfig(const char* filename);
 
@@ -115,7 +115,7 @@ class PubViz: public Gwen::Controls::DockBase
 		
 		ps_node_t node_;
 		
-		std::vector<Plugin*> plugins_;
+		std::vector<pubviz::Plugin*> plugins_;
 
 		std::map<GraphCanvas*, bool> graphs_;
 

@@ -28,7 +28,7 @@
 
 #include <pubsub/Costmap.msg.h>
 
-class CostmapPlugin: public Plugin
+class CostmapPlugin: public pubviz::Plugin
 {
 	FloatProperty* alpha_;
 	ColorProperty* color_;

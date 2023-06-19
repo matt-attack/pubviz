@@ -118,6 +118,7 @@ GWEN_CONTROL_CONSTRUCTOR(SackViz)
 	auto scroll = new Gwen::Controls::ScrollControl(this);
 	scroll->SetScroll(false, true);
 	scroll->Dock(Pos::Fill);
+	scroll->SizeToMinimum(true);
 
 	viewer_ = new SackViewer(scroll);
 	viewer_->Dock(Pos::Fill);

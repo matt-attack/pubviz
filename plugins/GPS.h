@@ -32,7 +32,7 @@
 
 #include "../controls/OpenGLCanvas.h"
 
-class GPSPlugin: public Plugin
+class GPSPlugin: public pubviz::Plugin
 {
 	FloatProperty* alpha_;
 	ColorProperty* color_;

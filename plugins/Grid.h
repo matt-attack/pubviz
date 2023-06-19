@@ -26,7 +26,7 @@
 #include "../Plugin.h"
 #include "../properties.h"
 
-class GridPlugin: public Plugin
+class GridPlugin: public pubviz::Plugin
 {
 	FloatProperty* start_x_;
 	FloatProperty* start_y_;

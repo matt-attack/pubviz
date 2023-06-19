@@ -20,8 +20,8 @@ int WinMain(
 	int       nShowCmd
 )
 {
-	int argc;
-	wchar_t** args = CommandLineToArgvW(GetCommandLineW(), &argc);
+	char** args = __argv;
+	int argc = __argc;
 #else
 int main(int argc, char** args)
 {

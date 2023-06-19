@@ -28,7 +28,7 @@
 
 #include <pubsub/Marker.msg.h>
 
-class MarkerPlugin: public Plugin
+class MarkerPlugin: public pubviz::Plugin
 {
 	FloatProperty* alpha_;
 	ColorProperty* color_;

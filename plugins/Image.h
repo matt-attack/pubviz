@@ -29,7 +29,7 @@
 
 #include <pubsub/Image.msg.h>
 
-class ImagePlugin: public Plugin
+class ImagePlugin: public pubviz::Plugin
 {
 	FloatProperty* alpha_;
 	ColorProperty* color_;

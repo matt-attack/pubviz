@@ -134,7 +134,7 @@ void SackViewer::Play()
     {
         // startup the node
         node_initialized_ = true;
-	    ps_node_init(&node_, "sack_viewer", "", false);
+	    ps_node_init(&node_, "sack_viewer", "", true);
 
         // Adds TCP transport
         ps_tcp_transport_init(&_tcp_transport, &node_);

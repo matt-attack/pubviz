@@ -32,7 +32,7 @@
 
 #include "../controls/OpenGLCanvas.h"
 
-class PosePlugin : public Plugin
+class PosePlugin : public pubviz::Plugin
 {
 	FloatProperty* alpha_;
 	ColorProperty* color_;

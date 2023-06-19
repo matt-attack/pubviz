@@ -17,6 +17,8 @@
 
 #include <cmath>
 
+#undef near
+
 using namespace Gwen;
 using namespace Gwen::Controls;
 
@@ -108,6 +110,34 @@ void OpenGLCanvas::OnMouseMoved(int x, int y, int dx, int dy)
 	}
 }
 
+#include <pubsub_cpp/Time.h>
+#include <Gwen/../../Renderers/OpenGL/FreeImage/FreeImage.h>
+
+void OpenGLCanvas::Screenshot()
+{
+	auto scale = GetCanvas()->Scale();
+	auto origin = LocalPosToCanvas();
+	origin.y -= 20;// skip past the menu bar
+	auto width = Width()*scale;
+	auto height = Height()*scale;
+
+	uint8_t* pixels = new uint8_t[3 * width * height];
+
+	glReadPixels(origin.x * scale, origin.y * scale, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+
+	FIBITMAP* image = FreeImage_ConvertFromRawBits(pixels, width, height, 3 * width, 24, 0x0000FF, 0xFF0000, 0x00FF00, false);
+	char str[500];
+	int len = snprintf(str, 500, "Screenshot %s.bmp", pubsub::Time::now().toString().c_str());
+	for (int i = 0; i < len; i++)
+	{
+		if (str[i] == ':' || str[i] == ' ')
+			str[i] = '_';
+	}
+
+	FreeImage_Save(FIF_BMP, image, str, 0);
+	delete[] pixels;
+}
+
 void OpenGLCanvas::Layout( Gwen::Skin::Base* skin )
 {
 	// Update each plugin here to see if they want a redraw
@@ -128,12 +158,6 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	// do whatever we want here
 	skin->GetRender()->SetDrawColor( m_Color );// start by clearing to background color
 	skin->GetRender()->DrawFilledRect( GetRenderBounds() );
-
-    auto bounds = GetRenderBounds();
-    bounds.x += 5;
-    bounds.y += 5;
-    bounds.w -= 10;
-    bounds.h -= 10;
 
     auto origin = LocalPosToCanvas();
     auto width = Width();
@@ -161,6 +185,7 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		view_z = view_abs_z_;
 		//local_xy_.FromLatLon(view_lat_, view_lon_, view_x, view_y);
 	}
+	origin.y -= 20;// skip past menu bar
 
     float vp[4];
     glGetFloatv(GL_VIEWPORT, vp);

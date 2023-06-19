@@ -17,7 +17,10 @@ enum class ViewType
 	FPS = 2
 };
 
-class Plugin;
+namespace pubviz
+{
+	class Plugin;
+}
 class PubViz;
 class OpenGLCanvas : public Gwen::Controls::Base
 {
@@ -33,7 +36,7 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		const Gwen::Color & GetColor() { return m_Color; }
 		void SetColor( const Gwen::Color & col ) { m_Color = col; }
 		
-		std::vector<Plugin*> plugins_;
+		std::vector<pubviz::Plugin*> plugins_;
 		
 		void GetMousePosition(double& x, double& y)
 		{
@@ -114,6 +117,8 @@ class OpenGLCanvas : public Gwen::Controls::Base
 
 			Redraw();
 		}
+
+		void Screenshot();
 
 		bool wgs84_mode_ = false;
 		void SetFrame(bool wgs84)
