@@ -46,6 +46,8 @@ class SackViz : public Gwen::Controls::DockBase
 
 		void MenuItemSelect(Gwen::Controls::Base* pControl);
 		void OnBagOpen(Gwen::Event::Info info);
+		void OnConfigOpen(Gwen::Event::Info info);
+		void OnConfigSave(Gwen::Event::Info info);
         void OnPlay(Gwen::Controls::Base*);
         void OnLoop(Gwen::Controls::Base* ctrl);
         void OnPublish(Gwen::Controls::Base* ctrl);

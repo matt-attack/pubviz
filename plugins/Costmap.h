@@ -109,14 +109,7 @@ class CostmapPlugin: public pubviz::Plugin
 			ps_sub_destroy(&subscriber_);
 		}
 		
-		if (texture_ != -1)
-		{
-			glDeleteTextures(1, &texture_);
-			last_msg_.data_length = 0;
-			free(last_msg_.data);
-			last_msg_.data = 0;
-			texture_ = -1;
-		}
+		Clear();
 		
 		current_topic_ = str;
     	struct ps_subscriber_options options;
@@ -159,6 +152,19 @@ public:
 		if (texture_ != -1)
 		{
 			glDeleteTextures(1, &texture_);
+		}
+	}
+
+	// Clear out any historical data so the view gets cleared
+	virtual void Clear()
+	{
+		if (texture_ != -1)
+		{
+			glDeleteTextures(1, &texture_);
+			last_msg_.data_length = 0;
+			free(last_msg_.data);
+			last_msg_.data = 0;
+			texture_ = -1;
 		}
 	}
 	

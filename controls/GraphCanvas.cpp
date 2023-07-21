@@ -26,7 +26,7 @@ using namespace Gwen::Controls;
 static bool node_initialized = false;
 static ps_node_t node;
 
-static std::map<std::string, bool> _topics;
+static std::map<std::string, bool> _graph_topics;
 
 static int _num_canvases = 0;
 static std::map<std::string, GraphSubscriber*> _subscribers;
@@ -159,14 +159,14 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 		node.adv_cb = [](const char* topic, const char* type, const char* node, const ps_advertise_req_t* data)
 		{
 			// check if we already have the topic
-			if (_topics.find(topic) != _topics.end())
+			if (_graph_topics.find(topic) != _graph_topics.end())
 			{
 				return;
 			}
 
 			printf("Discovered topic %s..\n", topic);
 		
-			_topics[topic] = true;
+			_graph_topics[topic] = true;
 		};
 		node_initialized = true;
 	}
@@ -241,9 +241,9 @@ void GraphCanvas::OnTopicEditStart(Base* control)
 	topic_list_->Show();
 
 	topic_list_->Clear();
-	if (_topics.size())
+	if (_graph_topics.size())
 	{
-		for (const auto& topic: _topics)
+		for (const auto& topic: _graph_topics)
 		{
 			topic_list_->AddItem(topic.first, topic.first);
 		}
@@ -303,9 +303,9 @@ void GraphCanvas::OnTopicEdited(Base* control)
 	
 	topic_list_->Clear();
     field_list_->Clear();
-	if (_topics.size())
+	if (_graph_topics.size())
 	{
-		for (const auto& topic: _topics)
+		for (const auto& topic: _graph_topics)
 		{
 			topic_list_->AddItem(topic.first, topic.first);
 		}

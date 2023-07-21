@@ -90,18 +90,18 @@ void PubViz::OnConfigSave(Gwen::Event::Info info)
 	std::string config;
 	// save our own configuration first
 	config += "pubviz:";
-	config += "view,";
-	if (canvas_->view_type_ == ViewType::FPS)
-	{
-		config += "fps";
-	}
-	else
-	{
-		config += (canvas_->view_type_ == ViewType::Orbit ? "orbit" : "topdown");
-	}
-	config += ",yaw," + std::to_string(canvas_->yaw_);
-	config += ",pitch," + std::to_string(canvas_->pitch_);
-	config += ",show_config,";
+	//config += "view,";
+	//if (canvas_->view_type_ == ViewType::FPS)
+	//{
+	//	config += "fps";
+	//}
+	//else
+	//{
+	//	config += (canvas_->view_type_ == ViewType::Orbit ? "orbit" : "topdown");
+	//}
+	//config += ",yaw," + std::to_string(canvas_->yaw_);
+	//config += ",pitch," + std::to_string(canvas_->pitch_);
+	config += "show_config,";
 	config += (show_config_->GetChecked() ? "true" : "false");
 	for (auto p: properties_)
 	{
@@ -233,7 +233,7 @@ void PubViz::LoadConfig(const char* filename)
 				auto key = pts[i];
 				auto value = pts[i + 1];
 
-				if (key == "view")
+				/*if (key == "view")
 				{
 					if (value == "fps")
 					{
@@ -253,8 +253,8 @@ void PubViz::LoadConfig(const char* filename)
 				{
 					yaw = std::atof(value.c_str());
 					canvas_->SetViewAngle(pitch, yaw);
-				}
-				else if (key == "show_config")
+				}*/
+				if (key == "show_config")
 				{
 					show_config_->SetChecked(value == "true");
 				}
@@ -318,6 +318,13 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 	{
 		ClearPlugins();
 	}
+	else if (pMenuItem->GetText() == L"Clear History")
+	{
+		for (auto p: plugins_)
+		{
+			p->Clear();
+		}
+	}
 	else if (pMenuItem->GetText() == L"Plot")
 	{
 		auto button = GetRight()->GetTabControl()->AddPage("Graph");
@@ -347,7 +354,7 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 		{
 			return;
 		}
-		
+		//add a page
 		auto button = GetRight()->GetTabControl()->AddPage("Parameters");
 		button->SetPopoutable(true);
 		button->SetClosable(true);
@@ -358,6 +365,7 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 		params->Dock(Pos::Fill);
 		parameters_page_ = params;
 	}
+//add view options to global options
 	else if (pMenuItem->GetText() == L"Top Down")
 	{
 		canvas_->SetViewType(ViewType::TopDown);
@@ -386,6 +394,10 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 	{
 		canvas_->ResetView();
 	}
+	else if (pMenuItem->GetText() == L"Reset Origin")
+	{
+		canvas_->ResetOrigin();
+	}
 }
 
 void PubViz::OnGraphClosed(Gwen::Controls::Base* base)
@@ -401,7 +413,8 @@ void PubViz::Layout(Skin::Base* skin)
 	Invalidate();
 }
 
-//static std::map<std::string, std::vector<std::string>> _topics;
+std::map<std::string, std::vector<std::string>> _topics;
+std::map<std::string, bool> _found_topics;
 
 GWEN_CONTROL_CONSTRUCTOR(PubViz)
 {
@@ -432,6 +445,7 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 		pRoot->GetMenu()->AddItem(L"Plot", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Change Parameters", "", "Shift+P")->SetAction(this, &ThisClass::MenuItemSelect);
 		pause_item_ = pRoot->GetMenu()->AddItem(L"Pause", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddItem(L"Clear History", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddDivider();
 		pRoot->GetMenu()->AddItem(L"Orbit", "", "Ctrl+O")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Top Down", "", "Ctrl+T")->SetAction(this, &ThisClass::MenuItemSelect);
@@ -442,6 +456,7 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 		pRoot->GetMenu()->AddItem(L"Front", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddDivider();
 		pRoot->GetMenu()->AddItem(L"Reset", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddItem(L"Reset Origin", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 	}	
 				
 	auto page = GetLeft()->GetTabControl()->AddPage("Plugins")->GetPage();
@@ -455,6 +470,7 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	Gwen::Controls::Properties* props = plugin_tree_->Add( "Global Options" );
 	props->SetSplitWidth(150);
 
+	// todo move these into canvas
 	auto bg_color = new ColorProperty(props, "Background Color", Gwen::Color(50, 50, 50));
 	bg_color->onChange = [this](Gwen::Color c)
 	{
@@ -505,22 +521,29 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 
 	node_.adv_cb = [](const char* topic, const char* type, const char* node, const ps_advertise_req_t* data)
 	{
-		// todo check if we already have the topic
-		//if (_topics.find(topic) != _topics.end())
-		//{
-		//	return;
-		//}
+		// check if we already have the topic
+		if (_found_topics.find(topic) != _found_topics.end())
+		{
+			return;
+		}
 
 		//printf("Discovered topic %s..\n", topic);
 		
-		//_topics[type].push_back(topic);
-		//_topics[topic] = true;
+		_topics[type].push_back(topic);
+		_found_topics[topic] = true;
 	};
 	
 	canvas_ = new OpenGLCanvas(this);
 	canvas_->Dock(Pos::Fill);
 	canvas_->plugins_ = plugins_;//todo lets not maintain two lists
 	canvas_->SetFrame(false);
+
+	// add canvas specific options
+	auto props2 = canvas_->CreateProperties(props);
+	for (auto p: props2)
+	{
+		properties_[p.first] = p.second;
+	}
 	
 	//AddPlugin("image");
 	AddPlugin("grid");
@@ -597,8 +620,9 @@ pubviz::Plugin* PubViz::AddPlugin(const std::string& name)
 		printf("Unknown plugin name '%s'!\n", name.c_str());
 		return 0;
 	}
-	
+
 	Gwen::Controls::Properties* props = plugin_tree_->Add( name );
+	
 	auto node = (Gwen::Controls::TreeNode*)props->GetParent();
 	node->Open();
 	plugin->node_ = &node_;

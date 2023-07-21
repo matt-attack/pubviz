@@ -122,6 +122,11 @@ public:
 		max_x_ = max;
 	}
 
+	inline bool Is2D()
+	{
+		return is_2d_;
+	}
+
 protected:
 
     void Layout(Gwen::Skin::Base* skin);

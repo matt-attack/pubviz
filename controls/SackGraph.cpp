@@ -26,7 +26,7 @@ using namespace Gwen::Controls;
 
 GWEN_CONTROL_CONSTRUCTOR( SackGraph )
 {
-
+  SetKeyboardInputEnabled( true );
 }
 
 /*void SackGraph::Layout(Gwen::Skin::Base* skin)
@@ -48,6 +48,8 @@ void SackGraph::OnMouseClickLeft( int x, int y, bool down )
 {
     mouse_down_ = down;
     OnMouseMoved(x, y, 0, 0);
+
+	Focus();
 
     BaseClass::OnMouseClickLeft(x, y, down);
 }
@@ -126,6 +128,60 @@ void SackGraph::OnMouseMoved(int x, int y, int dx, int dy)
         selection_end_ = rel_time;
 		Redraw();
 	}
+}
+
+bool SackGraph::OnKeyLeft( bool bDown )
+{
+	if (!bDown || GetChannels().size() == 0)
+	{
+		return false;
+	}
+
+	auto topic = GetChannels()[0]->topic_name;
+	auto current_time = viewer_->GetPlayheadTime();
+	auto target_time = current_time;
+
+	// find the first message with a time less than this one
+	auto data = viewer_->GetTopicData(topic);
+	for (int i = data.size() - 1; i >= 0; i--)
+	{
+		if (data[i].time < current_time)
+		{
+			target_time = data[i].time;
+			break;
+		}
+	}
+
+	viewer_->SetPlayheadTime(target_time);
+	Redraw();
+	return true;
+}
+
+bool SackGraph::OnKeyRight( bool bDown )
+{
+	if (!bDown || GetChannels().size() == 0)
+	{
+		return false;
+	}
+
+	auto topic = GetChannels()[0]->topic_name;
+	auto current_time = viewer_->GetPlayheadTime();
+	auto target_time = current_time;
+
+	// find the first message with a time less than this one
+	auto data = viewer_->GetTopicData(topic);
+	for (int i = 0; i < data.size(); i++)
+	{
+		if (data[i].time > current_time)
+		{
+			target_time = data[i].time;
+			break;
+		}
+	}
+
+	viewer_->SetPlayheadTime(target_time);
+	Redraw();
+	return true;
 }
 
 void SackGraph::SetViewer(SackViewer* viewer)

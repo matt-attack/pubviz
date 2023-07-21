@@ -38,6 +38,7 @@
 
 
 #include "Gwen/Controls/Dialogs/FileOpen.h"
+#include "Gwen/Controls/Dialogs/FileSave.h"
 
 #include "SackViewer.h"
 #include "SackGraph.h"
@@ -67,8 +68,103 @@ void SackViz::MenuItemSelect(Controls::Base* pControl)
 	}
 	else if (pMenuItem->GetText() == L"Open")
 	{
-		Gwen::Dialogs::FileOpen(true, Gwen::String(""), Gwen::String(""), Gwen::String("sack|*.sack"), this, &ThisClass::OnBagOpen);
+		Gwen::Dialogs::FileOpen(true, Gwen::String("Open Rucksack"), Gwen::String(""), Gwen::String("sack|*.sack"), this, &ThisClass::OnBagOpen);
 	}
+	else if (pMenuItem->GetText() == L"Open Config")
+	{
+		Gwen::Dialogs::FileOpen(true, Gwen::String("Open Config"), Gwen::String(""), Gwen::String(".config|*.config|All|*.*"), this, &ThisClass::OnBagOpen);
+	}
+	else if (pMenuItem->GetText() == L"Save Config")
+	{
+		Gwen::Dialogs::FileSave(true, String("Save Config"), String("sackviz.config"), String(".config|*.config|All|*.*"), this, &ThisClass::OnConfigSave);
+	}
+}
+
+std::vector<std::string> split(std::string s, std::string delimiter)
+{
+    size_t pos_start = 0, pos_end, delim_len = delimiter.length();
+    std::string token;
+    std::vector<std::string> res;
+
+    while ((pos_end = s.find(delimiter, pos_start)) != std::string::npos)
+    {
+        token = s.substr(pos_start, pos_end - pos_start);
+        pos_start = pos_end + delim_len;
+        res.push_back(token);
+    }
+
+    res.push_back(s.substr(pos_start));
+    return res;
+}
+
+void SackViz::OnConfigOpen(Gwen::Event::Info info)
+{
+	auto filename = info.String;
+
+	// now load the new config
+	FILE *f = fopen(filename.c_str(), "rb");
+	if (f == 0)
+	{
+		return;// failed to open file
+	}
+	fseek(f, 0, SEEK_END);
+	long fsize = ftell(f);
+	fseek(f, 0, SEEK_SET);  /* same as rewind(f); */
+
+	std::string string;
+	string.resize(fsize, 'a');
+	fread((char*)string.data(), fsize, 1, f);
+	fclose(f);
+	
+	// create all the plugins
+	// first, split by line
+	auto lines = split(string, "\n");
+	for (auto l: lines)
+	{
+		//printf("Line: %s\n", l.c_str());
+		auto data = split(l, ":");
+		
+		if (data.size() <= 1)
+		{
+			continue;
+		}
+
+		if (data[0] == "plot" || data[0] == "plot2d")
+		{
+			bool is_2d = data[0] == "plot2d";
+
+			/*viewer_->
+			auto button = GetRight()->GetTabControl()->AddPage("Graph");
+			button->SetPopoutable(true);
+			button->SetClosable(true);
+			auto page = button->GetPage();
+			auto graph = new GraphCanvas(page);
+			graph->canvas_ = canvas_;
+			graph->Dock(Pos::Fill);
+			graph->UserData.Set<Gwen::Controls::TabButton*>("button", button);
+        	page->GetParent()->GetParent()->SetWidth(580);
+			graphs_[graph] = true;
+			for (int i = 1; i < data.size() - 1; i+= 2)
+			{
+				auto topic = data[i+0];
+				auto field = data[i+1];
+
+				// add each field
+				graph->AddPlot(topic, field);
+			}*/
+
+			continue;
+		}
+	}
+}
+
+void SackViz::OnConfigSave(Gwen::Event::Info info)
+{
+	auto name = info.String;
+	auto config = viewer_->SerializeConfig();
+	FILE* f = fopen(name.c_str(), "wb");
+	fwrite(config.c_str(), 1, config.length(), f);
+	fclose(f);
 }
 
 void SackViz::OnBagOpen(Gwen::Event::Info info)
@@ -107,6 +203,10 @@ GWEN_CONTROL_CONSTRUCTOR(SackViz)
 	{
 		Gwen::Controls::MenuItem* pRoot = menu_->AddItem(L"File");
 		pRoot->GetMenu()->AddItem(L"Open", "", "Ctrl+O")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddDivider();		
+		pRoot->GetMenu()->AddItem(L"Open Config", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddItem(L"Save Config", "", "Ctrl+S")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddDivider();
 		pRoot->GetMenu()->AddItem(L"Quit", "", "Ctrl+Q")->SetAction(this, &ThisClass::MenuItemSelect);
 	}
 	{
@@ -163,7 +263,6 @@ void SackViz::OnLoop(Gwen::Controls::Base* ctrl)
 
 void SackViz::OnPlay(Gwen::Controls::Base*)
 {
-    printf("toggle\n");
     if (play_button_->GetToggleState())
     {
         viewer_->Play();

@@ -185,14 +185,7 @@ class ImagePlugin: public pubviz::Plugin
 			ps_sub_destroy(&subscriber_);
 		}
 		
-		if (texture_ != -1)
-		{
-			glDeleteTextures(1, &texture_);
-			last_msg_.data_length = 0;
-			free(last_msg_.data);
-			last_msg_.data = 0;
-			texture_ = -1;
-		}
+		Clear();
 		
 		current_topic_ = str;
     	struct ps_subscriber_options options;
@@ -229,7 +222,19 @@ public:
 			glDeleteTextures(1, &texture_);
 		}
 	}
-	
+
+	// Clear out any historical data so the view gets cleared
+	virtual void Clear()
+	{
+		if (texture_ != -1)
+		{
+			glDeleteTextures(1, &texture_);
+			last_msg_.data_length = 0;
+			free(last_msg_.data);
+			last_msg_.data = 0;
+			texture_ = -1;
+		}
+	}
 		
 	virtual void Update()
 	{
@@ -271,7 +276,7 @@ public:
 		image_panel_->SetKeepAspectRatio(true);
 
 		// add any properties
-		topic_ = AddTopicProperty(tree, "Topic", "/image", "");
+		topic_ = AddTopicProperty(tree, "Topic", "/image", "", "pubsub__Image");
 		topic_->onChange = std::bind(&ImagePlugin::Subscribe, this, std::placeholders::_1);
 
 		stretch_ = AddBooleanProperty(tree, "Stretch", true, "If true, stretch the image to fill the control.");

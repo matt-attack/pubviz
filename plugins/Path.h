@@ -53,7 +53,7 @@ class PathPlugin : public pubviz::Plugin
 			ps_sub_destroy(&subscriber_);
 		}
 
-		last_msg_.points_length = 0;
+		Clear();
 
 		current_topic_ = str;
 		struct ps_subscriber_options options;
@@ -83,6 +83,12 @@ public:
 			ps_sub_destroy(&subscriber_);
 			sub_open_ = false;
 		}
+	}
+
+	// Clear out any historical data so the view gets cleared
+	virtual void Clear()
+	{
+		last_msg_.points_length = 0;
 	}
 
 	virtual void Update()
@@ -232,7 +238,7 @@ public:
 
 		color_ = AddColorProperty(tree, "Color", Gwen::Color(255, 50, 50));
 
-		topic_ = AddTopicProperty(tree, "Topic", "/path");
+		topic_ = AddTopicProperty(tree, "Topic", "/path", "", "pubsub__Path");
 		topic_->onChange = std::bind(&PathPlugin::Subscribe, this, std::placeholders::_1);
 
 		line_width_ = AddNumberProperty(tree, "Line Width", 4, 1, 100, 2);

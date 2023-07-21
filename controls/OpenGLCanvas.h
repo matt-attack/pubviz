@@ -7,15 +7,16 @@
 #include <Gwen/Controls/Label.h>
 #include <Gwen/Gwen.h>
 #include <Gwen/Skin.h>
+#include "../properties.h"
 
 #include "../LocalXY.h"
 
-enum class ViewType
+namespace ViewType
 {
-	TopDown = 0,
-	Orbit = 1,
-	FPS = 2
-};
+	constexpr const char* Orbit = "Orbit";
+	constexpr const char* TopDown = "Top Down";
+	constexpr const char* FPS = "FPS";
+}
 
 namespace pubviz
 {
@@ -46,18 +47,18 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		
 		void ResetView();
 		
-		void SetViewType(ViewType type)
+		void SetViewType(std::string type)
 		{
-			view_type_ = type;
+			view_type_->SetValue(type);
 			
 			ResetView();
 			
 			Redraw();
 		}
 
-		inline ViewType GetViewType()
+		inline std::string GetViewType()
 		{
-			return view_type_;
+			return view_type_->GetValue();
 		}
 
 		inline bool Paused()
@@ -72,9 +73,9 @@ class OpenGLCanvas : public Gwen::Controls::Base
 
 		void ResetViewOrigin()
 		{
-			view_x_ = 0.0;
-			view_y_ = 0.0;
-			view_z_ = 0.0;
+			view_x_->SetValue(0.0);
+			view_y_->SetValue(0.0);
+			view_z_->SetValue(0.0);
 
 			view_abs_x_ = 0.0;
 			view_abs_y_ = 0.0;
@@ -105,9 +106,9 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		
 		void SetViewOrigin(double x, double y, double z, double lat, double lon, double alt)
 		{
-			view_x_ = x;
-			view_y_ = y;
-			view_z_ = z;
+			view_x_->SetValue(x);
+			view_y_->SetValue(y);
+			view_z_->SetValue(z);
 			view_lat_ = lat;
 			view_lon_ = lon;
 			view_alt_ = alt;
@@ -116,6 +117,11 @@ class OpenGLCanvas : public Gwen::Controls::Base
 			local_xy_.FromLatLon(view_lat_, view_lon_, view_abs_x_, view_abs_y_);
 
 			Redraw();
+		}
+
+		void ResetOrigin()
+		{
+			local_xy_ = LocalXYUtil();
 		}
 
 		void Screenshot();
@@ -136,16 +142,18 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		
 		void SetViewAngle(double pitch, double yaw)
 		{
-			if (view_type_ == ViewType::Orbit)
+			if (view_type_->GetValue() == ViewType::Orbit)
 			{
-				if (pitch_ != pitch || yaw_ != yaw)
+				if (pitch_->GetValue() != pitch || yaw_->GetValue() != yaw)
 				{
 					Redraw();
 				}
-				pitch_ = pitch;
-				yaw_ = yaw;
+				pitch_->SetValue(pitch);
+				yaw_->SetValue(yaw);
 			}
 		}
+
+		std::map<std::string, PropertyBase*> CreateProperties(Gwen::Controls::Properties* props);
 
 	protected:
 	
@@ -153,20 +161,25 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		bool OnMouseWheeled( int iDelta ) override;
 		void OnMouseClickLeft( int /*x*/, int /*y*/, bool /*bDown*/ ) override;
 
-		Gwen::Color		m_Color;
+		Gwen::Color	m_Color;
 		double view_height_m_;
 		bool mouse_down_ = false;
 		
-		double view_x_ = 0.0;
-		double view_y_ = 0.0;
-		double view_z_ = 0.0;
-		
-		double pitch_ = 0.0;
-		double yaw_ = 0.0;
+		//double view_x_ = 0.0;
+		//double view_y_ = 0.0;
+		//double view_z_ = 0.0;
 
 		bool paused_ = false;
 		
-		ViewType view_type_ = ViewType::Orbit;
+		//ViewType view_type_ = ViewType::Orbit;
+
+		// Properties
+		EnumProperty* view_type_;
+		FloatProperty* pitch_;
+		FloatProperty* yaw_;
+		FloatProperty* view_x_;
+		FloatProperty* view_y_;
+		FloatProperty* view_z_;
 		
 		double x_mouse_position_ = 0.0;
 		double y_mouse_position_ = 0.0;

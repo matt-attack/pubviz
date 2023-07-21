@@ -129,8 +129,6 @@ protected:
 	std::map<SackGraph*, bool> graphs_;
 
 	inline Gwen::Controls::DockBase* GetParentDock() { return (Gwen::Controls::DockBase*)GetParent()->GetParent(); }
-		
-	//Gwen::Controls::Menu* context_menu_;
 	
 	void OnMouseMoved(int x, int y, int dx, int dy) override;
 	bool OnMouseWheeled( int iDelta ) override;
@@ -151,7 +149,15 @@ protected:
     void Layout(Gwen::Skin::Base* skin);
 		
 public:
+
+	const std::vector<Message>& GetTopicData(const std::string& topic)
+	{
+		return bag_data_[topic].messages;
+	}
+
 	void UpdateViewers();
+
+	std::string SerializeConfig();
 
 	void PlotSelected(bool twod);
 

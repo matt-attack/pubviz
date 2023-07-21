@@ -585,6 +585,41 @@ void SackViewer::OnMouseClickRight(int x, int y, bool bDown)
 	}
 }
 
+std::string SackViewer::SerializeConfig()
+{
+	std::string config = "";
+	int j = 0;
+	for (auto& graph: graphs_)
+	{
+		config += graph.first->Is2D() ? "plot2d:" : "plot:";
+		int i = 0;
+		auto channels = graph.first->GetChannels();
+		for (auto& plot: channels)
+		{
+			if (graph.first->Is2D())
+			{
+				config += plot->topic_name + "," + plot->field_name_x;
+				config += "," + plot->field_name_y;
+			}
+			else
+			{
+				config += plot->topic_name + "," + plot->field_name_y;
+			}
+			if (i != channels.size() - 1)
+			{
+				config += ",";
+			}
+			i++;
+		}
+		if (j != graphs_.size() - 1)
+		{
+			config += "\n";
+		}
+		j++;
+	}
+	return config;
+}
+
 void SackViewer::OnMouseClickLeft( int x, int y, bool down )
 {
 	mouse_down_ = down;

@@ -8,6 +8,7 @@
 #include <Gwen/Controls/Property/ComboBox.h>
 #include <Gwen/Controls/Property/Numeric.h>
 #include <Gwen/Controls/Property/Folder.h>
+#include <Gwen/Controls/ListBox.h>
 
 #include <functional>
 
@@ -123,7 +124,7 @@ public:
 		value_ = num;
 	}
 	
-	int GetValue()
+	inline int GetValue()
 	{
 		return value_;
 	}
@@ -188,9 +189,15 @@ public:
 		value_ = num;
 	}
 	
-	double GetValue()
+	inline double GetValue()
 	{
 		return value_;
+	}
+
+	void SetValue(double val)
+	{
+		value_ = val;
+		property_->SetPropertyValue(std::to_string(val), true);
 	}
 	
 	virtual std::string Serialize()
@@ -217,37 +224,122 @@ public:
 	std::function<void(int)> onChange;
 };
 
+extern std::map<std::string, std::vector<std::string>> _topics;
+extern std::map<std::string, bool> _found_topics;
+
 class TopicProperty: public PropertyBase
 {
 	Gwen::Controls::Property::Text* property_;
+	Gwen::Controls::ListBox* topic_list_;
 	
 	std::string value_;
+	std::string message_type_;
 	
 	void cbOnChange(Gwen::Controls::Base* prop)
 	{
 		property_->Redraw();
 		value_ = property_->GetPropertyValue().c_str();
+    	
 		if (onChange)
 		{
 			onChange(value_);
 		}
 	}
+
+	void OnTopicSuggestionClicked(Gwen::Controls::Base* control)
+	{
+		auto val = topic_list_->GetSelectedRowName();
+		SetValue(val);
+		topic_list_->Hide();
+	}
+
+	void OnTopicEditStart(Gwen::Controls::Base* prop)
+	{
+		// populate the topic list
+		topic_list_->Clear();
+		int added_count = 0;
+		if (message_type_.length())
+		{
+			auto list = _topics.find(message_type_);
+			if (list != _topics.end())
+			{
+				for (const auto& topic: list->second)
+				{
+					topic_list_->AddItem(topic, topic);
+					added_count++;
+				}
+			}
+		}
+		else
+		{
+			for (const auto& topic: _found_topics)
+			{
+				topic_list_->AddItem(topic.first, topic.first);
+				added_count++;
+			}
+		}
+		if (added_count == 0)
+		{
+			topic_list_->AddItem("None found...");
+		}
+
+		auto p = property_->GetPos();
+		p = property_->LocalPosToCanvas(Gwen::Point(0,0));
+		p.y += property_->Height();
+		//auto pParent = gwen_cast<Gwen::Controls::Properties> ( property_->GetParent()->GetParent() );
+		//p.x += pParent->GetSplitWidth();
+
+		topic_list_->SetPos(p);
+		topic_list_->SetSize(100, 100);
+		topic_list_->Show();
+	}
+
+	void OnTopicEditFinished(Gwen::Controls::Base* control)
+	{
+		topic_list_->Hide();
+	}
 	
 public:
 
-	TopicProperty(Gwen::Controls::Properties* tree, const std::string& name, std::string topic = "", const std::string& description = "")
+	TopicProperty(Gwen::Controls::Properties* tree, const std::string& name, std::string topic = "", std::string description = "", std::string type = "")
 	{
-		property_ = new Gwen::Controls::Property::Text(tree);
+		message_type_ = type;
+
+		property_ = new Gwen::Controls::Property::Text(tree->GetParent());
 		auto item = tree->Add(name, property_, topic);
 		item->onChange.Add(this, &TopicProperty::cbOnChange);
 		if (description.length())
 		{
 			item->SetToolTip(description);
 		}
+//okay, lets try and make this fancy and show suggestions
+
+		topic_list_ = new Gwen::Controls::ListBox(tree->GetCanvas());
+		topic_list_->Hide();
+		topic_list_->onRowSelected.Add( this, &TopicProperty::OnTopicSuggestionClicked );
+
+		auto box = property_->m_TextBox;
+		//box->onTextChanged.Add( this, &ThisClass::OnTopicEdited );
+		box->onReturnPressed.Add( this, &TopicProperty::OnTopicEditFinished );
+		box->onFocusLost.Add( this, &TopicProperty::OnTopicEditFinished );
+    	box->onFocusGained.Add( this, &TopicProperty::OnTopicEditStart );
+
+		// for now just show all topics as suggestions
 		value_ = topic;
 	}
+
+	virtual ~TopicProperty()
+	{
+		topic_list_->DelayedDelete();
+	}
+
+	void SetValue(const std::string& val)
+	{
+		value_ = val;
+		property_->SetPropertyValue(val, true);
+	}
 	
-	std::string GetValue()
+	inline const std::string& GetValue()
 	{
 		return value_;
 	}
@@ -305,8 +397,14 @@ public:
 		}
 		value_ = topic;
 	}
+
+	void SetValue(const std::string& val)
+	{
+		value_ = val;
+		property_->SetPropertyValue(val, true);
+	}
 	
-	std::string GetValue()
+	inline const std::string& GetValue()
 	{
 		return value_;
 	}
@@ -373,6 +471,13 @@ public:
 	std::string GetValue()
 	{
 		return value_;
+	}
+
+	void SetValue(const std::string& enumeration)
+	{
+		// todo validate
+		value_ = enumeration;
+		property_->SetPropertyValue(enumeration, true);
 	}
 	
 	virtual std::string Serialize()

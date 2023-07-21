@@ -221,13 +221,7 @@ class PointCloudPlugin: public pubviz::Plugin
 			ps_sub_destroy(&subscriber_);
 		}
 		
-		for (auto cloud: clouds_)
-		{
-			// delete the buffers
-			glDeleteBuffers(1, &cloud.point_vbo);
-			glDeleteBuffers(1, &cloud.color_vbo);
-		}
-		clouds_.clear();
+		Clear();
 		
 		current_topic_ = str;
     	struct ps_subscriber_options options;
@@ -479,7 +473,22 @@ color_buf_[i] = (alpha << 24) | gt_max_color.r | (gt_max_color.g << 8) | (gt_max
 			}
 		}
 	}
-	
+
+	// Clear out any historical data so the view gets cleared
+	virtual void Clear()
+	{
+		for (auto cloud: clouds_)
+		{
+			// delete the buffers
+			glDeleteBuffers(1, &cloud.point_vbo);
+			glDeleteBuffers(1, &cloud.color_vbo);
+		}
+		clouds_.clear();
+	}
+//probably need to do a clear on origin/base frame change
+//	okay, lets fix this in wgs84
+//will need matrix classes and invert
+
 	virtual void Render()
 	{	
 		if (GetCanvas()->wgs84_mode_)
@@ -565,7 +574,7 @@ color_buf_[i] = (alpha << 24) | gt_max_color.r | (gt_max_color.g << 8) | (gt_max
 		// add any properties
 		alpha_ = AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1, "Point transparency.");
 		
-		topic_ = AddTopicProperty(tree, "Topic", "/pointcloud");
+		topic_ = AddTopicProperty(tree, "Topic", "/pointcloud", "", "pubsub__PointCloud");
 		topic_->onChange = std::bind(&PointCloudPlugin::Subscribe, this, std::placeholders::_1);
 		
 		point_text_ = AddStringProperty(tree, "Text", "", "If set, visualize the points as the given characters.");

@@ -51,7 +51,7 @@ class MarkerPlugin: public pubviz::Plugin
 			ps_sub_destroy(&subscriber_);
 		}
 		
-		markers_.clear();
+		Clear();
 		
 		current_topic_ = str;
     	struct ps_subscriber_options options;
@@ -105,6 +105,12 @@ public:
 				Redraw();
 			}
 		}
+	}
+
+	// Clear out any historical data so the view gets cleared
+	virtual void Clear()
+	{
+		markers_.clear();
 	}
 		
 	virtual void Render()
@@ -254,7 +260,7 @@ public:
 		
 		color_ = AddColorProperty(tree, "Color", Gwen::Color(255,50,50), "Default marker color.");
 		
-		topic_ = AddTopicProperty(tree, "Topic", "/marker");
+		topic_ = AddTopicProperty(tree, "Topic", "/marker", "", "pubsub__Marker");
 		topic_->onChange = std::bind(&MarkerPlugin::Subscribe, this, std::placeholders::_1);
 		
 		line_width_ = AddNumberProperty(tree, "Line Width", 4, 1, 100, 2, "Width in pixels for marker lines.");

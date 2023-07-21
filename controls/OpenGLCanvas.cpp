@@ -30,15 +30,15 @@ GWEN_CONTROL_CONSTRUCTOR( OpenGLCanvas )
 
 bool OpenGLCanvas::OnMouseWheeled( int delta )
 {
-	if (view_type_ == ViewType::FPS)
+	if (view_type_->GetValue() == ViewType::FPS)
 	{
 		// move view along view axis
-		double dx = cos(-yaw_*M_PI/180.0)*cos(pitch_*M_PI/180.0);
-		double dy = sin(-yaw_*M_PI/180.0)*cos(pitch_*M_PI/180.0);
-		double dz = sin(pitch_*M_PI/180.0);
-		view_x_ += dx*delta*0.01;
-		view_y_ += dy*delta*0.01;
-		view_z_ += dz*delta*0.01;
+		double dx = cos(-yaw_->GetValue()*M_PI/180.0)*cos(pitch_->GetValue()*M_PI/180.0);
+		double dy = sin(-yaw_->GetValue()*M_PI/180.0)*cos(pitch_->GetValue()*M_PI/180.0);
+		double dz = sin(pitch_->GetValue()*M_PI/180.0);
+		view_x_->SetValue(view_x_->GetValue() + dx*delta*0.01);
+		view_y_->SetValue(view_y_->GetValue() + dy*delta*0.01);
+		view_z_->SetValue(view_z_->GetValue() + dz*delta*0.01);
 
 		Redraw();
 
@@ -64,14 +64,14 @@ bool OpenGLCanvas::OnMouseWheeled( int delta )
 void OpenGLCanvas::ResetView()
 {
 	view_height_m_ = 150.0;
-	view_x_ = 0.0;
-	view_y_ = 0.0;
-	view_z_ = 0.0;
+	view_x_->SetValue(0.0);
+	view_y_->SetValue(0.0);
+	view_z_->SetValue(0.0);
 	view_abs_x_ = 0.0;
 	view_abs_y_ = 0.0;
 	view_abs_z_ = 0.0;
-	pitch_ = 0.0;
-	yaw_ = 0.0;
+	pitch_->SetValue(0.0);
+	yaw_->SetValue(0.0);
 	
 	Redraw();
 }
@@ -85,24 +85,27 @@ void OpenGLCanvas::OnMouseMoved(int x, int y, int dx, int dy)
 {
 	// now convert to units
 	double pixels_per_meter = GetCanvas()->Height()/view_height_m_;
-	x_mouse_position_ = (x - GetCanvas()->Width()*0.5)/pixels_per_meter + view_x_;
-	y_mouse_position_ = (GetCanvas()->Height()*0.5 - y)/pixels_per_meter + view_y_;
+	x_mouse_position_ = (x - GetCanvas()->Width()*0.5)/pixels_per_meter + view_x_->GetValue();
+	y_mouse_position_ = (GetCanvas()->Height()*0.5 - y)/pixels_per_meter + view_y_->GetValue();
 	
 	// now apply offset
 	if (mouse_down_)
 	{
-		if (view_type_ == ViewType::TopDown)
+		if (view_type_->GetValue() == ViewType::TopDown)
 		{
-			view_x_ -= dx/pixels_per_meter;
-			view_y_ += dy/pixels_per_meter;
+			view_x_->SetValue(view_x_->GetValue() - dx/pixels_per_meter);
+			view_y_->SetValue(view_y_->GetValue() + dy/pixels_per_meter);
 
 			view_abs_x_ -= dx / pixels_per_meter;
 			view_abs_y_ += dy / pixels_per_meter;
 		}
 		else
 		{
-			pitch_ += dy;
-			yaw_ += dx;
+			double new_pitch = pitch_->GetValue() + dy;
+			double new_yaw = yaw_->GetValue() + dx;
+
+			pitch_->SetValue(new_pitch);
+			yaw_->SetValue(new_yaw);
 		}
 		
 		// Mark the window as dirty so it redraws
@@ -118,10 +121,10 @@ void OpenGLCanvas::Screenshot()
 	auto scale = GetCanvas()->Scale();
 	auto origin = LocalPosToCanvas();
 	origin.y -= 20;// skip past the menu bar
-	auto width = Width()*scale;
-	auto height = Height()*scale;
-
-	uint8_t* pixels = new uint8_t[3 * width * height];
+	int width = Width()*scale;
+	int height = Height()*scale;
+glPixelStorei(GL_PACK_ALIGNMENT, 1);
+	uint8_t* pixels = new uint8_t[3*width*height];
 
 	glReadPixels(origin.x * scale, origin.y * scale, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
 
@@ -151,6 +154,48 @@ void OpenGLCanvas::Layout( Gwen::Skin::Base* skin )
 	Invalidate();// we are being hacky, just always invalidate so we keep laying out
 }
 
+std::map<std::string, PropertyBase*> OpenGLCanvas::CreateProperties(Gwen::Controls::Properties* tree)
+{
+	std::map<std::string, PropertyBase*> props;
+	view_type_ = new EnumProperty(tree, "View Type", "Orbit", {"Orbit", "Top Down", "FPS"});
+	props["view"] = view_type_;
+	yaw_ = new FloatProperty(tree, "Yaw", 0, -100000, 100000);
+	props["yaw"] = yaw_;
+	pitch_ = new FloatProperty(tree, "Pitch", 0, -100000, 100000);
+	props["pitch"] = pitch_;
+	view_x_ = new FloatProperty(tree, "View X", 0, -100000, 100000);
+	props["View X"] = view_x_;
+	view_y_ = new FloatProperty(tree, "View Y", 0, -100000, 100000);
+	props["View Y"] = view_y_;
+	view_z_ = new FloatProperty(tree, "View Z", 0, -100000, 100000);
+	props["View Z"] = view_z_;
+
+	view_type_->onChange = [this](std::string value)
+	{
+		pitch_->Hide();
+		yaw_->Hide();
+		view_z_->Hide();
+		if (value == ViewType::Orbit)
+		{
+			pitch_->Show();
+			yaw_->Show();
+			view_z_->Show();
+		}
+		else if (value == ViewType::FPS)
+		{
+			pitch_->Show();
+			yaw_->Show();
+			view_z_->Show();
+		}
+		else if (value == ViewType::TopDown)
+		{
+			
+		}
+	};
+
+	return props;
+}
+
 void OpenGLCanvas::Render( Skin::Base* skin )
 {
 	auto r = skin->GetRender();
@@ -175,9 +220,9 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	glPushMatrix();
 	glPushAttrib(GL_ALL_ATTRIB_BITS);
 
-	double view_x = view_x_;
-	double view_y = view_y_;
-	double view_z = view_z_;
+	double view_x = view_x_->GetValue();
+	double view_y = view_y_->GetValue();
+	double view_z = view_z_->GetValue();
 	if (wgs84_mode_)
 	{
 		view_x = view_abs_x_;
@@ -192,7 +237,10 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	auto scale = GetCanvas()->Scale();
 	glViewport(origin.x * scale, origin.y * scale, width * scale, height * scale);
 	
-	if (view_type_ == ViewType::TopDown)
+	double yaw = yaw_->GetValue();
+	double pitch = pitch_->GetValue();
+	auto view_type = view_type_->GetValue();
+	if (view_type == ViewType::TopDown)
 	{
 		// set up the view matrix for the current zoom level (ortho, topdown)
 		float half_height = view_height_m_/2.0;
@@ -206,7 +254,7 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		Gwen::Point pos = GetPos();
 		glLoadIdentity();
 	}
-	else if (view_type_ == ViewType::FPS)
+	else if (view_type == ViewType::FPS)
 	{
 		double near = 1.0;
 		double fov = 45*M_PI/180.0;// horizontal
@@ -225,7 +273,7 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		
 		// eh, I dislike this but whatever
 		gluLookAt(view_x, view_y, view_z, /* look from camera XYZ */
-             view_x - cos(-yaw_*M_PI/180.0)*cos(pitch_*M_PI/180.0), view_y - sin(-yaw_*M_PI/180.0)*cos(pitch_*M_PI/180.0), view_z - sin(pitch_*M_PI/180.0), /* look at the origin */
+             view_x - cos(-yaw*M_PI/180.0)*cos(pitch*M_PI/180.0), view_y - sin(-yaw*M_PI/180.0)*cos(pitch*M_PI/180.0), view_z - sin(pitch*M_PI/180.0), /* look at the origin */
              0, 0, 1); /* positive Z up vector */
 		//glRotatef(-90, 1, 0, 0);
 		//glTranslatef(-view_x, -view_y, -view_z);
@@ -235,8 +283,8 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		//glRotatef(yaw_, 0, 0, 1);
 	
 		
-		float ax = cos((-yaw_)*3.14159/180.0);
-		float ay = sin((-yaw_)*3.14159/180.0);
+		float ax = cos((-yaw)*3.14159/180.0);
+		float ay = sin((-yaw)*3.14159/180.0);
 		//glRotatef(pitch_, 0,1,0);//ax, ay, 0);
 //glRotatef(yaw_, 0, 0, 1);
 		
@@ -245,7 +293,7 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		glClear(GL_DEPTH_BUFFER_BIT);
 		glDepthFunc(GL_LEQUAL);
 	}
-	else if (view_type_ == ViewType::Orbit)
+	else if (view_type == ViewType::Orbit)
 	{
 		// set up the view matrix for the current zoom level (orbit)
 		float half_height = view_height_m_/2.0;
@@ -260,11 +308,11 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		glLoadIdentity();
 	
 		glRotatef(-90, 1, 0, 0);
-		glRotatef(yaw_, 0, 0, 1);
+		glRotatef(yaw, 0, 0, 1);
 	
-		float ax = cos((-yaw_)*3.14159/180.0);
-		float ay = sin((-yaw_)*3.14159/180.0);
-		glRotatef(pitch_, ax, ay, 0);
+		float ax = cos((-yaw)*3.14159/180.0);
+		float ay = sin((-yaw)*3.14159/180.0);
+		glRotatef(pitch, ax, ay, 0);
 		
 		
 		glTranslatef(-view_x, -view_y, -view_z);

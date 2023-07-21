@@ -54,6 +54,9 @@ protected:
     //void OnRemoveSelect(Gwen::Controls::Base* pControl);
 
     //void OnConfigure(Base* control);
+
+	virtual bool OnKeyLeft( bool bDown ) override;
+	virtual bool OnKeyRight( bool bDown ) override;
 		
 	void OnMouseMoved(int x, int y, int dx, int dy) override;
 	bool OnMouseWheeled( int iDelta ) override;

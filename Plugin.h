@@ -29,8 +29,8 @@ namespace pubviz
 	{
 		std::string type_;
 
-		friend class PubViz;
-		friend class BaseRegisterObject;
+		friend class ::PubViz;
+		friend class ::BaseRegisterObject;
 		ps_node_t* node_;
 		Gwen::Controls::Properties* props_;
 		OpenGLCanvas* canvas_;
@@ -48,6 +48,9 @@ namespace pubviz
 
 		// Update any topics we have and mark for redraws if necessary
 		virtual void Update() = 0;
+
+		// Clear out any historical data so the view gets cleared
+		virtual void Clear() = 0;
 
 		// Returns if the plugin is enabled and should be rendered
 		bool Enabled()
@@ -167,9 +170,9 @@ namespace pubviz
 		}
 
 		TopicProperty* AddTopicProperty(Gwen::Controls::Properties* tree, const char* name, std::string topic,
-			const std::string& description = "")
+			const std::string& description = "", const std::string& type = "")
 		{
-			auto prop = new TopicProperty(tree, name, topic, description);
+			auto prop = new TopicProperty(tree, name, topic, description, type);
 			properties_[name] = prop;
 			return prop;
 		}

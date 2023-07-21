@@ -53,6 +53,13 @@ public:
 	{
 	
 	}
+
+
+	// Clear out any historical data so the view gets cleared
+	virtual void Clear()
+	{
+
+	}
 	
 	virtual void Render()
 	{
