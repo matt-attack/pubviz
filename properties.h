@@ -244,6 +244,10 @@ class TopicProperty: public PropertyBase
 		{
 			onChange(value_);
 		}
+		if (onChange2)
+		{
+			onChange2(value_);
+		}
 	}
 
 	void OnTopicSuggestionClicked(Gwen::Controls::Base* control)
@@ -366,6 +370,8 @@ public:
     }
 	
 	std::function<void(std::string)> onChange;
+
+	std::function<void(std::string)> onChange2;// stupid hack, whatever
 };
 
 class StringProperty: public PropertyBase

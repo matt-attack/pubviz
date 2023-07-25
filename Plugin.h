@@ -170,10 +170,18 @@ namespace pubviz
 		}
 
 		TopicProperty* AddTopicProperty(Gwen::Controls::Properties* tree, const char* name, std::string topic,
-			const std::string& description = "", const std::string& type = "")
+			const std::string& description = "", const std::string& type = "", bool use_for_title = true)
 		{
 			auto prop = new TopicProperty(tree, name, topic, description, type);
 			properties_[name] = prop;
+			auto p = (Gwen::Controls::PropertyTreeNode*)tree->GetParent();
+			if (use_for_title)
+			{
+				p->SetText(GetTitle() + " (" + topic + ")");
+				prop->onChange2 = [p, this](std::string s) {
+					p->SetText(GetTitle() + " (" + s + ")");
+				};
+			}
 			return prop;
 		}
 

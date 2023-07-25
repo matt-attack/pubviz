@@ -260,7 +260,7 @@ public:
 		// add any properties
 		alpha_ = AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1, "Costmap transparency.");
 		
-		topic_ = AddTopicProperty(tree, "Topic", "/costmap", "");
+		topic_ = AddTopicProperty(tree, "Topic", "/costmap", "", "pubsub__Costmap");
 		topic_->onChange = std::bind(&CostmapPlugin::Subscribe, this, std::placeholders::_1);
 		
 		show_outline_ = AddBooleanProperty(tree, "Show Outline", true, "If true, draw an outline around the costmap.");

@@ -363,6 +363,7 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 		auto params = new Parameters(page);
 		params->SetNode(&node_);
 		params->Dock(Pos::Fill);
+		page->GetParent()->GetParent()->SetWidth(500);
 		parameters_page_ = params;
 	}
 //add view options to global options

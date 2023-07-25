@@ -123,10 +123,10 @@ void OpenGLCanvas::Screenshot()
 	origin.y -= 20;// skip past the menu bar
 	int width = Width()*scale;
 	int height = Height()*scale;
-glPixelStorei(GL_PACK_ALIGNMENT, 1);
+	glPixelStorei(GL_PACK_ALIGNMENT, 1);
 	uint8_t* pixels = new uint8_t[3*width*height];
 
-	glReadPixels(origin.x * scale, origin.y * scale, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+	glReadPixels(origin.x * scale, origin.y * scale - 1, width, height - 1, GL_RGB, GL_UNSIGNED_BYTE, pixels);
 
 	FIBITMAP* image = FreeImage_ConvertFromRawBits(pixels, width, height, 3 * width, 24, 0x0000FF, 0xFF0000, 0x00FF00, false);
 	char str[500];
