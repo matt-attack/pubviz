@@ -37,6 +37,17 @@ public:
 
     void SetViewer(SackViewer* viewer);
 
+	virtual bool DragAndDrop_CanAcceptPackage( Gwen::DragAndDrop::Package* pPackage ) 
+	{
+		if (pPackage->name == "topic" && !Is2D())
+		{
+			return true;
+		}
+		return false;
+	}
+
+	virtual bool DragAndDrop_HandleDrop( Gwen::DragAndDrop::Package* pPackage, int x, int y );
+
     //Channel* GetChannel(const std::string& topic, const std::string& field);
 
 protected:

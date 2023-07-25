@@ -142,7 +142,7 @@ bool SackGraph::OnKeyLeft( bool bDown )
 	auto target_time = current_time;
 
 	// find the first message with a time less than this one
-	auto data = viewer_->GetTopicData(topic);
+	auto& data = viewer_->GetTopicData(topic);
 	for (int i = data.size() - 1; i >= 0; i--)
 	{
 		if (data[i].time < current_time)
@@ -169,7 +169,7 @@ bool SackGraph::OnKeyRight( bool bDown )
 	auto target_time = current_time;
 
 	// find the first message with a time less than this one
-	auto data = viewer_->GetTopicData(topic);
+	auto& data = viewer_->GetTopicData(topic);
 	for (int i = 0; i < data.size(); i++)
 	{
 		if (data[i].time > current_time)
@@ -293,3 +293,32 @@ void SackGraph::Render( Skin::Base* skin )
 {
     GraphBase::Render(skin);
 }
+
+bool SackGraph::DragAndDrop_HandleDrop( Gwen::DragAndDrop::Package* pPackage, int x, int y )
+{
+	std::string topic = pPackage->drawcontrol->GetParent()->UserData.Get<std::string>("topic");
+	std::string field = pPackage->drawcontrol->GetParent()->UserData.Get<std::string>("field");
+
+	printf("dropped %s %s\n", topic.c_str(), field.c_str());
+
+	// make sure its not a duplicate
+	for (auto& ch: GetChannels())
+	{
+		if (ch->topic_name == topic && ch->field_name_y == field)
+		{
+			return false;
+		}
+	}
+
+	auto ch = CreateChannel(topic, field);
+
+	auto& data = viewer_->GetTopicData(topic);
+	auto def = viewer_->GetTopicDefinition(topic);
+	for (auto& msg: data)
+	{
+   		AddMessageSample(ch, msg.time, msg.msg, def, false, false);
+	}
+
+	return true;
+}
+

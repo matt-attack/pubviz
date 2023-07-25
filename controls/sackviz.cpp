@@ -72,7 +72,7 @@ void SackViz::MenuItemSelect(Controls::Base* pControl)
 	}
 	else if (pMenuItem->GetText() == L"Open Config")
 	{
-		Gwen::Dialogs::FileOpen(true, Gwen::String("Open Config"), Gwen::String(""), Gwen::String(".config|*.config|All|*.*"), this, &ThisClass::OnBagOpen);
+		Gwen::Dialogs::FileOpen(true, Gwen::String("Open Config"), Gwen::String(""), Gwen::String(".config|*.config|All|*.*"), this, &ThisClass::OnConfigOpen);
 	}
 	else if (pMenuItem->GetText() == L"Save Config")
 	{

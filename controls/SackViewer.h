@@ -155,6 +155,11 @@ public:
 		return bag_data_[topic].messages;
 	}
 
+	const ps_message_definition_t* GetTopicDefinition(const std::string& topic)
+	{
+		return &bag_data_[topic].def;
+	}
+
 	void UpdateViewers();
 
 	std::string SerializeConfig();

@@ -841,6 +841,7 @@ void SackViewer::UpdateViewers()
             node->UserData.Set<std::string>("topic", t.first);
             node->UserData.Set<std::string>("field", field->name);
 			node->UserData.Set<Gwen::Controls::TreeNode*>("base", tree);
+			node->GetButton()->DragAndDrop_SetPackage(true, "topic");
             node->onRightPress.Add(this, &ThisClass::OnFieldRightClick);
 		}
 		tree->ExpandAll();
