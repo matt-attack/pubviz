@@ -92,7 +92,6 @@ class PointCloudPlugin: public pubviz::Plugin
     void ColoringModeChange(std::string mode)
     {
         // hide all properties to start
-        //auto canvas = min_color_->GetCanvas();
         min_color_->Hide();
         max_color_->Hide();
         ceiled_color_->Hide();
@@ -184,7 +183,6 @@ class PointCloudPlugin: public pubviz::Plugin
 		int ortho_y_ = s.y;
 
 		// Give an empty image to OpenGL ( the last "0" )
-		char* data = new char[4*50*50];
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width_, height_, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);

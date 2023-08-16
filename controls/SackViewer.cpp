@@ -152,7 +152,7 @@ void SackViewer::Play()
         for (auto& topic: bag_data_)
         {
             // create publisher
-			ps_node_create_publisher(&node_, topic.first.c_str(), &topic.second.def, &topic.second.publisher, false);
+			ps_node_create_publisher(&node_, topic.first.c_str(), &topic.second.def, &topic.second.publisher, topic.second.latched);
             topic.second.publisher_initialized = true;
 
             // add messages
@@ -535,6 +535,7 @@ void SackViewer::OpenFile(const std::string& file)
 		if (val.def.name == 0)
 		{
 			ps_copy_message_definition(&val.def, &info->definition);
+			val.latched = info->latched;
 		}
 	}
 

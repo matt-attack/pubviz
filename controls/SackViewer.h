@@ -86,6 +86,7 @@ protected:
 		std::vector<Message> messages;
 		ps_message_definition_t def;
 
+		bool latched;
         bool publisher_initialized;
         ps_pub_t publisher;
 			
@@ -93,6 +94,7 @@ protected:
 		{
 			def.name = 0;
             publisher_initialized = false;
+			latched = false;
 		}
 	};
 	std::map<std::string, Stream> bag_data_;
