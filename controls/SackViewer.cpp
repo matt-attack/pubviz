@@ -612,7 +612,7 @@ std::string SackViewer::SerializeConfig()
 			if (graph.first->Is2D())
 			{
 				config += plot->topic_name + "," + plot->field_name_x;
-				config += "," + plot->field_name_y;
+				config += "," + plot->topic_name + "," + plot->field_name_y;
 			}
 			else
 			{
