@@ -57,6 +57,18 @@ struct ConfigureDialog
 	}
 };
 
+struct ConfigureChannelDialog
+{
+	Gwen::Controls::TextBox* math_;
+	GraphBase* graph_;
+	GraphBase::Channel* channel;
+
+	ConfigureChannelDialog(GraphBase* graph)
+	{
+		graph_ = graph;
+	}
+};
+
 void GraphBase::OnMouseClickLeft( int x, int y, bool down )
 {
 	// toggle hidden when you click on a key label
@@ -78,6 +90,65 @@ void GraphBase::OnMouseClickLeft( int x, int y, bool down )
 			}
 		}
 	}
+}
+
+void GraphBase::OnMouseClickRight( int x, int y, bool bDown )
+{
+	if (bDown)
+	{
+		OnConfigureChannel(channels_[0]);
+	}
+}
+
+
+void GraphBase::OnConfigureChannel(Channel* channel)
+{
+	// try and figure out which channel
+	Controls::WindowControl* pWindow = new Controls::WindowControl( GetCanvas() );
+	pWindow->SetTitle( L"Configure Channel" );
+	pWindow->SetSize( 200, 275 + (is_2d_ ? 25 : 0) );
+	pWindow->MakeModal( true );
+	//pWindow->Position( Pos::Center );// doesnt work if we have no inner space left
+    auto pos = GetCanvas()->GetRenderBounds();
+    pWindow->SetPos(Gwen::Point(pos.w/2 - 100, pos.h/2 - 100));
+	pWindow->SetDeleteOnClose( true );
+    pWindow->DisableResizing();
+
+	auto dialog = new ConfigureChannelDialog(this);
+	dialog->channel = channel;
+	auto button = new Gwen::Controls::Button( pWindow );
+	button->SetText("Apply");
+	button->SetPos( 70, 20 + 10 + 10 + (is_2d_ ? 0 : 25));
+	button->SetWidth(70);
+	button->onPress.Add(this, &ThisClass::OnConfigureChannelClosed, dialog);
+
+    // add settings
+    {
+        //Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
+		//label->SetText( "X-Axis" );
+		//label->SizeToContents();
+		//label->SetPos( 10, 10 );
+    }
+	int current_x = 10 + 25;
+	if (!is_2d_)
+    {
+		Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
+		label->SetText( "Math" );
+		label->SizeToContents();
+		label->SetPos( 20, current_x);
+        Gwen::Controls::TextBox* box = new Gwen::Controls::TextBox( pWindow );
+		box->SetText( channel->math_string_ );// todo get from channel
+		box->SetPos( 70, current_x);
+        box->SetWidth(70);
+		dialog->math_ = box;
+		current_x += 25;
+    }
+}
+
+void GraphBase::OnConfigureChannelClosed(Gwen::Event::Info info)
+{
+	auto dialog = (ConfigureChannelDialog*)info.Data;
+	dialog->channel->SetMath(dialog->math_->GetText().c_str());
 }
 
 void GraphBase::OnConfigure(Base* control)
@@ -381,7 +452,7 @@ void GraphBase::AddMessageSample(Channel* channel, pubsub::Time msg_time, const 
 	else if (x_name && !std::isnan(x) && !std::isnan(y))
 	{
 		// 2d
-		channel->data.push_back({ x, y, msg_time });
+		channel->data.push_back({ x, y, msg_time, 0 });
 
 		Redraw();
 	}
@@ -396,7 +467,7 @@ void GraphBase::AddSample(Channel* sub, double value, pubsub::Time time, bool sc
 {
 	pubsub::Duration dt = time - start_time_;
 	
-	sub->data.push_back({dt.toSec(), value, time});
+	sub->data.push_back({dt.toSec(), sub->Evaluate(value), time, value});
 
     //if resize to fit, just make graph wider to show it
     if (scroll_to_fit)

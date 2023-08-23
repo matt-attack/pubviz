@@ -352,7 +352,7 @@ void CANViz::Layout(Skin::Base* skin)
 	{
 		// produce id string
 		std::stringstream idstr;
-		idstr << std::hex << msg.second.id;
+		idstr << "0x" << std::hex << msg.second.id;
 
 		Gwen::Controls::Layout::TableRow* id_row;
 		auto res = received_ids_.find(msg.second.id);
@@ -368,7 +368,7 @@ void CANViz::Layout(Skin::Base* skin)
 			id_row->SetCellText( 1, L"" );
 		}
 		received_ids_[msg.second.id] = {msg.first, id_row};
-		id_row->SetCellText( 2, L"$1.27" );
+		//id_row->SetCellText( 2, L"$1.27" );
 
 		// produce data string
 		std::stringstream str;
@@ -385,7 +385,7 @@ void CANViz::Layout(Skin::Base* skin)
 		if (do_capture_)
 		{
 			Gwen::Controls::Layout::TableRow* pRow2 = received_by_time_->AddItem( timestr.str() );
-			pRow2->SetCellText(1, std::to_string(msg.second.id) );
+			pRow2->SetCellText(1, idstr.str() );
 			pRow2->SetCellText(2, str.str());
 		}
 	}

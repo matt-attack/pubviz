@@ -35,6 +35,10 @@ int main(int argc, char** args)
 	if (argc > 1)
 	{
 		control->Open(args[1]);
+		if (argc > 2)
+		{
+			control->LoadConfig(args[2]);
+		}
 	}
 	control->SetPos(0, 0);
 	

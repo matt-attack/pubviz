@@ -41,6 +41,7 @@ class SackViz : public Gwen::Controls::DockBase
 		void Layout(Gwen::Skin::Base* skin);
 		
 		void Open(const std::string& str);
+		void LoadConfig(const std::string& str);
 
 	private:
 

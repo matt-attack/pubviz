@@ -10,6 +10,8 @@
 #include <Gwen/Skin.h>
 
 #include <deque>
+#include <vector>
+#include <cmath>
 
 #include <pubsub_cpp/Time.h>
 
@@ -24,6 +26,23 @@ struct DataSample
 	double first;
 	double second;
 	pubsub::Time time;
+	double raw_second;
+};
+
+enum class OpCode
+{
+	X = 0,
+	Num = 1,
+	Add = 2,
+	Sub = 3,
+	Mul = 4,
+	Div = 5
+};
+
+struct Operation
+{
+	OpCode code;
+	double number;
 };
 
 class PubViz;
@@ -55,10 +74,162 @@ public:
 			}
 			else
 			{
+				if (math_string_.length())
+					return topic_name + "." + field_name_y + " (" + math_string_ + ")";
 				return topic_name + "." + field_name_y;
 			}
 		}
 		bool hidden = false;
+
+
+		std::vector<Operation> math_;
+		std::string math_string_;
+
+		void SetMath(const std::string& str)
+		{
+			// tokenize
+			std::vector<std::string> tokens;
+			std::string current_token;
+			int i = 0;
+			while (i < str.length())
+			{
+				// todo break apart symbols
+				char c = str[i];
+				if (c == ' ' || c == '\t' || c == '\n')
+				{
+					if (current_token.length())
+					{
+						tokens.push_back(current_token);
+					}
+					current_token.clear();
+				}
+				else
+				{
+					current_token += c;
+				}
+	
+				i++;
+			}
+			if (current_token.length())
+			{
+				tokens.push_back(current_token);
+			}
+
+			// now turn into math
+			std::vector<Operation> math;
+			for (const auto& tok: tokens)
+			{
+				if (tok == "+")
+				{
+					Operation op;
+					op.code = OpCode::Add;
+					math.push_back(op);
+				}
+				else if (tok == "*")
+				{
+					Operation op;
+					op.code = OpCode::Mul;
+					math.push_back(op);
+				}
+				else if (tok == "-")
+				{
+					Operation op;
+					op.code = OpCode::Sub;
+					math.push_back(op);
+				}
+				else if (tok == "x")
+				{
+					Operation op;
+					op.code = OpCode::X;
+					math.push_back(op);
+				}
+				else
+				{
+					Operation op;
+					op.code = OpCode::Num;
+					op.number = std::atof(tok.c_str());
+					math.push_back(op);
+				}
+			}
+			math_ = math;
+			math_string_ = str;
+
+			// re-evaluate
+			for (auto& sample: data)
+			{
+				sample.second = Evaluate(sample.raw_second);
+			}
+		}
+
+		double Evaluate(double input)
+		{
+			if (math_.size() == 0)
+			{
+				return input;
+			}
+	
+			std::deque<double> stack;
+			for (const auto& op: math_)
+			{
+				if (op.code == OpCode::Num)
+				{
+					stack.push_back(op.number);
+				}
+				else if (op.code == OpCode::X)
+				{
+					stack.push_back(input);
+				}
+				else if (op.code == OpCode::Mul)
+				{
+					if (stack.size() < 2)
+					{
+						return NAN;
+					}
+					double one = stack.back();
+					stack.pop_back();
+					double two = stack.back();
+					stack.pop_back();
+					stack.push_back(one*two);
+				}
+				else if (op.code == OpCode::Add)
+				{
+					if (stack.size() < 2)
+					{
+						return NAN;
+					}
+					double one = stack.back();
+					stack.pop_back();
+					double two = stack.back();
+					stack.pop_back();
+					stack.push_back(one+two);
+				}
+				else if (op.code == OpCode::Div)
+				{
+					if (stack.size() < 2)
+					{
+						return NAN;
+					}
+					double one = stack.back();
+					stack.pop_back();
+					double two = stack.back();
+					stack.pop_back();
+					stack.push_back(one/two);
+				}
+				else if (op.code == OpCode::Sub)
+				{
+					if (stack.size() < 2)
+					{
+						return NAN;
+					}
+					double one = stack.back();
+					stack.pop_back();
+					double two = stack.back();
+					stack.pop_back();
+					stack.push_back(one-two);
+				}
+			}
+			return stack.back();
+		}
     };
 
 	GWEN_CONTROL( GraphBase, Gwen::Controls::Base );
@@ -135,12 +306,16 @@ protected:
     void OnRemoveSelect(Gwen::Controls::Base* pControl);
 
     void OnConfigure(Base* control);
+	
+	void OnConfigureChannel(Channel* channel);
 
 	void OnConfigureClosed(Gwen::Event::Info info);
+	void OnConfigureChannelClosed(Gwen::Event::Info info);
 		
 	void OnMouseMoved(int x, int y, int dx, int dy) override;
 	bool OnMouseWheeled( int iDelta ) override;
 	void OnMouseClickLeft( int /*x*/, int /*y*/, bool /*bDown*/ ) override;
+	void OnMouseClickRight( int /*x*/, int /*y*/, bool /*bDown*/ ) override;
 
 	Gwen::Color		m_Color;
 		

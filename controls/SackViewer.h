@@ -168,6 +168,8 @@ public:
 
 	void PlotSelected(bool twod);
 
+	void AddPlot(bool twod, std::vector<std::pair<std::string, std::string>> plots);
+
 	void UpdateSelection(double min_x, double max_x);
 
 	Gwen::Point GetMinimumSize() override { return Gwen::Point(50, bag_data_.size()*40 + 45); }

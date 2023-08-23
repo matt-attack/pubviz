@@ -100,7 +100,11 @@ std::vector<std::string> split(std::string s, std::string delimiter)
 void SackViz::OnConfigOpen(Gwen::Event::Info info)
 {
 	auto filename = info.String;
+	LoadConfig(filename);
+}
 
+void SackViz::LoadConfig(const std::string& filename)
+{
 	// now load the new config
 	FILE *f = fopen(filename.c_str(), "rb");
 	if (f == 0)
@@ -133,25 +137,14 @@ void SackViz::OnConfigOpen(Gwen::Event::Info info)
 		{
 			bool is_2d = data[0] == "plot2d";
 
-			/*viewer_->
-			auto button = GetRight()->GetTabControl()->AddPage("Graph");
-			button->SetPopoutable(true);
-			button->SetClosable(true);
-			auto page = button->GetPage();
-			auto graph = new GraphCanvas(page);
-			graph->canvas_ = canvas_;
-			graph->Dock(Pos::Fill);
-			graph->UserData.Set<Gwen::Controls::TabButton*>("button", button);
-        	page->GetParent()->GetParent()->SetWidth(580);
-			graphs_[graph] = true;
-			for (int i = 1; i < data.size() - 1; i+= 2)
-			{
-				auto topic = data[i+0];
-				auto field = data[i+1];
+			auto fields = split(data[1], ",");
 
-				// add each field
-				graph->AddPlot(topic, field);
-			}*/
+			std::vector<std::pair<std::string, std::string>> plots;
+			for (int i = 0; i < fields.size() - 1; i+=2)
+			{
+				plots.push_back({fields[i], fields[i+1]});
+			}
+			viewer_->AddPlot(is_2d, plots);
 
 			continue;
 		}

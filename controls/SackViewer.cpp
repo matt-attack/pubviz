@@ -406,6 +406,70 @@ void SackViewer::OnFirstMessage(Gwen::Controls::Base* control)
 	SetPlayheadTime(time);
 }
 
+void SackViewer::AddPlot(bool twod, std::vector<std::pair<std::string, std::string>> plots)
+{
+	if (twod && plots.size() != 2)
+	{
+		// cant do it
+		return;
+	}
+	else if (twod)
+	{
+		// todo display a prompt asking what is x and y
+		// for now just go in order
+	}
+
+	auto button = GetParentDock()->GetRight()->GetTabControl()->AddPage("Graph");
+	button->SetPopoutable(true);
+	button->SetClosable(true);
+	auto page = button->GetPage();
+	auto graph = new SackGraph(page);
+    graph->SetViewer(this);
+	graph->Dock(Pos::Fill);
+    page->GetParent()->GetParent()->SetWidth(580);
+	button->GetTabControl()->SelectTab(button);
+	button->UserData.Set<SackGraph*>("graph", graph);
+	button->onClose.Add(this, &ThisClass::OnGraphClose);
+	graphs_[graph] = true;
+
+	if (twod)
+	{
+		// display a prompt asking 
+		auto topic = plots[0].first;//selected.front()->UserData.Get<std::string>("topic");
+		auto field_x = plots[0].second;//selected.front()->UserData.Get<std::string>("field");
+		//auto iter = ++selected.begin();
+		auto field_y = plots[1].second;//(*iter)->UserData.Get<std::string>("field");
+
+		auto ch = graph->CreateChannel(topic, field_x, field_y);
+
+		auto& data = bag_data_[topic];
+		for (auto& msg : data.messages)
+		{
+			graph->AddMessageSample(ch, msg.time, msg.msg, &data.def, false, false);
+		}
+
+		return;
+	}
+
+	for (auto& item: plots)
+	{
+		auto topic = item.first;//item->UserData.Get<std::string>("topic");
+   		auto field = item.second;//item->UserData.Get<std::string>("field");
+
+   		//printf("Want to plot: %s:%s\n", topic.c_str(), field.c_str());
+
+   		auto ch = graph->CreateChannel(topic, field);
+
+   		auto& data = bag_data_[topic];
+   		for (auto& msg: data.messages)
+   		{
+       		graph->AddMessageSample(ch, msg.time, msg.msg, &data.def, false, false);
+   		}
+	}
+
+	graphs_[graph] = true;
+}
+
 void SackViewer::PlotSelected(bool twod)
 {
 	Gwen::Controls::TreeNode* parent = 0;
@@ -427,66 +491,14 @@ void SackViewer::PlotSelected(bool twod)
 
 	auto selected = parent->GetSelectedChildNodes();
 
-	if (twod && selected.size() != 2)
-	{
-		// cant do it
-		return;
-	}
-	else if (twod)
-	{
-		// todo display a prompt asking what is x and y
-		// for now just go in order
-	}
-	
-	auto button = GetParentDock()->GetRight()->GetTabControl()->AddPage("Graph");
-	button->SetPopoutable(true);
-	button->SetClosable(true);
-	auto page = button->GetPage();
-	auto graph = new SackGraph(page);
-    graph->SetViewer(this);
-	graph->Dock(Pos::Fill);
-    page->GetParent()->GetParent()->SetWidth(580);
-	button->GetTabControl()->SelectTab(button);
-	button->UserData.Set<SackGraph*>("graph", graph);
-	button->onClose.Add(this, &ThisClass::OnGraphClose);
-	graphs_[graph] = true;
-
-	if (twod)
-	{
-		// display a prompt asking 
-		auto topic = selected.front()->UserData.Get<std::string>("topic");
-		auto field_x = selected.front()->UserData.Get<std::string>("field");
-		auto iter = ++selected.begin();
-		auto field_y = (*iter)->UserData.Get<std::string>("field");
-
-		auto ch = graph->CreateChannel(topic, field_x, field_y);
-
-		auto& data = bag_data_[topic];
-		for (auto& msg : data.messages)
-		{
-			graph->AddMessageSample(ch, msg.time, msg.msg, &data.def, false, false);
-		}
-
-		return;
-	}
-
+	std::vector<std::pair<std::string, std::string>> plots;
 	for (auto& item: selected)
 	{
 		auto topic = item->UserData.Get<std::string>("topic");
    		auto field = item->UserData.Get<std::string>("field");
-
-   		//printf("Want to plot: %s:%s\n", topic.c_str(), field.c_str());
-
-   		auto ch = graph->CreateChannel(topic, field);
-
-   		auto& data = bag_data_[topic];
-   		for (auto& msg: data.messages)
-   		{
-       		graph->AddMessageSample(ch, msg.time, msg.msg, &data.def, false, false);
-   		}
+		plots.push_back({topic, field});
 	}
-
-	graphs_[graph] = true;
+	AddPlot(twod, plots);
 }
 
 void SackViewer::OnViewerClose(Gwen::Controls::Base* pControl)
