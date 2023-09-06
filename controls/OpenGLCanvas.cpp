@@ -368,4 +368,16 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	
 	// reset matrices
 	r->Begin();
+
+	// force a flush essentially
+	r->StartClip();
+
+	// Paint all the plugins
+	for (auto plugin: plugins_)
+	{
+		if (plugin->Enabled())
+		{
+			plugin->Paint();
+		}
+	}
 }

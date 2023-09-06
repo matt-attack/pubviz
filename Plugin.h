@@ -43,8 +43,11 @@ namespace pubviz
 
 		virtual void Initialize(Gwen::Controls::Properties*) = 0;
 
-		// Render the plugin to the canvas
+		// Render the plugin to the canvas in world coords
 		virtual void Render() = 0;
+
+		// Render the plugin to the canvas in pixel coords
+		virtual void Paint() {};
 
 		// Update any topics we have and mark for redraws if necessary
 		virtual void Update() = 0;

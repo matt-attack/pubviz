@@ -734,9 +734,22 @@ void SackViewer::UpdateViewers()
 		// find the topic and visualize it
 		auto topic = t.second;
 		auto msg_index = BinarySearch(current_time, topic.messages);
+
+		if (msg_index == viewer->second.current_message)
+		{
+			continue;
+		}
 		
 		auto tree = viewer->second.second;
 		viewer->second.current_message = msg_index;
+
+		std::vector<std::string> items;
+		for (auto node2: tree->GetChildNodes())
+		{
+			auto node = (Gwen::Controls::TreeNode*)node2;
+			items.push_back(node->GetButton()->GetText().c_str());
+		}
+
 		tree->Clear();
 		if (msg_index < 0)
 		{
@@ -752,6 +765,7 @@ void SackViewer::UpdateViewers()
 
         const int max_array_length = 100;
 		
+		int i = 1;
 		struct ps_deserialize_iterator iter = ps_deserialize_start((const char*)msg.msg, &topic.def);
 		const struct ps_msg_field_t* field; uint32_t length; const char* ptr;
 		while (ptr = ps_deserialize_iterate(&iter, &field, &length))
@@ -850,12 +864,18 @@ void SackViewer::UpdateViewers()
 					}
 				}
 			}
+			//color based on change from the last one
 			auto node = tree->AddNode(str);
+			if (i >= items.size() || str != items[i])
+			{
+				node->GetButton()->SetTextColorOverride(Gwen::Color(255, 0, 0, 255));
+			}
             node->UserData.Set<std::string>("topic", t.first);
             node->UserData.Set<std::string>("field", field->name);
 			node->UserData.Set<Gwen::Controls::TreeNode*>("base", tree);
 			node->GetButton()->DragAndDrop_SetPackage(true, "topic");
             node->onRightPress.Add(this, &ThisClass::OnFieldRightClick);
+			i++;
 		}
 		tree->ExpandAll();
 	}

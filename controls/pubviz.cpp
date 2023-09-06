@@ -51,6 +51,7 @@
 #include "../plugins/Path.h"
 #include "../plugins/Image.h"
 #include "../plugins/GPS.h"
+#include "../plugins/Dial.h"
 
 #include <Gwen/Controls/Dialogs/FileOpen.h>
 #include <Gwen/Controls/Dialogs/FileSave.h>
@@ -429,7 +430,7 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	{
 		Gwen::Controls::MenuItem* pRoot = menu_->AddItem(L"File");
 		pRoot->GetMenu()->AddItem(L"Clear Plugins", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
-		pRoot->GetMenu()->AddItem(L"Load Config", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddItem(L"Load Config", "", "Ctrl+O")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Save Config As", "", "Ctrl+S")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddDivider();
 		pRoot->GetMenu()->AddItem(L"Screenshot", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
@@ -547,6 +548,8 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	}
 	
 	//AddPlugin("image");
+
+	AddPlugin("dial");
 	AddPlugin("grid");
 	AddPlugin("gps");
 		AddPlugin("costmap");
