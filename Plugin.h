@@ -55,6 +55,12 @@ namespace pubviz
 		// Clear out any historical data so the view gets cleared
 		virtual void Clear() = 0;
 
+		// Render selection ids into the framebuffer
+		virtual uint32_t RenderSelect(uint32_t start_index) { return start_index; }
+
+		// Returns info about a selected item including bounds (todo)
+		virtual std::map<std::string, std::string> Select(uint32_t index) { return {}; }
+
 		// Returns if the plugin is enabled and should be rendered
 		bool Enabled()
 		{

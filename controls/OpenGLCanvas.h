@@ -26,6 +26,10 @@ class PubViz;
 class OpenGLCanvas : public Gwen::Controls::Base
 {
 	friend class PubViz;
+		unsigned int selection_texture_ = 0;
+		unsigned int selection_frame_buffer_ = 0;
+
+		void SetupViewMatrices();
 	public:
 
 		LocalXYUtil local_xy_;
@@ -160,10 +164,14 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		void OnMouseMoved(int x, int y, int dx, int dy) override;
 		bool OnMouseWheeled( int iDelta ) override;
 		void OnMouseClickLeft( int /*x*/, int /*y*/, bool /*bDown*/ ) override;
+		void OnMouseClickRight( int /*x*/, int /*y*/, bool /*bDown*/ ) override;
 
 		Gwen::Color	m_Color;
 		double view_height_m_;
 		bool mouse_down_ = false;
+
+		Gwen::Point select_start_,select_end_;
+		bool selecting_ = false;
 		
 		//double view_x_ = 0.0;
 		//double view_y_ = 0.0;

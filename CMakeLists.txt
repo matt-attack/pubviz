@@ -1,10 +1,8 @@
 project(pubviz)
 cmake_minimum_required(VERSION 3.10)
 
-find_package(GWEN_opengl REQUIRED HINTS ../GWEN/gwen)
-
-find_package(pubsub REQUIRED HINTS ../pubsub_workspace/pubsub)
-
+find_package(GWEN_opengl REQUIRED)
+find_package(pubsub REQUIRED)
 find_package(librucksack REQUIRED)
 
 # Pub

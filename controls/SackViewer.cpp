@@ -928,6 +928,7 @@ void SackViewer::Render( Skin::Base* skin )
 	for (auto& topic: bag_data_)
 	{
 		r->RenderText(skin->GetDefaultFont(), Gwen::PointF(10, off), topic.first);
+		//r->RenderText(skin->GetDefaultFont(), Gwen::PointF(30, off + 20), (std::string)topic.second.def.name);
 		off += 40;
 	}
 	

@@ -7,6 +7,7 @@
 #include <GL/glew.h>
 
 #include "../Plugin.h"
+#include "pubviz.h"
 
 #ifndef _WIN32
 #include <X11/Xlib.h>
@@ -81,6 +82,200 @@ void OpenGLCanvas::OnMouseClickLeft( int /*x*/, int /*y*/, bool down )
 	mouse_down_ = down;
 }
 
+void OpenGLCanvas::OnMouseClickRight( int x, int y, bool bDown )
+{
+	if (selecting_)
+	{
+		auto r = GetSkin()->GetRender();
+		// finish selecting. do a render
+
+		// first create render target
+		if (selection_texture_ == 0)
+		{
+			glGenTextures(1, &selection_texture_);
+			glGenFramebuffers(1, &selection_frame_buffer_);
+		}
+
+		// "Bind" the newly created texture : all future texture functions will modify this texture
+		glBindTexture(GL_TEXTURE_2D, selection_texture_);
+		
+		// todo size it properly
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 50, 50, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glBindTexture(GL_TEXTURE_2D, 0);
+
+		// Now create the framebuffer using that texture as the color buffer
+		glBindFramebuffer(GL_FRAMEBUFFER, selection_frame_buffer_);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, selection_texture_, 0);  
+		
+		// Do a dummy check
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		{
+			printf("Error creating framebuffer, it is incomplete!\n");
+		}
+		
+		GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
+		glDrawBuffers(1, DrawBuffers);
+		
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+				
+		// Resize the image to our new target size
+		glBindTexture(GL_TEXTURE_2D, selection_texture_);
+
+		auto scale = GetCanvas()->Scale();
+    	int width = Width()*scale;
+    	int height = Height()*scale;
+		
+		// Give an empty image to OpenGL ( the last "0" )
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		
+		glBindFramebuffer(GL_FRAMEBUFFER, selection_frame_buffer_);
+
+    	float vp[4];
+    	glGetFloatv(GL_VIEWPORT, vp);
+		glViewport(0, 0, width, height);
+
+		glClearColor(1.0, 1.0, 1.0, 1.0);
+		
+		glClear( GL_COLOR_BUFFER_BIT );
+		
+		auto origin = LocalPosToCanvas();
+		origin.y -= 20;// skip past menu bar
+	
+		// force a flush essentially
+		r->EndClip();
+		r->StartClip();
+        
+		glMatrixMode(GL_TEXTURE);
+		glPushMatrix();
+		glMatrixMode(GL_PROJECTION);
+		glPushMatrix();
+		glMatrixMode(GL_MODELVIEW);
+		glPushMatrix();
+		glPushAttrib(GL_ALL_ATTRIB_BITS);
+
+		SetupViewMatrices();
+
+		// now render
+		uint32_t current_id = 0xFF000000;
+		struct plugin_info
+		{
+			uint32_t start_id;
+			uint32_t end_id;
+			pubviz::Plugin* plugin;
+		};
+		std::vector<plugin_info> visible_plugins;
+		for (auto plugin: plugins_)
+		{
+			if (plugin->Enabled())
+			{
+				uint32_t start_id = current_id;
+				current_id = plugin->RenderSelect(current_id);
+				uint32_t end_id = current_id;
+				current_id += 1;
+				// save the id ranges for this plugin so we can map from select id to plugin
+				if (start_id != end_id)
+				{
+					plugin_info info;
+					info.start_id = start_id & 0xFFFFFF;
+					info.end_id = end_id & 0xFFFFFF;
+					info.plugin = plugin;
+					visible_plugins.push_back(info);
+				}
+			}
+		}
+		
+		// Force a flush
+		r->EndClip();
+
+
+		glFlush();
+		glFinish(); 
+
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+
+		// Now read out the selected area
+		auto start = CanvasPosToLocal(select_start_);
+		auto end = CanvasPosToLocal(select_end_);
+		int32_t start_x = std::min(start.x, end.x)*scale;
+		int32_t sw = std::max<int>(std::abs(start.x - end.x)*scale,1);
+		int32_t sh = std::max<int>(std::abs(start.y - end.y)*scale,1);
+		int32_t start_y = std::min(height - start.y, height - end.y)*scale;
+		uint32_t* pixels = new uint32_t[sw*sh];
+		glReadPixels(start_x, start_y, sw, sh, GL_RGBA, GL_UNSIGNED_BYTE, (uint8_t*)pixels);
+
+		// Find all selections
+		std::unordered_map<uint32_t, bool> selected;
+		for (int i = 0; i < sw*sh; i++)
+		{
+			if (pixels[i] != 0xFFFFFFFF)
+			{
+				selected[pixels[i] & 0x00FFFFFF] = true;
+			}
+		}
+		// Then select all selections
+		PubViz* p = (PubViz*)GetParent();
+
+		// add to selection if shift is pressed
+		// todo remove from selection if ctrl is pressed
+		if (!Gwen::Input::IsKeyDown(Gwen::Key::Shift))
+		{
+			// todo dont allow double selection in shift mode
+			p->GetSelection()->Clear();
+		}
+		auto sel = p->GetSelection();
+		for (auto id: selected)
+		{
+			// Find the associated plugin with this index
+			for (const auto& p: visible_plugins)
+			{
+				if (id.first <= p.end_id && id.first >= p.start_id)
+				{
+					//printf("Selected %i from plugin %s\n", id.first, p.plugin->GetTitle().c_str());
+					// Add properties about this selected item to our selection list
+					auto node = sel->AddNode("Point (" + std::to_string(id.first) + ")");
+					auto map = p.plugin->Select(id.first - p.start_id);
+					for (auto& kv: map)
+					{
+						node->AddNode(kv.first + ": " + kv.second);
+					}
+					//todo need selection size so we can draw it
+					break;
+				}
+			}
+		}
+		delete[] pixels;
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		// restore matrices and viewport
+		glPopAttrib();
+		glMatrixMode(GL_MODELVIEW);
+		glPopMatrix();
+		glMatrixMode(GL_PROJECTION);
+		glPopMatrix();
+		glMatrixMode(GL_TEXTURE);
+		glPopMatrix();
+	
+		glDisable(GL_DEPTH_TEST);
+
+    	glViewport(vp[0], vp[1], vp[2], vp[3]);
+
+		Redraw();
+	}
+
+	selecting_ = bDown;
+	select_start_ = select_end_ = Gwen::Point(x, y);
+}
+
 void OpenGLCanvas::OnMouseMoved(int x, int y, int dx, int dy)
 {
 	// now convert to units
@@ -109,6 +304,12 @@ void OpenGLCanvas::OnMouseMoved(int x, int y, int dx, int dy)
 		}
 		
 		// Mark the window as dirty so it redraws
+		Redraw();
+	}
+
+	if (selecting_)
+	{
+		select_end_ = Gwen::Point(x,y);
 		Redraw();
 	}
 }
@@ -196,30 +397,10 @@ std::map<std::string, PropertyBase*> OpenGLCanvas::CreateProperties(Gwen::Contro
 	return props;
 }
 
-void OpenGLCanvas::Render( Skin::Base* skin )
+void OpenGLCanvas::SetupViewMatrices()
 {
-	auto r = skin->GetRender();
-	
-	// do whatever we want here
-	skin->GetRender()->SetDrawColor( m_Color );// start by clearing to background color
-	skin->GetRender()->DrawFilledRect( GetRenderBounds() );
-
-    auto origin = LocalPosToCanvas();
-    auto width = Width();
+	auto width = Width();
     auto height = Height();
-	
-	// force a flush essentially
-	r->EndClip();
-	r->StartClip();
-        
-	glMatrixMode(GL_TEXTURE);
-	glPushMatrix();
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glPushAttrib(GL_ALL_ATTRIB_BITS);
-
 	double view_x = view_x_->GetValue();
 	double view_y = view_y_->GetValue();
 	double view_z = view_z_->GetValue();
@@ -228,15 +409,7 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		view_x = view_abs_x_;
 		view_y = view_abs_y_;
 		view_z = view_abs_z_;
-		//local_xy_.FromLatLon(view_lat_, view_lon_, view_x, view_y);
 	}
-	origin.y -= 20;// skip past menu bar
-
-    float vp[4];
-    glGetFloatv(GL_VIEWPORT, vp);
-	auto scale = GetCanvas()->Scale();
-	glViewport(origin.x * scale, origin.y * scale, width * scale, height * scale);
-	
 	double yaw = yaw_->GetValue();
 	double pitch = pitch_->GetValue();
 	auto view_type = view_type_->GetValue();
@@ -251,7 +424,6 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	
 		// now apply other transforms
 		glMatrixMode(GL_MODELVIEW);
-		Gwen::Point pos = GetPos();
 		glLoadIdentity();
 	}
 	else if (view_type == ViewType::FPS)
@@ -268,25 +440,12 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	
 		// now apply other transforms
 		glMatrixMode(GL_MODELVIEW);
-		Gwen::Point pos = GetPos();
 		glLoadIdentity();
 		
 		// eh, I dislike this but whatever
 		gluLookAt(view_x, view_y, view_z, /* look from camera XYZ */
              view_x - cos(-yaw*M_PI/180.0)*cos(pitch*M_PI/180.0), view_y - sin(-yaw*M_PI/180.0)*cos(pitch*M_PI/180.0), view_z - sin(pitch*M_PI/180.0), /* look at the origin */
              0, 0, 1); /* positive Z up vector */
-		//glRotatef(-90, 1, 0, 0);
-		//glTranslatef(-view_x, -view_y, -view_z);
-	
-		//glRotatef(-90, 1, 0, 0);
-		//glRotatef(-90, 0, 1, 0);
-		//glRotatef(yaw_, 0, 0, 1);
-	
-		
-		float ax = cos((-yaw)*3.14159/180.0);
-		float ay = sin((-yaw)*3.14159/180.0);
-		//glRotatef(pitch_, 0,1,0);//ax, ay, 0);
-//glRotatef(yaw_, 0, 0, 1);
 		
 		// we want depth testing in this mode
 		glEnable(GL_DEPTH_TEST);
@@ -304,7 +463,6 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	
 		// now apply other transforms
 		glMatrixMode(GL_MODELVIEW);
-		Gwen::Point pos = GetPos();
 		glLoadIdentity();
 	
 		glRotatef(-90, 1, 0, 0);
@@ -314,7 +472,6 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		float ay = sin((-yaw)*3.14159/180.0);
 		glRotatef(pitch, ax, ay, 0);
 		
-		
 		glTranslatef(-view_x, -view_y, -view_z);
 		
 		// we want depth testing in this mode
@@ -322,6 +479,39 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		glClear(GL_DEPTH_BUFFER_BIT);
 		glDepthFunc(GL_LEQUAL);
 	}
+}
+
+void OpenGLCanvas::Render( Skin::Base* skin )
+{
+	auto r = skin->GetRender();
+	
+	// do whatever we want here
+	skin->GetRender()->SetDrawColor( m_Color );// start by clearing to background color
+	skin->GetRender()->DrawFilledRect( GetRenderBounds() );
+
+    auto origin = LocalPosToCanvas();
+	origin.y -= 20;// skip past menu bar
+    auto width = Width();
+    auto height = Height();
+	
+	// force a flush essentially
+	r->EndClip();
+	r->StartClip();
+        
+	glMatrixMode(GL_TEXTURE);
+	glPushMatrix();
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glPushAttrib(GL_ALL_ATTRIB_BITS);
+
+    float vp[4];
+    glGetFloatv(GL_VIEWPORT, vp);
+	auto scale = GetCanvas()->Scale();
+	glViewport(origin.x * scale, origin.y * scale, width * scale, height * scale);
+	
+	SetupViewMatrices();
 
 	// Draw axes at origin
 	if (show_origin_)
@@ -379,5 +569,20 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		{
 			plugin->Paint();
 		}
+	}
+
+	// Draw the selection box
+	if (selecting_)
+	{
+		skin->GetRender()->SetDrawColor( Gwen::Color(255, 0, 0, 128) );// start by clearing to background color
+		Gwen::Rect r;
+		auto p = CanvasPosToLocal(select_start_);
+		r.x = select_start_.x;
+		r.y = select_start_.y;
+		r.w = select_end_.x - r.x;
+		r.h = select_end_.y - r.y;
+		r.x = p.x;
+		r.y = p.y;
+		skin->GetRender()->DrawFilledRect( r );
 	}
 }

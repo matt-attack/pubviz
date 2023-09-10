@@ -68,255 +68,42 @@ class PointCloudPlugin: public pubviz::Plugin
 	
 	bool sub_open_ = false;
 	ps_sub_t subscriber_;
-	
-	struct Cloud
-	{
-		int num_points;
-		unsigned int point_vbo;
-		unsigned int color_vbo;
-	};
-	
-	std::deque<Cloud> clouds_;
-	
-	void HistoryLengthChange(int length)
-	{
-		while (clouds_.size() > length)
-		{
-			const auto& cloud = clouds_.back();
-			glDeleteBuffers(1, &cloud.point_vbo);
-			glDeleteBuffers(1, &cloud.color_vbo);
-			clouds_.pop_back();
-		}
-	}
 
-    void ColoringModeChange(std::string mode)
-    {
-        // hide all properties to start
-        min_color_->Hide();
-        max_color_->Hide();
-        ceiled_color_->Hide();
-        floored_color_->Hide();
-        single_color_->Hide();
-        coloring_field_->Hide();
-        auto_min_max_->Hide();
-        AutoMinMaxChange(auto_min_max_->GetValue());
-        // show the desired properties
-        if (mode == "Interpolated")
-        {
-            min_color_->Show();
-            max_color_->Show();
-            coloring_field_->Show();
-            auto_min_max_->Show();
-        }
-        else if (mode == "Clamped")
-        {
-            min_color_->Show();
-            max_color_->Show();
-            ceiled_color_->Show();
-            floored_color_->Show();
-            coloring_field_->Show();
-            auto_min_max_->Show();
-        }
-        else if (mode == "Single Color")
-        {
-            single_color_->Show();
-            coloring_field_->Show();
-            min_value_->Hide();
-            max_value_->Hide();
-        }
-        else if (mode == "Jet")
-        {
-            coloring_field_->Show();  
-            auto_min_max_->Show();          
-        }
-        else if (mode == "Rainbow")
-        {
-            coloring_field_->Show();
-            auto_min_max_->Show();
-        }
-    }
-
-    void AutoMinMaxChange(bool value)
-    {
-        if (value)
-        {
-            min_value_->Hide();
-            max_value_->Hide();
-        }
-        else
-        {
-            min_value_->Show();
-            max_value_->Show();
-        }
-    }
-	
-	// Update our point texture if this changes
-	void TextChange(std::string value)
-	{
-		if (value.length() == 0)
-		{
-			return;
-		}
-		
-		// Create the font if we havent already
-		static Gwen::Font* f = 0;
-		if (!f)
-		{
-			f = new Gwen::Font;
-			*f = *tree->GetSkin()->GetDefaultFont();
-			f->size = 60;
-			f->facename = L"NotoEmoji-Bold.ttf";// the fallback font will handle normal characters
-		}
-		
-		auto r = tree->GetSkin()->GetRender();
-		r->SetDrawColor(Gwen::Color(255, 0, 255, 255));
-		
-		// Measure the text to determine the best texture size
-		auto s = r->MeasureText(f, value);
-		
-		// Resize the image to our new target size
-		glBindTexture(GL_TEXTURE_2D, render_texture_);
-		
-		int ortho_x_ = s.x;
-		int width_ = s.x;
-		int height_ = s.y;
-		int ortho_y_ = s.y;
-
-		// Give an empty image to OpenGL ( the last "0" )
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width_, height_, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glBindTexture(GL_TEXTURE_2D, 0);
-		
-		glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer_);
-		glViewport(0, 0, 50, 50);
-
-		glClearColor(1.0, 1.0, 1.0, 0.0);
-		
-		glClear( GL_COLOR_BUFFER_BIT );
-		
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		glOrtho( 0, ortho_x_, 0, ortho_y_, -1.0, 1.0 );
-		glMatrixMode( GL_MODELVIEW );
-		glViewport(0, 0, width_, height_);
-		
-		// Actually render in the text
-		r->RenderText(f, Gwen::PointF(0.0, 0.0), value);
-		
-		// Force a flush
-		r->EndClip();
-		
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	}
-	
-	std::string current_topic_;
-	void Subscribe(std::string str)
-	{
-		if (sub_open_)
-		{
-			ps_sub_destroy(&subscriber_);
-		}
-		
-		Clear();
-		
-		current_topic_ = str;
-    	struct ps_subscriber_options options;
-    	ps_subscriber_options_init(&options);
-    	options.preferred_transport = 1;// tcp yo
-    	ps_node_create_subscriber_adv(GetNode(), current_topic_.c_str(), &pubsub__PointCloud_def, &subscriber_, &options);
-    	sub_open_ = true;
-	}
-	
-public:
-
-	PointCloudPlugin()
-	{	
-		// dont use pubsub here
-		glewInit();
-	}
-	
-	virtual ~PointCloudPlugin()
-	{
-		delete min_color_;
-		delete max_color_;
-		delete alpha_;
-		delete point_size_;
-		delete history_length_;
-		delete point_text_;
-        delete coloring_mode_;
-        delete single_color_;
-        // todo use smart pointers
-		
-		glDeleteFramebuffers(1, &frame_buffer_);
-		glDeleteTextures(1, &render_texture_);
-		
-		if (sub_open_)
-		{
-			ps_sub_destroy(&subscriber_);
-			sub_open_ = false;
-		}
-		
-		// free any buffers
-		for (auto cloud: clouds_)
-		{
-			glDeleteBuffers(1, &cloud.point_vbo);
-			glDeleteBuffers(1, &cloud.color_vbo);
-		}
-	}
-	
 	struct Point3d
 	{
 		float x;
 		float y;
 		float z;
 	};
-	std::vector<Point3d> point_buf_;
-	std::vector<int> color_buf_;
-
-    Gwen::Color rainbow_table_[256];
-    Gwen::Color jet_table_[256];
 	
-	virtual void Update()
+	struct Cloud
 	{
-		// process any messages
-		// our sub has a message definition, so the queue contains real messages
-		pubsub::msg::PointCloud* data;
-		if (sub_open_)
+		int num_points;
+		unsigned int point_vbo;
+		unsigned int color_vbo;
+
+		pubsub::msg::PointCloud* original_cloud;// used for re-coloring
+
+		// position of the cloud
+		float x, y, z;
+
+		// rotation of the cloud
+		float yaw, pitch, roll;
+
+		void Free()
 		{
-			while (data = (pubsub::msg::PointCloud*)ps_sub_deque(&subscriber_))
-			{
-				// user is responsible for freeing the message and its arrays
-				if (Paused())
-				{
-				    free(data->data);
-				    free(data);//todo use allocator free
-					continue;
-				}
-				
-				// make a new cloud with this, reusing the last ones buffers if necessary
-				Cloud* cloud = 0;
-				if (clouds_.size() >= history_length_->GetValue())
-				{
-					// pop back and push it to the front
-					clouds_.push_front(clouds_.back());
-					clouds_.pop_back();
-					cloud = &clouds_[0];
-				}
-				else
-				{
-					Cloud c;
-					glGenBuffers(1, &c.point_vbo);
-					glGenBuffers(1, &c.color_vbo);
-					clouds_.push_back(c);
-					cloud = &clouds_[clouds_.size()-1];
-				}
-				
-				cloud->num_points = data->num_points;
-				
-				point_buf_.resize(data->num_points);
-				color_buf_.resize(data->num_points);
+			glDeleteBuffers(1, &point_vbo);
+			glDeleteBuffers(1, &color_vbo);
+			free(original_cloud->data);
+			free(original_cloud);
+		}
+	};
+
+	void BuildCloudBuffers(Cloud* cloud)
+	{
+		auto data = cloud->original_cloud;
+		point_buf_.resize(data->num_points);
+		color_buf_.resize(data->num_points);
 				
 				uint8_t alpha = 255.0*alpha_->GetValue();
 				Gwen::Color min_color = min_color_->GetValue();
@@ -463,9 +250,255 @@ color_buf_[i] = (alpha << 24) | gt_max_color.r | (gt_max_color.g << 8) | (gt_max
 				glBufferData(GL_ARRAY_BUFFER, color_buf_.size()*4, color_buf_.data(), GL_STATIC_DRAW);
 				
 				glBindBuffer(GL_ARRAY_BUFFER, 0);
+	}
+	
+	std::deque<Cloud> clouds_;
+	
+	void HistoryLengthChange(int length)
+	{
+		while (clouds_.size() > length)
+		{
+			auto& cloud = clouds_.back();
+			cloud.Free();
+			clouds_.pop_back();
+		}
+	}
+
+    void ColoringModeChange(std::string mode)
+    {
+        // hide all properties to start
+        min_color_->Hide();
+        max_color_->Hide();
+        ceiled_color_->Hide();
+        floored_color_->Hide();
+        single_color_->Hide();
+        coloring_field_->Hide();
+        auto_min_max_->Hide();
+        AutoMinMaxChange(auto_min_max_->GetValue());
+        // show the desired properties
+        if (mode == "Interpolated")
+        {
+            min_color_->Show();
+            max_color_->Show();
+            coloring_field_->Show();
+            auto_min_max_->Show();
+        }
+        else if (mode == "Clamped")
+        {
+            min_color_->Show();
+            max_color_->Show();
+            ceiled_color_->Show();
+            floored_color_->Show();
+            coloring_field_->Show();
+            auto_min_max_->Show();
+        }
+        else if (mode == "Single Color")
+        {
+            single_color_->Show();
+            coloring_field_->Show();
+            min_value_->Hide();
+            max_value_->Hide();
+        }
+        else if (mode == "Jet")
+        {
+            coloring_field_->Show();  
+            auto_min_max_->Show();          
+        }
+        else if (mode == "Rainbow")
+        {
+            coloring_field_->Show();
+            auto_min_max_->Show();
+        }
+
+		// Recolor all clouds
+		for (auto& cloud: clouds_)
+		{
+			BuildCloudBuffers(&cloud);
+		}
+    }
+
+    void AutoMinMaxChange(bool value)
+    {
+        if (value)
+        {
+            min_value_->Hide();
+            max_value_->Hide();
+        }
+        else
+        {
+            min_value_->Show();
+            max_value_->Show();
+        }
+
+		// Recolor all clouds
+		for (auto& cloud: clouds_)
+		{
+			BuildCloudBuffers(&cloud);
+		}
+    }
+	
+	// Update our point texture if this changes
+	void TextChange(std::string value)
+	{
+		if (value.length() == 0)
+		{
+			return;
+		}
+		
+		// Create the font if we havent already
+		static Gwen::Font* f = 0;
+		if (!f)
+		{
+			f = new Gwen::Font;
+			*f = *tree->GetSkin()->GetDefaultFont();
+			f->size = 60;
+			f->facename = L"NotoEmoji-Bold.ttf";// the fallback font will handle normal characters
+		}
+		
+		auto r = tree->GetSkin()->GetRender();
+		r->SetDrawColor(Gwen::Color(255, 0, 255, 255));
+		
+		// Measure the text to determine the best texture size
+		auto s = r->MeasureText(f, value);
+		
+		// Resize the image to our new target size
+		glBindTexture(GL_TEXTURE_2D, render_texture_);
+		
+		int ortho_x_ = s.x;
+		int width_ = s.x;
+		int height_ = s.y;
+		int ortho_y_ = s.y;
+
+		// Give an empty image to OpenGL ( the last "0" )
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width_, height_, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		
+		glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer_);
+		glViewport(0, 0, 50, 50);
+
+		glClearColor(1.0, 1.0, 1.0, 0.0);
+		
+		glClear( GL_COLOR_BUFFER_BIT );
+		
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+		glOrtho( 0, ortho_x_, 0, ortho_y_, -1.0, 1.0 );
+		glMatrixMode( GL_MODELVIEW );
+		glViewport(0, 0, width_, height_);
+		
+		// Actually render in the text
+		r->RenderText(f, Gwen::PointF(0.0, 0.0), value);
+		
+		// Force a flush
+		r->EndClip();
+		
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+	
+	std::string current_topic_;
+	void Subscribe(std::string str)
+	{
+		if (sub_open_)
+		{
+			ps_sub_destroy(&subscriber_);
+		}
+		
+		Clear();
+		
+		current_topic_ = str;
+    	struct ps_subscriber_options options;
+    	ps_subscriber_options_init(&options);
+    	options.preferred_transport = 1;// tcp yo
+    	ps_node_create_subscriber_adv(GetNode(), current_topic_.c_str(), &pubsub__PointCloud_def, &subscriber_, &options);
+    	sub_open_ = true;
+	}
+	
+public:
+
+	PointCloudPlugin()
+	{	
+		// dont use pubsub here
+		glewInit();
+	}
+	
+	virtual ~PointCloudPlugin()
+	{
+		delete min_color_;
+		delete max_color_;
+		delete alpha_;
+		delete point_size_;
+		delete history_length_;
+		delete point_text_;
+        delete coloring_mode_;
+        delete single_color_;
+        // todo use smart pointers
+		
+		glDeleteFramebuffers(1, &frame_buffer_);
+		glDeleteTextures(1, &render_texture_);
+		
+		if (sub_open_)
+		{
+			ps_sub_destroy(&subscriber_);
+			sub_open_ = false;
+		}
+		
+		// free any buffers
+		for (auto cloud: clouds_)
+		{
+			cloud.Free();
+		}
+	}
+	
+	std::vector<Point3d> point_buf_;
+	std::vector<int> color_buf_;
+
+    Gwen::Color rainbow_table_[256];
+    Gwen::Color jet_table_[256];
+	
+	virtual void Update()
+	{
+		// process any messages
+		// our sub has a message definition, so the queue contains real messages
+		pubsub::msg::PointCloud* data;
+		if (sub_open_)
+		{
+			while (data = (pubsub::msg::PointCloud*)ps_sub_deque(&subscriber_))
+			{
+				// user is responsible for freeing the message and its arrays
+				if (Paused())
+				{
+				    free(data->data);
+				    free(data);//todo use allocator free
+					continue;
+				}
 				
-				free(data->data);
-				free(data);//todo use allocator free
+				// make a new cloud with this, reusing the last ones buffers if necessary
+				Cloud* cloud = 0;
+				if (clouds_.size() >= history_length_->GetValue())
+				{
+					// pop back and push it to the front
+					clouds_.push_front(clouds_.back());
+					clouds_.pop_back();
+					cloud = &clouds_[0];
+					free(cloud->original_cloud->data);
+					free(cloud->original_cloud);
+				}
+				else
+				{
+					Cloud c;
+					glGenBuffers(1, &c.point_vbo);
+					glGenBuffers(1, &c.color_vbo);
+					clouds_.push_back(c);
+					cloud = &clouds_[clouds_.size()-1];
+				}
+
+				cloud->num_points = data->num_points;
+				cloud->original_cloud = data;
+
+				BuildCloudBuffers(cloud);
 				
 				Redraw();
 			}
@@ -478,8 +511,7 @@ color_buf_[i] = (alpha << 24) | gt_max_color.r | (gt_max_color.g << 8) | (gt_max
 		for (auto cloud: clouds_)
 		{
 			// delete the buffers
-			glDeleteBuffers(1, &cloud.point_vbo);
-			glDeleteBuffers(1, &cloud.color_vbo);
+			cloud.Free();
 		}
 		clouds_.clear();
 	}
@@ -510,8 +542,12 @@ color_buf_[i] = (alpha << 24) | gt_max_color.r | (gt_max_color.g << 8) | (gt_max
 			glTexEnvi(GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE);
 		}
 		
+		glMatrixMode(GL_MODELVIEW);
 		for (auto& cloud: clouds_)
 		{
+			glPushMatrix();
+			// todo now apply transformation 
+			//glTranslatef(0,0,10);
 			// render it
 			glBindBuffer(GL_ARRAY_BUFFER, cloud.point_vbo);
 			glVertexPointer(3, GL_FLOAT, 0, 0);
@@ -519,11 +555,34 @@ color_buf_[i] = (alpha << 24) | gt_max_color.r | (gt_max_color.g << 8) | (gt_max
 			glColorPointer(4, GL_UNSIGNED_BYTE, 0, 0);
 			
 			glDrawArrays(GL_POINTS, 0, cloud.num_points);
+			glPopMatrix();
 		}
 		
 		glDisableClientState(GL_VERTEX_ARRAY);
 		glDisableClientState(GL_COLOR_ARRAY);
-		
+
+		/*uint32_t start_index = 0x007058;
+		for (auto& cloud: clouds_)
+		{
+			// manually render the pointcloud
+			glPointSize(point_size_->GetValue());
+			glBegin(GL_POINTS);
+			auto data = cloud.original_cloud;
+			int increment = data->point_type == pubsub::msg::PointCloud::POINT_XYZ ? 3 : 4;
+
+			for (int i = 0; i < 2; i++)
+			{
+				glColor4ub(start_index & 0xFF, (start_index & 0xFF00) >> 8, (start_index & 0xFF0000) >> 16, 255);
+				//glColor4ubv((unsigned char*)&start_index);
+				start_index++;
+				glVertex3f(((float*)data->data)[i*increment],
+						   ((float*)data->data)[i*increment+1],
+						   ((float*)data->data)[i*increment+2]);
+				
+			}
+			glEnd();
+		}*/
+
 		if (render_texture)
 		{
 			glDisable(GL_BLEND);
@@ -531,6 +590,66 @@ color_buf_[i] = (alpha << 24) | gt_max_color.r | (gt_max_color.g << 8) | (gt_max
 		}
 		
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
+	}
+
+	virtual std::map<std::string, std::string> Select(uint32_t index) override
+	{
+		std::map<std::string, std::string> props;
+		uint32_t current = 0;
+		for (auto& cloud: clouds_)
+		{
+			auto end_index = current + cloud.original_cloud->num_points;
+			if (index >= current && index < end_index)
+			{
+				// its in this cloud
+				auto data = cloud.original_cloud;
+				int i = index - current;
+				int increment = data->point_type == pubsub::msg::PointCloud::POINT_XYZ ? 3 : 4;
+				float x = ((float*)data->data)[i*increment];
+				float y = ((float*)data->data)[i*increment+1];
+				float z = ((float*)data->data)[i*increment+2];
+				props["x"] = std::to_string(x);
+				props["y"] = std::to_string(y);
+				props["z"] = std::to_string(z);
+				if (data->point_type == pubsub::msg::PointCloud::POINT_XYZI)
+				{
+					props["i"] = std::to_string(((float*)data->data)[i*increment+3]);
+				}
+				break;
+			}
+			current = end_index;
+		}
+		return props;
+	}
+
+	virtual uint32_t RenderSelect(uint32_t start_index) override
+	{
+		glDisable(GL_BLEND);
+		glDisable(GL_ALPHA_TEST);
+
+		// render the stupid way
+		for (auto& cloud: clouds_)
+		{
+			// manually render the pointcloud
+			glPointSize(point_size_->GetValue());
+			glBegin(GL_POINTS);
+			auto data = cloud.original_cloud;
+			int increment = data->point_type == pubsub::msg::PointCloud::POINT_XYZ ? 3 : 4;
+
+			for (int i = 0; i < data->num_points; i++)
+			{
+				//glColor4f(1.0, 0.0, 0.0, 1.0);
+				//glColor4ub(start_index & 0xFF, (start_index & 0xFF00) >> 8, (start_index & 0xFF0000) >> 16, 255);
+				glColor4ubv((unsigned char*)&start_index);
+				start_index++;
+				glVertex3f(((float*)data->data)[i*increment],
+						   ((float*)data->data)[i*increment+1],
+						   ((float*)data->data)[i*increment+2]);
+			}
+			glEnd();
+		}
+
+		return start_index;
 	}
 	
 	GLuint frame_buffer_ = 0;
@@ -590,24 +709,34 @@ color_buf_[i] = (alpha << 24) | gt_max_color.r | (gt_max_color.g << 8) | (gt_max
 		coloring_field_ = AddEnumProperty(tree, "Coloring Field", "Intensity", {"Intensity", "X", "Y", "Z"}, "Point field to use for coloring points.");
 
 		floored_color_ = AddColorProperty(tree, "Floor Color", Gwen::Color(0,255,0), "Color for points below the minimum value.");
+		floored_color_->onChange = std::bind(&PointCloudPlugin::ColorConfigChanged, this, std::placeholders::_1);
 		ceiled_color_ = AddColorProperty(tree, "Ceiling Color", Gwen::Color(255,255,0), "Color for points above the minimum value.");
+		ceiled_color_->onChange = std::bind(&PointCloudPlugin::ColorConfigChanged, this, std::placeholders::_1);
 		
-		min_color_ = AddColorProperty(tree, "Max Color", Gwen::Color(255,255,255), "Color for the minimum value.");
-		max_color_ = AddColorProperty(tree, "Min Color", Gwen::Color(255,0,0), "Color for the maximum value.");
+		min_color_ = AddColorProperty(tree, "Min Color", Gwen::Color(255,255,255), "Color for the minimum value.");
+		min_color_->onChange = std::bind(&PointCloudPlugin::ColorConfigChanged, this, std::placeholders::_1);
+		max_color_ = AddColorProperty(tree, "Max Color", Gwen::Color(255,0,0), "Color for the maximum value.");
+		max_color_->onChange = std::bind(&PointCloudPlugin::ColorConfigChanged, this, std::placeholders::_1);
 
 		single_color_ = AddColorProperty(tree, "Point Color", Gwen::Color(255,255,255), "Color for points.");
+		single_color_->onChange = std::bind(&PointCloudPlugin::ColorConfigChanged, this, std::placeholders::_1);
 
 		auto_min_max_ = AddBooleanProperty(tree, "Auto Min/Max", true, "If true, determine the min max values from each pointcloud automatically.");
 		auto_min_max_->onChange = std::bind(&PointCloudPlugin::AutoMinMaxChange, this, std::placeholders::_1);
 
 		min_value_ = AddFloatProperty(tree, "Min Value", 0.0,   -1000000.0, 1000000.0, 1.0, "Value at which min color is used.");
+		min_value_->onChange = std::bind(&PointCloudPlugin::FloatConfigChanged, this, std::placeholders::_1);
 		max_value_ = AddFloatProperty(tree, "Max Value", 255.0, -1000000.0, 1000000.0, 1.0, "Value at which max color is used.");
+		max_value_->onChange = std::bind(&PointCloudPlugin::FloatConfigChanged, this, std::placeholders::_1);
 
 
         // build color lookup tables
         for (int i = 0; i < 256; i++)
         {
-            auto rainbow = Gwen::Utility::HSVToColor(i*360.0/256.0, 1.0, 1.0);
+			float h = i*340.0/256.0 - 20;
+			if (h < 0)
+				h += 360.0;
+            auto rainbow = Gwen::Utility::HSVToColor(h, 1.0, 1.0);
             rainbow_table_[i] = rainbow;
             jet_table_[i] = GetJetColour(i, 0, 255);
         }
@@ -615,6 +744,24 @@ color_buf_[i] = (alpha << 24) | gt_max_color.r | (gt_max_color.g << 8) | (gt_max
         ColoringModeChange("Interpolated");
 		
 		Subscribe(topic_->GetValue());
+	}
+
+	void ColorConfigChanged(Gwen::Color)
+	{
+		// Recolor all clouds
+		for (auto& cloud: clouds_)
+		{
+			BuildCloudBuffers(&cloud);
+		}
+	}
+
+	void FloatConfigChanged(float)
+	{
+		// Recolor all clouds
+		for (auto& cloud: clouds_)
+		{
+			BuildCloudBuffers(&cloud);
+		}
 	}
 
     // Returns interpolated color ramp values in a Jet like fashion

@@ -104,6 +104,8 @@ void PubViz::OnConfigSave(Gwen::Event::Info info)
 	//config += ",pitch," + std::to_string(canvas_->pitch_);
 	config += "show_config,";
 	config += (show_config_->GetChecked() ? "true" : "false");
+	config += "show_selection,";
+	config += (show_selection_->GetChecked() ? "true" : "false");
 	for (auto p: properties_)
 	{
 		config += ",";
@@ -258,6 +260,10 @@ void PubViz::LoadConfig(const char* filename)
 				if (key == "show_config")
 				{
 					show_config_->SetChecked(value == "true");
+				}
+				else if (key == "show_selection")
+				{
+					show_selection_->SetChecked(value == "true");
 				}
 				else
 				{
@@ -442,8 +448,13 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 		Gwen::Controls::MenuItem* pCheckable = pRoot->GetMenu()->AddItem( "Show Config" );
 		pCheckable->SetCheckable( true );
 		pCheckable->SetChecked( true );
-        pCheckable->onCheckChange.Add(this, &ThisClass::OnShowConfigChanged);
+		pCheckable->onCheckChange.Add(this, &ThisClass::OnShowConfigChanged);
 		show_config_ = pCheckable;
+		pCheckable = pRoot->GetMenu()->AddItem( "Show Selection" );
+		pCheckable->SetCheckable( true );
+		pCheckable->SetChecked( false );
+		pCheckable->onCheckChange.Add(this, &ThisClass::OnShowSelectionChanged);
+		show_selection_ = pCheckable;
 		pRoot->GetMenu()->AddItem(L"Plot", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Change Parameters", "", "Shift+P")->SetAction(this, &ThisClass::MenuItemSelect);
 		pause_item_ = pRoot->GetMenu()->AddItem(L"Pause", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
@@ -459,8 +470,15 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 		pRoot->GetMenu()->AddDivider();
 		pRoot->GetMenu()->AddItem(L"Reset", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Reset Origin", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
-	}	
-				
+	}
+
+	auto spage = GetRight()->GetTabControl()->AddPage("Selection")->GetPage();
+	selection_ = new Gwen::Controls::TreeControl(spage);
+	selection_->Dock(Pos::Fill);
+	selection_->SetBounds( 200, 10, 400, 200 );
+	spage->GetParent()->GetParent()->SetWidth(300);
+	selection_->GetParent()->GetParent()->GetParent()->Hide();
+	
 	auto page = GetLeft()->GetTabControl()->AddPage("Plugins")->GetPage();
 	
 	// now add the properties bar for plugins
@@ -585,6 +603,23 @@ void PubViz::OnShowConfigChanged(Gwen::Controls::Base* control)
 
     // eh, this isnt great but mostly works
     auto tree = plugin_tree_->GetParent()->GetParent()->GetParent();
+
+    if (item->GetChecked())
+    {
+        tree->Show();
+    }
+    else
+    {
+        tree->Hide();
+    }
+}
+
+void PubViz::OnShowSelectionChanged(Gwen::Controls::Base* control)
+{
+    auto item = (Gwen::Controls::MenuItem*)control;
+
+    // eh, this isnt great but mostly works
+    auto tree = selection_->GetParent()->GetParent()->GetParent();
 
     if (item->GetChecked())
     {

@@ -84,6 +84,8 @@ class PubViz: public Gwen::Controls::DockBase
 
 		void LoadConfig(const char* filename);
 
+		inline Gwen::Controls::TreeControl* GetSelection() { return selection_; }
+
 	private:
 		
 		void OnCategorySelect( Gwen::Event::Info info );
@@ -92,6 +94,7 @@ class PubViz: public Gwen::Controls::DockBase
 		void OnAddPluginFinish(Gwen::Controls::Base* control);
 		void OnCenter(Gwen::Controls::Base* control);
         void OnShowConfigChanged(Gwen::Controls::Base* control);
+		void OnShowSelectionChanged(Gwen::Controls::Base* control);
         void OnPause(Gwen::Controls::Base* control);
 		
 		void OnParametersClose(Gwen::Controls::Base* control)
@@ -106,9 +109,10 @@ class PubViz: public Gwen::Controls::DockBase
 		void ClearPlugins();
 		
 		Gwen::Controls::PropertyTree* plugin_tree_;
+		Gwen::Controls::TreeControl* selection_;
 		Gwen::Controls::Button* pause_button_;
 		Gwen::Controls::MenuItem* pause_item_;
-		Gwen::Controls::MenuItem* show_config_;
+		Gwen::Controls::MenuItem* show_config_, *show_selection_;
 		OpenGLCanvas* canvas_;
 		
 		Parameters* parameters_page_ = 0;
