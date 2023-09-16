@@ -592,8 +592,9 @@ public:
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 
-	virtual std::map<std::string, std::string> Select(uint32_t index) override
+	virtual std::map<std::string, std::string> Select(uint32_t index, pubviz::AABB& size) override
 	{
+		// todo maybe use a vector of pairs instead of a map so we preserve ordering?
 		std::map<std::string, std::string> props;
 		uint32_t current = 0;
 		for (auto& cloud: clouds_)
@@ -611,6 +612,10 @@ public:
 				props["x"] = std::to_string(x);
 				props["y"] = std::to_string(y);
 				props["z"] = std::to_string(z);
+				size.x = x - 0.1;
+				size.y = y - 0.1;
+				size.z = z - 0.1;
+				size.sx = size.sy = size.sz = 0.2;
 				if (data->point_type == pubsub::msg::PointCloud::POINT_XYZI)
 				{
 					props["i"] = std::to_string(((float*)data->data)[i*increment+3]);

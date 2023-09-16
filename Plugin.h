@@ -7,6 +7,7 @@
 #include <Gwen/Controls/PropertyTree.h>
 
 #include "properties.h"
+#include "AABB.h"
 
 namespace Gwen
 {
@@ -59,7 +60,7 @@ namespace pubviz
 		virtual uint32_t RenderSelect(uint32_t start_index) { return start_index; }
 
 		// Returns info about a selected item including bounds (todo)
-		virtual std::map<std::string, std::string> Select(uint32_t index) { return {}; }
+		virtual std::map<std::string, std::string> Select(uint32_t index, AABB& size) { return {}; }
 
 		// Returns if the plugin is enabled and should be rendered
 		bool Enabled()

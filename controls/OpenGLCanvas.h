@@ -11,6 +11,8 @@
 
 #include "../LocalXY.h"
 
+#include "../AABB.h"
+
 namespace ViewType
 {
 	constexpr const char* Orbit = "Orbit";
@@ -172,6 +174,7 @@ class OpenGLCanvas : public Gwen::Controls::Base
 
 		Gwen::Point select_start_,select_end_;
 		bool selecting_ = false;
+		std::vector<pubviz::AABB> selected_aabbs_;
 		
 		//double view_x_ = 0.0;
 		//double view_y_ = 0.0;

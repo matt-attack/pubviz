@@ -230,6 +230,7 @@ void OpenGLCanvas::OnMouseClickRight( int x, int y, bool bDown )
 		{
 			// todo dont allow double selection in shift mode
 			p->GetSelection()->Clear();
+			selected_aabbs_.clear();
 		}
 		auto sel = p->GetSelection();
 		for (auto id: selected)
@@ -242,11 +243,15 @@ void OpenGLCanvas::OnMouseClickRight( int x, int y, bool bDown )
 					//printf("Selected %i from plugin %s\n", id.first, p.plugin->GetTitle().c_str());
 					// Add properties about this selected item to our selection list
 					auto node = sel->AddNode("Point (" + std::to_string(id.first) + ")");
-					auto map = p.plugin->Select(id.first - p.start_id);
+					pubviz::AABB aabb;
+					auto map = p.plugin->Select(id.first - p.start_id, aabb);
 					for (auto& kv: map)
 					{
 						node->AddNode(kv.first + ": " + kv.second);
 					}
+
+					// add it to the list of selections to render
+					selected_aabbs_.push_back(aabb);
 					//todo need selection size so we can draw it
 					break;
 				}
@@ -542,6 +547,56 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		{
 			plugin->Render();
 		}
+	}
+
+	// Now draw any selections
+	if (selected_aabbs_.size())
+	{
+		glLineWidth(5.0);
+		glBegin(GL_LINES);
+		for (const auto& a: selected_aabbs_)
+		{
+			glColor3f(1, 1, 1);
+			// lower xy plane
+			glVertex3f(a.x       , a.y       , a.z       );
+			glVertex3f(a.x + a.sx, a.y       , a.z       );
+
+			glVertex3f(a.x + a.sx, a.y       , a.z       );
+			glVertex3f(a.x + a.sx, a.y + a.sy, a.z       );
+
+			glVertex3f(a.x + a.sx, a.y + a.sy, a.z       );
+			glVertex3f(a.x       , a.y + a.sy, a.z       );
+
+			glVertex3f(a.x       , a.y + a.sy, a.z       );
+			glVertex3f(a.x       , a.y       , a.z       );
+
+			// upper xy plane
+			glVertex3f(a.x       , a.y       , a.z + a.sz);
+			glVertex3f(a.x + a.sx, a.y       , a.z + a.sz);
+
+			glVertex3f(a.x + a.sx, a.y       , a.z + a.sz);
+			glVertex3f(a.x + a.sx, a.y + a.sy, a.z + a.sz);
+
+			glVertex3f(a.x + a.sx, a.y + a.sy, a.z + a.sz);
+			glVertex3f(a.x       , a.y + a.sy, a.z + a.sz);
+
+			glVertex3f(a.x       , a.y + a.sy, a.z + a.sz);
+			glVertex3f(a.x       , a.y       , a.z + a.sz);
+
+			// remaining lines
+			glVertex3f(a.x       , a.y       , a.z       );
+			glVertex3f(a.x       , a.y       , a.z + a.sz);
+
+			glVertex3f(a.x + a.sx, a.y       , a.z       );
+			glVertex3f(a.x + a.sx, a.y       , a.z + a.sz);
+
+			glVertex3f(a.x       , a.y + a.sy, a.z       );
+			glVertex3f(a.x       , a.y + a.sy, a.z + a.sz);
+
+			glVertex3f(a.x + a.sx, a.y + a.sy, a.z       );
+			glVertex3f(a.x + a.sx, a.y + a.sy, a.z + a.sz);
+		}
+		glEnd();
 	}
 	
 	glPopAttrib();
