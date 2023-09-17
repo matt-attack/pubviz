@@ -96,7 +96,7 @@ void GraphBase::OnMouseClickRight( int x, int y, bool bDown )
 {
 	if (bDown)
 	{
-		OnConfigureChannel(channels_[0]);
+		//OnConfigureChannel(channels_[0]);
 	}
 }
 
@@ -234,6 +234,13 @@ void GraphBase::OnConfigure(Base* control)
 		check->SetPos( 110, current_x);
         check->SetChecked(autoscale_y_);
 		dialog->autoscale_y_ = check;
+
+		Gwen::Controls::Button* button = new Gwen::Controls::Button( pWindow );
+		button->SetText( "Reset" );
+		button->SizeToContents();
+		button->SetPos( 135, current_x );
+		button->onPress.Add(this, &ThisClass::OnResetYScale, dialog);
+
 		current_x += 25;
     }
     {
@@ -278,6 +285,17 @@ void GraphBase::OnConfigure(Base* control)
 	}
 }
 
+void GraphBase::OnResetYScale(Gwen::Event::Info info)
+{
+	redo_scale_ = true;
+	UpdateScales();
+	Redraw();
+
+	auto dialog = (ConfigureDialog*)info.Data;
+	dialog->bottom_->SetText(std::to_string(min_y_));
+	dialog->top_->SetText(std::to_string(max_y_));
+}
+
 void GraphBase::OnConfigureClosed(Gwen::Event::Info info)
 {
 	auto dialog = (ConfigureDialog*)info.Data;
@@ -289,6 +307,11 @@ void GraphBase::OnConfigureClosed(Gwen::Event::Info info)
 	max_x_ = dialog->right_->GetFloatFromText();
 
 	style_ = dialog->style_->GetSelectedItem()->GetText().c_str();
+
+	UpdateScales();
+
+	dialog->bottom_->SetText(std::to_string(min_y_));
+	dialog->top_->SetText(std::to_string(max_y_));
 }
 
 GraphBase::Channel* GraphBase::CreateChannel(const std::string& topic, const std::string& field_x, const std::string& field_y)
@@ -560,34 +583,8 @@ void CalculateDivisions(std::vector<double>& divisions, double min, double max, 
     }
 }
 
-void GraphBase::Render( Skin::Base* skin )
+void GraphBase::UpdateScales()
 {
-	auto r = skin->GetRender();
-	
-	// do whatever we want here
-	r->SetDrawColor( m_Color );// start by clearing to background color
-	r->DrawFilledRect( GetRenderBounds() );
-	
-	r->SetDrawColor(Gwen::Color(0,0,0,255));
-
-	//AddSample(sin(fmod(pubsub::Time::now().toSec(), 3.14159*2.0)), pubsub::Time::now());
-	
-	const int left_padding = 80;
-	const int other_padding = 50;
-	
-	// target grid cell size
-	const int pixel_interval = 100;
-	
-	// Calculate size to make the graph
-	Gwen::Rect b = GetRenderBounds();
-	const int graph_width = b.w - left_padding - other_padding;
-	const int graph_height = b.h - other_padding*2.0;
-	
-	// Now calculate number of cells to make on each axis
-	double x_count = (int)std::max(1.0, (double)graph_width/(double)pixel_interval);
-	double y_count = (int)std::max(1.0, (double)graph_height/(double)pixel_interval);
-
-    // do autoscale
     if (autoscale_y_)
     {
         bool data_point = false;
@@ -680,6 +677,37 @@ void GraphBase::Render( Skin::Base* skin )
 			min_x_ -= 0.0001;
 		}
 	}
+}
+
+void GraphBase::Render( Skin::Base* skin )
+{
+	auto r = skin->GetRender();
+	
+	// do whatever we want here
+	r->SetDrawColor( m_Color );// start by clearing to background color
+	r->DrawFilledRect( GetRenderBounds() );
+	
+	r->SetDrawColor(Gwen::Color(0,0,0,255));
+
+	//AddSample(sin(fmod(pubsub::Time::now().toSec(), 3.14159*2.0)), pubsub::Time::now());
+	
+	const int left_padding = 80;
+	const int other_padding = 50;
+	
+	// target grid cell size
+	const int pixel_interval = 100;
+	
+	// Calculate size to make the graph
+	Gwen::Rect b = GetRenderBounds();
+	const int graph_width = b.w - left_padding - other_padding;
+	const int graph_height = b.h - other_padding*2.0;
+	
+	// Now calculate number of cells to make on each axis
+	double x_count = (int)std::max(1.0, (double)graph_width/(double)pixel_interval);
+	double y_count = (int)std::max(1.0, (double)graph_height/(double)pixel_interval);
+
+    // do autoscale
+	UpdateScales();
 
     // now determine the period to use
     // for this we want enough divisions to fit and to minimize significant figures

@@ -301,6 +301,8 @@ public:
 protected:
 
     void Layout(Gwen::Skin::Base* skin);
+
+	void UpdateScales();
 	
 	void OnRemove(Base* control);
     void OnRemoveSelect(Gwen::Controls::Base* pControl);
@@ -311,6 +313,7 @@ protected:
 
 	void OnConfigureClosed(Gwen::Event::Info info);
 	void OnConfigureChannelClosed(Gwen::Event::Info info);
+	void OnResetYScale(Gwen::Event::Info info);
 		
 	void OnMouseMoved(int x, int y, int dx, int dy) override;
 	bool OnMouseWheeled( int iDelta ) override;
