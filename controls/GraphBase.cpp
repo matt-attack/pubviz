@@ -24,23 +24,23 @@ using namespace Gwen;
 using namespace Gwen::Controls;
 
 
-GWEN_CONTROL_CONSTRUCTOR( GraphBase ) , remove_button_(this), configure_button_(this)
+GWEN_CONTROL_CONSTRUCTOR( GraphBase )
 {
 	m_Color = Gwen::Color( 255, 255, 255, 255 );
 	
-	auto remove_button = &remove_button_;//new Gwen::Controls::Button( this );
-	remove_button->SetText("-");
-	remove_button->SetPos(520, 10);
-    remove_button->SetFont(L"", 20, false);
-	remove_button->SetWidth(30);
-	remove_button->onPress.Add(this, &ThisClass::OnRemove);
+	remove_button_ = new Gwen::Controls::Button( this );
+	remove_button_->SetText("-");
+	remove_button_->SetPos(520, 10);
+    remove_button_->SetFont(L"", 20, false);
+	remove_button_->SetWidth(30);
+	remove_button_->onPress.Add(this, &ThisClass::OnRemove);
 
-	auto configure_button = &configure_button_;//new Gwen::Controls::Button( this );
-	configure_button->SetText("*");
-	configure_button->SetPos(520, 40);
-    configure_button->SetFont(L"", 20, false);
-	configure_button->SetWidth(30);
-	configure_button->onPress.Add(this, &ThisClass::OnConfigure);
+	configure_button_ = new Gwen::Controls::Button( this );
+	configure_button_->SetText("*");
+	configure_button_->SetPos(520, 40);
+    configure_button_->SetFont(L"", 20, false);
+	configure_button_->SetWidth(30);
+	configure_button_->onPress.Add(this, &ThisClass::OnConfigure);
 }
 
 struct ConfigureDialog
@@ -94,10 +94,27 @@ void GraphBase::OnMouseClickLeft( int x, int y, bool down )
 
 void GraphBase::OnMouseClickRight( int x, int y, bool bDown )
 {
+	DoMouseClickRight(x, y, bDown);
+}
+
+bool GraphBase::DoMouseClickRight( int x, int y, bool bDown )
+{
 	if (bDown)
 	{
-		//OnConfigureChannel(channels_[0]);
+		// find the channel
+		auto pos = CanvasPosToLocal(Gwen::Point(x,y));
+		if (pos.x > key_rect_.x && pos.y > key_rect_.y &&
+			pos.x < key_rect_.x + key_rect_.w)
+		{
+			int index = (pos.y-key_rect_.y+4)/20;
+			if (index < channels_.size())
+			{
+				OnConfigureChannel(channels_[index]);
+				return true;
+			}
+		}
 	}
+	return false;
 }
 
 
@@ -105,8 +122,8 @@ void GraphBase::OnConfigureChannel(Channel* channel)
 {
 	// try and figure out which channel
 	Controls::WindowControl* pWindow = new Controls::WindowControl( GetCanvas() );
-	pWindow->SetTitle( L"Configure Channel" );
-	pWindow->SetSize( 200, 275 + (is_2d_ ? 25 : 0) );
+	pWindow->SetTitle( "Configure Channel " + channel->GetTitle());
+	pWindow->SetSize( 300, 120 );
 	pWindow->MakeModal( true );
 	//pWindow->Position( Pos::Center );// doesnt work if we have no inner space left
     auto pos = GetCanvas()->GetRenderBounds();
@@ -118,30 +135,23 @@ void GraphBase::OnConfigureChannel(Channel* channel)
 	dialog->channel = channel;
 	auto button = new Gwen::Controls::Button( pWindow );
 	button->SetText("Apply");
-	button->SetPos( 70, 20 + 10 + 10 + (is_2d_ ? 0 : 25));
+	button->SetPos( 70, 30 + (is_2d_ ? 0 : 25));
 	button->SetWidth(70);
 	button->onPress.Add(this, &ThisClass::OnConfigureChannelClosed, dialog);
 
-    // add settings
-    {
-        //Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
-		//label->SetText( "X-Axis" );
-		//label->SizeToContents();
-		//label->SetPos( 10, 10 );
-    }
-	int current_x = 10 + 25;
+	int current_y = 10;
 	if (!is_2d_)
     {
 		Gwen::Controls::Label* label = new Gwen::Controls::Label( pWindow );
 		label->SetText( "Math" );
 		label->SizeToContents();
-		label->SetPos( 20, current_x);
+		label->SetPos( 10, current_y);
         Gwen::Controls::TextBox* box = new Gwen::Controls::TextBox( pWindow );
 		box->SetText( channel->math_string_ );// todo get from channel
-		box->SetPos( 70, current_x);
-        box->SetWidth(70);
+		box->SetPos( 70, current_y);
+        box->SetWidth(200);
 		dialog->math_ = box;
-		current_x += 25;
+		current_y += 25;
     }
 }
 
@@ -338,8 +348,8 @@ void GraphBase::Layout(Gwen::Skin::Base* skin)
 {   
     // handle 
     auto width = Width();
-	remove_button_.SetPos(width - 40, 10);
-	configure_button_.SetPos(width - 40, 40);
+	remove_button_->SetPos(width - 40, 10);
+	configure_button_->SetPos(width - 40, 40);
 
 	BaseClass::Layout(skin);
 }
@@ -897,6 +907,7 @@ void GraphBase::Render( Skin::Base* skin )
 	rr.h = channels_.size()*20 + 3;
 	r->SetDrawColor( Gwen::Color(0,0,0,255) );// start by clearing to background color
 	r->DrawFilledRect( rr );
+	key_rect_ = rr;
 	rr.x += 2;
 	rr.y += 2;
 	rr.w -= 4;

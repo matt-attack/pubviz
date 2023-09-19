@@ -124,7 +124,7 @@ class GraphCanvas : public GraphBase
 		void OnMouseMoved(int x, int y, int dx, int dy) override;
 		bool OnMouseWheeled( int iDelta ) override;
 		void OnMouseClickLeft( int /*x*/, int /*y*/, bool /*bDown*/ ) override;
-		public:
+	public:
 		Gwen::Controls::TextBox* field_name_box_;
 		Gwen::Controls::TextBox* topic_name_box_;
 		
