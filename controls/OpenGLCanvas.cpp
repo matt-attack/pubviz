@@ -208,7 +208,7 @@ void OpenGLCanvas::OnMouseClickRight( int x, int y, bool bDown )
 		int32_t start_x = std::min(start.x, end.x)*scale;
 		int32_t sw = std::max<int>(std::abs(start.x - end.x)*scale,1);
 		int32_t sh = std::max<int>(std::abs(start.y - end.y)*scale,1);
-		int32_t start_y = std::min(height - start.y, height - end.y)*scale;
+		int32_t start_y = std::min(height - start.y*scale, height - end.y*scale);
 		uint32_t* pixels = new uint32_t[sw*sh];
 		glReadPixels(start_x, start_y, sw, sh, GL_RGBA, GL_UNSIGNED_BYTE, (uint8_t*)pixels);
 
