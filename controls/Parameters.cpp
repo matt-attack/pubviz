@@ -63,7 +63,7 @@ void Parameters::SetNode(ps_node_t* node)
 void Parameters::Layout( Gwen::Skin::Base* skin )
 {
 	// Update all of the parameters
-	for (auto param: params_)
+	/*for (auto param : params_)
 	{
 		param.second->Update();
 	}
@@ -110,7 +110,7 @@ void Parameters::Layout( Gwen::Skin::Base* skin )
 		}
 		data->~Parameters();
 		free(data);
-	}
+	}*/
 	Invalidate();// we are being hacky, just always invalidate so we keep laying out
 }
 

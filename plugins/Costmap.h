@@ -227,6 +227,8 @@ public:
 			
 			glEnd();
 		}
+
+		glEnable(GL_BLEND);
 		
 		// Now draw the costmap itself
 		glEnable(GL_TEXTURE_2D);
@@ -253,6 +255,8 @@ public:
 
 		glBindTexture(GL_TEXTURE_2D, 0);
 		glDisable(GL_TEXTURE_2D);
+
+		glDisable(GL_BLEND);
 	}
 	
 	virtual void Initialize(Gwen::Controls::Properties* tree)
