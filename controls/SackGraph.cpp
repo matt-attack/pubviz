@@ -56,7 +56,10 @@ void SackGraph::OnMouseClickLeft( int x, int y, bool down )
 
 void SackGraph::OnMouseClickRight( int x, int y, bool down )
 {
-	BaseClass::OnMouseClickRight(x, y, down);
+	if (BaseClass::DoMouseClickRight(x, y, down))
+	{
+		return;
+	}
 
 	if (is_2d_)
 	{

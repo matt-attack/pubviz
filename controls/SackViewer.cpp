@@ -887,15 +887,27 @@ std::string format_time(uint64_t dt, int period)
 	if (period >= 1000000)
 	{
 		// minutes and seconds
-		int min = dt/60000000;
-		int sec = (dt/1000000)%60;
-		if (sec < 10)
+		uint64_t min = dt/60000000;
+		uint64_t hour = min/60;
+		uint64_t sec = (dt/1000000)%60;
+		if (hour > 1)
 		{
-			return std::to_string(min)+ "m0" + std::to_string(sec) + "s";
+			if (sec < 10)
+			{
+				return std::to_string(hour) + "h0" + std::to_string(min) + "m";
+			}
+			else
+			{
+				return std::to_string(hour) + "h" + std::to_string(min) + "m";
+			}
+		}
+		else if (sec < 10)
+		{
+			return std::to_string(min) + "m0" + std::to_string(sec) + "s";
 		}
 		else
 		{
-			return std::to_string(min)+ "m" + std::to_string(sec) + "s";
+			return std::to_string(min) + "m" + std::to_string(sec) + "s";
 		}
 	}
 	else
@@ -905,10 +917,17 @@ std::string format_time(uint64_t dt, int period)
 	}
 }
 
-const int num_periods = 18;
-int periods[] = {1000, 2000, 5000, 10000, 20000, 50000, 100000,
-				 200000, 500000, 1000000, 2000000, 5000000, 15000000,
-				 30000000, 60000000, 120000000, 300000000, 600000000 };
+const int num_periods = 22;
+uint64_t periods[] = {
+                      1000,       2000,       5000,// 1 ms, 2 ms, 5 ms
+                     10000,      20000,      50000,// 10 ms, 20 ms, 50 ms
+                    100000,     200000,     500000,// 100 ms, 200 ms, 500 ms
+                   1000000,    2000000,    5000000,// 1 s, 2 s, 5 s
+                  10000000,                        // 10s
+                  15000000,   30000000,   60000000,// 15 seconds, 30 seconds and 1 minute
+                 120000000,  300000000,  600000000,// 2 minutes, 5 minutes, 10 minutes
+                 900000000, 1800000000, 3600000000// 15 minutes, 30 minutes, 1 hour
+                 };
 
 void SackViewer::Render( Skin::Base* skin )
 {
@@ -942,9 +961,9 @@ void SackViewer::Render( Skin::Base* skin )
 	
 	// draw timeline labels, finding the period which fits the most that fit thats less than max_divs
 	const int min_div_width = 100;
-	int max_divs = graph_width/min_div_width;
+	uint64_t max_divs = graph_width/min_div_width;
 	int period_iter = num_periods - 1;
-	int period = periods[period_iter];
+	uint64_t period = periods[period_iter];
 	while (period_iter > 0)
 	{	
 		period_iter--;

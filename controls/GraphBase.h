@@ -48,8 +48,8 @@ struct Operation
 class PubViz;
 class GraphBase : public Gwen::Controls::Base
 {
-    Gwen::Controls::Button remove_button_;
-    Gwen::Controls::Button configure_button_;
+    Gwen::Controls::Button* remove_button_;
+    Gwen::Controls::Button* configure_button_;
 
 	friend class PubViz;
 		
@@ -298,6 +298,9 @@ public:
 		return is_2d_;
 	}
 
+	// returns true if handled
+	bool DoMouseClickRight( int /*x*/, int /*y*/, bool /*bDown*/ );
+
 protected:
 
     void Layout(Gwen::Skin::Base* skin);
@@ -337,6 +340,7 @@ protected:
     bool autoscale_y_ = true;
 
 	int key_width_ = 70;
+	Gwen::Rect key_rect_;
 	std::string style_ = "Line";// line, dots or both
 
 private:
