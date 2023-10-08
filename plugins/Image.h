@@ -14,6 +14,8 @@
 #include <Gwen/Controls/Property/Numeric.h>
 #include <Gwen/Controls/ImagePanel.h>
 
+#include "FreeImage.h"
+
 #define GLEW_STATIC
 #include <GL/glew.h>
 
@@ -72,6 +74,7 @@ class ImagePlugin: public pubviz::Plugin
 	
 	void UpdateFromMessage()
 	{
+		image_panel_->Show();
 		Redraw();
 		
 		if (texture_ != -1)
@@ -84,6 +87,7 @@ class ImagePlugin: public pubviz::Plugin
 		pixels.resize(last_msg_.width*last_msg_.height);
 		
 		// now fill in each pixel
+		GLenum texture_format = GL_RGBA;
 		if (last_msg_.type == pubsub::msg::Image::R8G8B8A8)
 		{
 			if (!CheckSize(last_msg_, 4)) { return; }
@@ -131,6 +135,45 @@ class ImagePlugin: public pubviz::Plugin
 				pixels[i] = (a << 24) | (px << 16) | (px << 8) | px;
 			}
 		}
+		else if (last_msg_.type == pubsub::msg::Image::YUYV)
+		{
+			if (!CheckSize(last_msg_, 2)) { return; }
+			for (int i = 1; i < pixels.size(); i++)
+			{
+        		auto y = last_msg_.data[i*2];
+        		auto u = last_msg_.data[i*2-1];
+        		auto v = last_msg_.data[i*2+1];
+        		if ((i&0b1) == 0)
+          			std::swap(u,v);
+        		int8_t c = (int8_t) (y - 16);
+        		int8_t d = (int8_t) (u - 128);
+        		int8_t e = (int8_t) (v - 128);
+
+				uint8_t a = 255;
+        		uint8_t r = (uint8_t) (c + (1.370705 * (e))); 
+        		uint8_t g = (uint8_t) (c - (0.698001 * (d)) - (0.337633 * (e)));
+        		uint8_t b = (uint8_t) (c + (1.732446 * (d)));
+				pixels[i] = (a << 24) | (b << 16) | (g << 8) | r;
+			}
+		}
+		else if (last_msg_.type == pubsub::msg::Image::JPEG)
+		{
+			FIMEMORY* mem = FreeImage_OpenMemory(last_msg_.data, last_msg_.data_length);
+			FIBITMAP* img = FreeImage_LoadFromMemory(FIF_JPEG, mem);
+			FIBITMAP* bits32 = FreeImage_ConvertTo32Bits( img );
+			FreeImage_FlipVertical( bits32 );
+			// copy!
+			memcpy(pixels.data(), FreeImage_GetBits( bits32 ), 4*last_msg_.height*last_msg_.width);
+			FreeImage_Unload( bits32 );
+			FreeImage_Unload( img );
+			FreeImage_CloseMemory(mem);
+
+#ifdef FREEIMAGE_BIGENDIAN
+			texture_format = GL_RGBA;
+#else
+			texture_format = GL_BGRA;
+#endif
+		}
 		else
 		{
 			printf("ERROR: Unhandled image type\n");
@@ -161,7 +204,7 @@ class ImagePlugin: public pubviz::Plugin
 		  last_msg_.width,
 		  last_msg_.height,
 		  0,
-		  GL_RGBA,
+		  texture_format,
 		  GL_UNSIGNED_BYTE,
 		  pixels.data());
 
@@ -264,6 +307,8 @@ public:
 	virtual void Render()
 	{
 		// nothing to do here since we dont render to the world
+
+		// todo allow right clicking to save as
 	}
 
 	virtual void Initialize(Gwen::Controls::Properties* tree)
@@ -274,6 +319,7 @@ public:
 		image_panel_ = new Gwen::Controls::ImagePanel(page->GetPage());
 		image_panel_->Dock(Gwen::Pos::Fill);
 		image_panel_->SetKeepAspectRatio(true);
+		image_panel_->Hide();
 
 		// add any properties
 		topic_ = AddTopicProperty(tree, "Topic", "/image", "", "pubsub__Image");
