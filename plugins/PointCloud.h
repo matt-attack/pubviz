@@ -695,7 +695,8 @@ public:
 
 		// add any properties
 		alpha_ = AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1, "Point transparency.");
-		
+		alpha_->onChange = std::bind(&PointCloudPlugin::FloatConfigChanged, this, std::placeholders::_1);
+
 		topic_ = AddTopicProperty(tree, "Topic", "/pointcloud", "", "pubsub__PointCloud");
 		topic_->onChange = std::bind(&PointCloudPlugin::Subscribe, this, std::placeholders::_1);
 		

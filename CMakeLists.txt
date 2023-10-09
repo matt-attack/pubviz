@@ -18,8 +18,9 @@ add_executable(pubviz WIN32
 )
 target_include_directories(pubviz PUBLIC
   ${GWEN_INCLUDE_DIRECTORIES}
-  ${pubsub_INCLUDE_DIRECTORIES})
-target_link_libraries(pubviz GWEN_opengl GWEN_static pubsub GLU)
+  debug ${librucksack_DEBUG_LIBRARIES}
+  optimized ${librucksack_LIBRARIES})
+target_link_libraries(pubviz GWEN_opengl GWEN_static pubsub glu32)
 
 # Sackviz
 add_executable(sackviz WIN32
@@ -32,23 +33,25 @@ target_include_directories(sackviz PUBLIC
   ${GWEN_INCLUDE_DIRS}
   ${pubsub_INCLUDE_DIRS}
   ${librucksack_INCLUDE_DIRS})
-target_link_libraries(sackviz GWEN_opengl GWEN_static ${pubsub_LIBRARIES} ${librucksack_LIBRARIES})
+target_link_libraries(sackviz GWEN_opengl GWEN_static ${pubsub_LIBRARIES} 
+  debug ${librucksack_DEBUG_LIBRARIES}
+  optimized ${librucksack_LIBRARIES})
 set_property(TARGET sackviz PROPERTY CXX_STANDARD 11)
 
 # Canviz
-add_executable(canviz
-  controls/canviz.cpp
-  tools/canviz.cpp
+#add_executable(canviz
+#  controls/canviz.cpp
+#  tools/canviz.cpp
 #  controls/GraphBase.cpp
 #  controls/SackGraph.cpp
 #  controls/SackViewer.cpp
-)
-target_include_directories(canviz PUBLIC
-  ${GWEN_INCLUDE_DIRS}
-  ${pubsub_INCLUDE_DIRS}
-  ${librucksack_INCLUDE_DIRS})
-target_link_libraries(canviz GWEN_opengl GWEN_static ${pubsub_LIBRARIES} ${librucksack_LIBRARIES})
-set_property(TARGET canviz PROPERTY CXX_STANDARD 11)
+#)
+#target_include_directories(canviz PUBLIC
+#  ${GWEN_INCLUDE_DIRS}
+#  ${pubsub_INCLUDE_DIRS}
+#  ${librucksack_INCLUDE_DIRS})
+#target_link_libraries(canviz GWEN_opengl GWEN_static ${pubsub_LIBRARIES} ${librucksack_LIBRARIES})
+#set_property(TARGET canviz PROPERTY CXX_STANDARD 11)
 
 set(${PROJECT_NAME}_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
     CACHE INTERNAL "${PROJECT_NAME}: Include Directories" FORCE)

@@ -17,6 +17,7 @@
 #endif
 
 #include <cmath>
+#include <unordered_map>
 
 #undef near
 
