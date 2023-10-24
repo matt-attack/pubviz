@@ -361,7 +361,11 @@ void SackViewer::OnPreviousMessage(Gwen::Controls::Base* control)
 		return;
 	}
 	
-	SetPlayheadTime(data.messages[std::max(viewer.current_message - 1, 0)].time);
+	int index = std::max(viewer.current_message - 1, 0);
+	auto time = data.messages[index].time;
+	selected_message_topic_ = topic;
+	selected_message_index_ = index;
+	SetPlayheadTime(time);
 }
 
 void SackViewer::OnNextMessage(Gwen::Controls::Base* control)
@@ -375,7 +379,12 @@ void SackViewer::OnNextMessage(Gwen::Controls::Base* control)
 		return;
 	}
 
-	SetPlayheadTime(data.messages[std::min<int>(viewer.current_message + 1, data.messages.size() - 1)].time);
+	int index = std::min<int>(viewer.current_message + 1, data.messages.size() - 1);
+	auto time = data.messages[index].time;
+
+	selected_message_topic_ = topic;
+	selected_message_index_ = index;
+	SetPlayheadTime(time);
 }
 
 void SackViewer::OnLastMessage(Gwen::Controls::Base* control)
@@ -388,6 +397,8 @@ void SackViewer::OnLastMessage(Gwen::Controls::Base* control)
 		return;
 	}
 
+	selected_message_topic_ = topic;
+	selected_message_index_ = data.messages.size() - 1;
 	auto time = data.messages[data.messages.size() - 1].time;
 	SetPlayheadTime(time);
 }
@@ -402,6 +413,8 @@ void SackViewer::OnFirstMessage(Gwen::Controls::Base* control)
 		return;
 	}
 
+	selected_message_topic_ = topic;
+	selected_message_index_ = 0;
 	auto time = data.messages[0].time;
 	SetPlayheadTime(time);
 }
@@ -722,7 +735,6 @@ void SackViewer::UpdateViewers()
 {
     auto current_time = playhead_time_;
 	// Now update topic visualizations based on the new playhead position
-	int i = 0;
 	for (auto& t: bag_data_)
 	{
 		auto viewer = viewers_.find(t.first);
@@ -735,6 +747,12 @@ void SackViewer::UpdateViewers()
 		auto topic = t.second;
 		auto msg_index = BinarySearch(current_time, topic.messages);
 
+		if (t.first == selected_message_topic_)
+		{
+			selected_message_topic_ = "";
+			msg_index = selected_message_index_;
+		}
+	
 		if (msg_index == viewer->second.current_message)
 		{
 			continue;

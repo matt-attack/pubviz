@@ -24,6 +24,11 @@ class PubViz;
 class SackViewer : public Gwen::Controls::Base
 {
 	friend class PubViz;
+
+	// used to select next message
+	std::string selected_message_topic_;
+	int selected_message_index_;
+
 public:
 
 	GWEN_CONTROL( SackViewer, Gwen::Controls::Base );
