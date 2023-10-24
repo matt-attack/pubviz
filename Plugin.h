@@ -38,6 +38,7 @@ namespace pubviz
 		Gwen::Controls::Button* plugin_button_;
 
 		Gwen::Controls::CheckBox* enabled_;
+		Gwen::Controls::TreeNode* tree_node_;
 
 	public:
 		virtual ~Plugin() {};
@@ -99,6 +100,8 @@ namespace pubviz
 			std::string out;
 			out += "enabled,";
 			out += (enabled_->IsChecked() ? "true" : "false");
+			out += ",collapsed,";
+			out += tree_node_->GetToggleButton()->GetToggleState() ? "false" : "true";
 			// lets just write it as CSV
 			int i = 0;
 			for (auto& prop : properties_)
@@ -125,6 +128,18 @@ namespace pubviz
 				if (pts[i] == "enabled")
 				{
 					enabled_->SetChecked(pts[i + 1] == "true");
+					continue;
+				}
+				else if (pts[i] == "collapsed")
+				{
+					if (pts[i+1] == "true")
+					{
+						tree_node_->Close();
+					}
+					else
+					{
+						tree_node_->Open();
+					}
 					continue;
 				}
 

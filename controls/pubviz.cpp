@@ -91,21 +91,16 @@ void PubViz::OnConfigSave(Gwen::Event::Info info)
 	std::string config;
 	// save our own configuration first
 	config += "pubviz:";
-	//config += "view,";
-	//if (canvas_->view_type_ == ViewType::FPS)
-	//{
-	//	config += "fps";
-	//}
-	//else
-	//{
-	//	config += (canvas_->view_type_ == ViewType::Orbit ? "orbit" : "topdown");
-	//}
-	//config += ",yaw," + std::to_string(canvas_->yaw_);
-	//config += ",pitch," + std::to_string(canvas_->pitch_);
 	config += "show_config,";
 	config += (show_config_->GetChecked() ? "true" : "false");
-	config += "show_selection,";
+	config += ",show_selection,";
 	config += (show_selection_->GetChecked() ? "true" : "false");
+	config += ",show_status_bar,";
+	config += (show_status_bar_->GetChecked() ? "true" : "false");
+	config += ",window_width,";
+	config += std::to_string(GetParent()->Width());
+	config += ",window_height,";
+	config += std::to_string(GetParent()->Height());
 	for (auto p: properties_)
 	{
 		config += ",";
@@ -120,7 +115,6 @@ void PubViz::OnConfigSave(Gwen::Event::Info info)
 		config += p->GetConfiguration();
 		config += "\n";
 	}
-	//printf("%s\n", config.c_str());
 
 	// save graphs
 	for (auto g : graphs_)
@@ -236,27 +230,6 @@ void PubViz::LoadConfig(const char* filename)
 				auto key = pts[i];
 				auto value = pts[i + 1];
 
-				/*if (key == "view")
-				{
-					if (value == "fps")
-					{
-						canvas_->SetViewType(ViewType::FPS);
-					}
-					else
-					{
-						canvas_->SetViewType(value == "orbit" ? ViewType::Orbit : ViewType::TopDown);
-					}
-				}
-				else if (key == "pitch")
-				{
-					pitch = std::atof(value.c_str());
-					canvas_->SetViewAngle(pitch, yaw);
-				}
-				else if (key == "yaw")
-				{
-					yaw = std::atof(value.c_str());
-					canvas_->SetViewAngle(pitch, yaw);
-				}*/
 				if (key == "show_config")
 				{
 					show_config_->SetChecked(value == "true");
@@ -264,6 +237,18 @@ void PubViz::LoadConfig(const char* filename)
 				else if (key == "show_selection")
 				{
 					show_selection_->SetChecked(value == "true");
+				}
+				else if (key == "show_status_bar")
+				{
+					show_status_bar_->SetChecked(value == "true");
+				}
+				else if (key == "window_width")
+				{
+					GetParent()->SetWidth(std::atoi(value.c_str()));
+				}
+				else if (key == "window_height")
+				{
+					GetParent()->SetHeight(std::atoi(value.c_str()));
 				}
 				else
 				{
@@ -455,6 +440,12 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 		pCheckable->SetChecked( false );
 		pCheckable->onCheckChange.Add(this, &ThisClass::OnShowSelectionChanged);
 		show_selection_ = pCheckable;
+		pCheckable = pRoot->GetMenu()->AddItem( "Show Status Bar" );
+		pCheckable->SetCheckable( true );
+		pCheckable->SetChecked( true );
+		pCheckable->onCheckChange.Add(this, &ThisClass::OnShowStatusBarChanged);
+		show_status_bar_ = pCheckable;
+		pRoot->GetMenu()->AddDivider();
 		pRoot->GetMenu()->AddItem(L"Plot", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Change Parameters", "", "Shift+P")->SetAction(this, &ThisClass::MenuItemSelect);
 		pause_item_ = pRoot->GetMenu()->AddItem(L"Pause", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
@@ -472,7 +463,7 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 		pRoot->GetMenu()->AddItem(L"Reset Origin", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 	}
 
-	auto spage = GetRight()->GetTabControl()->AddPage("Selection")->GetPage();
+	auto spage = GetBottom()->GetTabControl()->AddPage("Selection")->GetPage();
 	selection_ = new Gwen::Controls::TreeControl(spage);
 	selection_->Dock(Pos::Fill);
 	selection_->SetBounds( 200, 10, 400, 200 );
@@ -511,14 +502,6 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 		canvas_->ShowOrigin(b);
 	};
 	properties_["Show Origin"] = origin;
-
-	//auto row = props->Add(L"Background Color", new Gwen::Controls::Property::ColorSelector(props), L"50 50 50");
-	//row->onChange.Add(this, &ThisClass::OnBackgroundChange);
-	//auto row2 = props->Add(L"WGS84 Frame", new Gwen::Controls::Property::Checkbox(props), L"false");
-	//row2->onChange.Add(this, &ThisClass::OnFrameChange);
-	//auto row3 = props->Add(L"Show Origin", new Gwen::Controls::Property::Checkbox(props), L"true");
-	//row3->onChange.Add(this, &ThisClass::OnShowOriginChange);
-
 
 	plugin_tree_->ExpandAll();
 	
@@ -631,6 +614,20 @@ void PubViz::OnShowSelectionChanged(Gwen::Controls::Base* control)
     }
 }
 
+void PubViz::OnShowStatusBarChanged(Gwen::Controls::Base* control)
+{
+    auto item = (Gwen::Controls::MenuItem*)control;
+
+    if (item->GetChecked())
+    {
+        m_StatusBar->Show();
+    }
+    else
+    {
+        m_StatusBar->Hide();
+    }
+}
+
 void PubViz::OnPause(Gwen::Controls::Base* control)
 {
     canvas_->SetPaused(!canvas_->Paused());
@@ -668,17 +665,17 @@ pubviz::Plugin* PubViz::AddPlugin(const std::string& name)
 	plugin->plugin_button_ = node->GetButton();
 	plugin->canvas_ = canvas_;
 
-//use this for enable then make sure to save it
+	//use this for enable then make sure to save it
 	auto box = new Gwen::Controls::CheckBox(node->GetButton());
 	box->Dock(Pos::Right);
 	box->SetChecked(true);
 	box->SetMargin(Padding(0, 0, 5, 0));
 
+	plugin->tree_node_ = node;
 	plugin->enabled_ = box;
 	plugin->Initialize(props);
 	props->SetSplitWidth(150);
 	plugin->props_ = props;
-
 
 	node->Position(Pos::Right);
 	

@@ -492,11 +492,13 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	auto r = skin->GetRender();
 	
 	// do whatever we want here
-	skin->GetRender()->SetDrawColor( m_Color );// start by clearing to background color
-	skin->GetRender()->DrawFilledRect( GetRenderBounds() );
+	r->SetDrawColor( m_Color );// start by clearing to background color
+	r->DrawFilledRect( GetRenderBounds() );
 
+	auto bounds = GetRenderBounds();
+
+	auto cb = GetCanvas()->GetRenderBounds();
     auto origin = LocalPosToCanvas();
-	origin.y -= 20;// skip past menu bar
     auto width = Width();
     auto height = Height();
 	
@@ -515,6 +517,8 @@ void OpenGLCanvas::Render( Skin::Base* skin )
     float vp[4];
     glGetFloatv(GL_VIEWPORT, vp);
 	auto scale = GetCanvas()->Scale();
+	// convert the origin to offset of our bottom left from the bottom left of the window
+	origin.y = cb.h - (origin.y + height);
 	glViewport(origin.x * scale, origin.y * scale, width * scale, height * scale);
 	
 	SetupViewMatrices();
@@ -630,15 +634,15 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	// Draw the selection box
 	if (selecting_)
 	{
-		skin->GetRender()->SetDrawColor( Gwen::Color(255, 0, 0, 128) );// start by clearing to background color
-		Gwen::Rect r;
+		r->SetDrawColor( Gwen::Color(255, 0, 0, 128) );// start by clearing to background color
+		Gwen::Rect rct;
 		auto p = CanvasPosToLocal(select_start_);
-		r.x = select_start_.x;
-		r.y = select_start_.y;
-		r.w = select_end_.x - r.x;
-		r.h = select_end_.y - r.y;
-		r.x = p.x;
-		r.y = p.y;
-		skin->GetRender()->DrawFilledRect( r );
+		rct.x = select_start_.x;
+		rct.y = select_start_.y;
+		rct.w = select_end_.x - rct.x;
+		rct.h = select_end_.y - rct.y;
+		rct.x = p.x;
+		rct.y = p.y;
+		r->DrawFilledRect( rct );
 	}
 }
