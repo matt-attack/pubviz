@@ -128,7 +128,7 @@ protected:
     {
         Gwen::Controls::TabButton* first;
         Gwen::Controls::TreeControl* second;
-        int current_message;
+        int current_message = -1;
     };
 		
 	std::map<std::string, Viewer> viewers_;

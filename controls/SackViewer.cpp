@@ -360,7 +360,7 @@ void SackViewer::OnPreviousMessage(Gwen::Controls::Base* control)
 	{
 		return;
 	}
-	
+
 	int index = std::max(viewer.current_message - 1, 0);
 	auto time = data.messages[index].time;
 	selected_message_topic_ = topic;
@@ -783,7 +783,7 @@ void SackViewer::UpdateViewers()
 
         const int max_array_length = 100;
 		
-		int i = 1;
+		int it = 1;
 		struct ps_deserialize_iterator iter = ps_deserialize_start((const char*)msg.msg, &topic.def);
 		const struct ps_msg_field_t* field; uint32_t length; const char* ptr;
 		while (ptr = ps_deserialize_iterate(&iter, &field, &length))
@@ -822,38 +822,47 @@ void SackViewer::UpdateViewers()
                     }
 
 					// non dynamic types 
+					int64_t value = 0;
 					switch (field->type)
 					{
 					case FT_Int8:
-						str += std::to_string((int)*(int8_t*)ptr);
+						str += std::to_string(*(int8_t*)ptr);
+						value = (int64_t)*(int8_t*)ptr;
 						ptr += 1;
 						break;
 					case FT_Int16:
-						str += std::to_string((int)*(int16_t*)ptr);
+						str += std::to_string(*(int16_t*)ptr);
+						value = (int64_t)*(int16_t*)ptr;
 						ptr += 2;
 						break;
 					case FT_Int32:
-						str += std::to_string((int)*(int32_t*)ptr);
+						str += std::to_string(*(int32_t*)ptr);
+						value = (int64_t)*(int32_t*)ptr;
 						ptr += 4;
 						break;
 					case FT_Int64:
-						str += std::to_string((long int)*(int64_t*)ptr);
+						str += std::to_string(*(int64_t*)ptr);
+						value = (int64_t)*(int64_t*)ptr;
 						ptr += 8;
 						break;
 					case FT_UInt8:
-						str += std::to_string((int)*(uint8_t*)ptr);
+						str += std::to_string(*(uint8_t*)ptr);
+						value = (int64_t)*(uint8_t*)ptr;
 						ptr += 1;
 						break;
 					case FT_UInt16:
-						str += std::to_string((int)*(uint16_t*)ptr);
+						str += std::to_string(*(uint16_t*)ptr);
+						value = (int64_t)*(uint16_t*)ptr;
 						ptr += 2;
 						break;
 					case FT_UInt32:
-						str += std::to_string((unsigned int)*(uint32_t*)ptr);
+						str += std::to_string(*(uint32_t*)ptr);
+						value = (int64_t)*(uint32_t*)ptr;
 						ptr += 4;
 						break;
 					case FT_UInt64:
-						str += std::to_string((unsigned long int)*(uint64_t*)ptr);
+						str += std::to_string(*(uint64_t*)ptr);
+						value = (int64_t)*(uint64_t*)ptr;
 						ptr += 8;
 						break;
 					case FT_Float32:
@@ -866,6 +875,43 @@ void SackViewer::UpdateViewers()
 						break;
 					default:
 						printf("ERROR: unhandled field type when parsing....\n");
+					}
+
+					if (field->flags > 0)
+					{
+						if (field->flags == FF_ENUM)
+						{
+							const char* name = "Enum Not Found";
+							for (unsigned int i = 0; i < topic.def.num_enums; i++)
+							{
+								if (topic.def.enums[i].field == (it-1) && value == topic.def.enums[i].value)
+								{
+									name = topic.def.enums[i].name;
+								}
+							}
+
+							str += " (";
+							str += name;
+							str += ")";
+							//printf(" (%s)", name);
+						}
+						else if (field->flags == FF_BITMASK)
+						{
+							const char* name = "Enum Not Found";
+							printf(" (");
+							for (unsigned int i = 0; i < topic.def.num_enums; i++)
+							{
+								if (topic.def.enums[i].field == (it - 1) && (topic.def.enums[i].value & value) != 0)
+								{
+									name = topic.def.enums[i].name;
+									//printf("%s, ", name);
+									str += name;
+									str += ", ";
+								}
+							}
+							str += ")";
+							//printf(")");
+						}
 					}
 
 					if (field->length == 1)
@@ -884,7 +930,7 @@ void SackViewer::UpdateViewers()
 			}
 			//color based on change from the last one
 			auto node = tree->AddNode(str);
-			if (i >= items.size() || str != items[i])
+			if (it >= items.size() || str != items[it])
 			{
 				node->GetButton()->SetTextColorOverride(Gwen::Color(255, 0, 0, 255));
 			}
@@ -893,7 +939,7 @@ void SackViewer::UpdateViewers()
 			node->UserData.Set<Gwen::Controls::TreeNode*>("base", tree);
 			node->GetButton()->DragAndDrop_SetPackage(true, "topic");
             node->onRightPress.Add(this, &ThisClass::OnFieldRightClick);
-			i++;
+			it++;
 		}
 		tree->ExpandAll();
 	}
