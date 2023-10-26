@@ -20,7 +20,7 @@ target_include_directories(pubviz PUBLIC
   ${GWEN_INCLUDE_DIRECTORIES}
   debug ${librucksack_DEBUG_LIBRARIES}
   optimized ${librucksack_LIBRARIES})
-target_link_libraries(pubviz GWEN_opengl GWEN_static pubsub glu32)
+target_link_libraries(pubviz GWEN_opengl GWEN_static pubsub GLU)
 
 # Sackviz
 add_executable(sackviz WIN32
