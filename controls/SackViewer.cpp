@@ -563,7 +563,7 @@ void SackViewer::OpenFile(const std::string& file)
 		if (val.def.name == 0)
 		{
 			ps_copy_message_definition(&val.def, &info->definition);
-			val.latched = info->latched;
+			val.latched = false;//info->latched;
 		}
 	}
 

@@ -32,19 +32,19 @@ jobs:
       run: |
         cd gwen/gwen
         cmake .
-        cmake --build .
+        cmake --build . -j $(nproc)
     - name: build pubsub
       run: |
         cd pubsub
         cmake .
-        cmake --build .
+        cmake --build . -j $(nproc)
     - name: build rucksack
       run: |
         cd rucksack
         cmake .
-        cmake --build .
+        cmake --build . -j $(nproc)
     - name: build pubviz
       run: |
         cd pubviz
         cmake .
-        cmake --build .
+        cmake --build . -j $(nproc)
