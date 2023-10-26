@@ -335,7 +335,10 @@ void SackViewer::OnMenuItemSelect(Gwen::Controls::Base* pControl)
 		tree->AllowMultiSelect( true );
 		tree->SetBounds( 240, 30, 200, 200 );
 		tree->ExpandAll();
-		viewers_[title] = {button, tree};
+		Viewer viewer;
+		viewer.first = button;
+		viewer.second = tree;
+		viewers_[title] = viewer;
 		button->OnPress();// set this tab as active
 		
 		UpdateViewers();
