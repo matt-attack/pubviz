@@ -27,7 +27,7 @@ jobs:
     - run: ls pubsub
     - run: ls rucksack
     - run: ls pubviz
-	- run: ls gwen
+    - run: ls gwen
     - name: build gwen
       run: |
         cd gwen/gwen
