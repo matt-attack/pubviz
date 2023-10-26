@@ -28,7 +28,7 @@
 
 #include <pubsub/Costmap.msg.h>
 
-class CostmapPlugin: public Plugin
+class CostmapPlugin: public pubviz::Plugin
 {
 	FloatProperty* alpha_;
 	ColorProperty* color_;
@@ -109,14 +109,7 @@ class CostmapPlugin: public Plugin
 			ps_sub_destroy(&subscriber_);
 		}
 		
-		if (texture_ != -1)
-		{
-			glDeleteTextures(1, &texture_);
-			last_msg_.data_length = 0;
-			free(last_msg_.data);
-			last_msg_.data = 0;
-			texture_ = -1;
-		}
+		Clear();
 		
 		current_topic_ = str;
     	struct ps_subscriber_options options;
@@ -161,6 +154,19 @@ public:
 			glDeleteTextures(1, &texture_);
 		}
 	}
+
+	// Clear out any historical data so the view gets cleared
+	virtual void Clear()
+	{
+		if (texture_ != -1)
+		{
+			glDeleteTextures(1, &texture_);
+			last_msg_.data_length = 0;
+			free(last_msg_.data);
+			last_msg_.data = 0;
+			texture_ = -1;
+		}
+	}
 	
 		
 	virtual void Update()
@@ -172,6 +178,13 @@ public:
 		{
 			while (data = (pubsub::msg::Costmap*)ps_sub_deque(&subscriber_))
 			{
+				if (Paused())
+				{
+					free(data->data);
+					free(data);//todo use allocator free
+					continue;
+				}
+
 				// user is responsible for freeing the message and its arrays
 				last_msg_ = *data;
 				free(data->data);
@@ -214,6 +227,8 @@ public:
 			
 			glEnd();
 		}
+
+		glEnable(GL_BLEND);
 		
 		// Now draw the costmap itself
 		glEnable(GL_TEXTURE_2D);
@@ -240,19 +255,20 @@ public:
 
 		glBindTexture(GL_TEXTURE_2D, 0);
 		glDisable(GL_TEXTURE_2D);
+
+		glDisable(GL_BLEND);
 	}
 	
 	virtual void Initialize(Gwen::Controls::Properties* tree)
 	{
 		// add any properties
-		alpha_ = AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1);
+		alpha_ = AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1, "Costmap transparency.");
 		
-		color_ = AddColorProperty(tree, "Outline Color", Gwen::Color(255,50,50));
-		
-		topic_ = AddTopicProperty(tree, "Topic", "/costmap");
+		topic_ = AddTopicProperty(tree, "Topic", "/costmap", "", "pubsub__Costmap");
 		topic_->onChange = std::bind(&CostmapPlugin::Subscribe, this, std::placeholders::_1);
 		
-		show_outline_ = AddBooleanProperty(tree, "Show Outline", true);
+		show_outline_ = AddBooleanProperty(tree, "Show Outline", true, "If true, draw an outline around the costmap.");
+		color_ = AddColorProperty(tree, "Outline Color", Gwen::Color(255,50,50), "Color to use to draw border of costmap.");
 		
 		Subscribe(topic_->GetValue());
 	}
@@ -262,5 +278,7 @@ public:
 		return "Costmap";
 	}
 };
+
+REGISTER_PLUGIN("costmap", CostmapPlugin)
 
 #endif

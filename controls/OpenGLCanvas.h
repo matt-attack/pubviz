@@ -7,20 +7,31 @@
 #include <Gwen/Controls/Label.h>
 #include <Gwen/Gwen.h>
 #include <Gwen/Skin.h>
+#include "../properties.h"
 
-#include "LocalXY.h"
+#include "../LocalXY.h"
 
-enum class ViewType
+#include "../AABB.h"
+
+namespace ViewType
 {
-	TopDown = 0,
-	Orbit = 1
-};
+	constexpr const char* Orbit = "Orbit";
+	constexpr const char* TopDown = "Top Down";
+	constexpr const char* FPS = "FPS";
+}
 
-class Plugin;
+namespace pubviz
+{
+	class Plugin;
+}
 class PubViz;
 class OpenGLCanvas : public Gwen::Controls::Base
 {
 	friend class PubViz;
+		unsigned int selection_texture_ = 0;
+		unsigned int selection_frame_buffer_ = 0;
+
+		void SetupViewMatrices();
 	public:
 
 		LocalXYUtil local_xy_;
@@ -32,7 +43,7 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		const Gwen::Color & GetColor() { return m_Color; }
 		void SetColor( const Gwen::Color & col ) { m_Color = col; }
 		
-		std::vector<Plugin*> plugins_;
+		std::vector<pubviz::Plugin*> plugins_;
 		
 		void GetMousePosition(double& x, double& y)
 		{
@@ -42,20 +53,35 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		
 		void ResetView();
 		
-		void SetViewType(ViewType type)
+		void SetViewType(std::string type)
 		{
-			view_type_ = type;
+			view_type_->SetValue(type);
 			
 			ResetView();
 			
 			Redraw();
 		}
 
+		inline std::string GetViewType()
+		{
+			return view_type_->GetValue();
+		}
+
+		inline bool Paused()
+		{
+			return paused_;
+		}
+
+		inline void SetPaused(bool paused)
+		{
+			paused_ = paused;
+		}
+
 		void ResetViewOrigin()
 		{
-			view_x_ = 0.0;
-			view_y_ = 0.0;
-			view_z_ = 0.0;
+			view_x_->SetValue(0.0);
+			view_y_->SetValue(0.0);
+			view_z_->SetValue(0.0);
 
 			view_abs_x_ = 0.0;
 			view_abs_y_ = 0.0;
@@ -74,6 +100,7 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		double view_lon_ = 0.0;
 		double view_alt_ = 0.0;
 
+
 		// sets the origin if it hasnt already been set
 		void SetLocalXY(double lat, double lon)
 		{
@@ -85,9 +112,9 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		
 		void SetViewOrigin(double x, double y, double z, double lat, double lon, double alt)
 		{
-			view_x_ = x;
-			view_y_ = y;
-			view_z_ = z;
+			view_x_->SetValue(x);
+			view_y_->SetValue(y);
+			view_z_->SetValue(z);
 			view_lat_ = lat;
 			view_lon_ = lon;
 			view_alt_ = alt;
@@ -98,41 +125,72 @@ class OpenGLCanvas : public Gwen::Controls::Base
 			Redraw();
 		}
 
+		void ResetOrigin()
+		{
+			local_xy_ = LocalXYUtil();
+		}
+
+		void Screenshot();
+
 		bool wgs84_mode_ = false;
 		void SetFrame(bool wgs84)
 		{
 			wgs84_mode_ = wgs84;
+		}
+
+		bool show_origin_ = true;
+		void ShowOrigin(bool yn)
+		{
+			show_origin_ = yn;
 		}
 		
 		virtual void Layout( Gwen::Skin::Base* skin ) override;
 		
 		void SetViewAngle(double pitch, double yaw)
 		{
-			if (view_type_ == ViewType::Orbit)
+			if (view_type_->GetValue() == ViewType::Orbit)
 			{
-				pitch_ = pitch;
-				yaw_ = yaw;
+				if (pitch_->GetValue() != pitch || yaw_->GetValue() != yaw)
+				{
+					Redraw();
+				}
+				pitch_->SetValue(pitch);
+				yaw_->SetValue(yaw);
 			}
 		}
+
+		std::map<std::string, PropertyBase*> CreateProperties(Gwen::Controls::Properties* props);
 
 	protected:
 	
 		void OnMouseMoved(int x, int y, int dx, int dy) override;
 		bool OnMouseWheeled( int iDelta ) override;
 		void OnMouseClickLeft( int /*x*/, int /*y*/, bool /*bDown*/ ) override;
+		void OnMouseClickRight( int /*x*/, int /*y*/, bool /*bDown*/ ) override;
 
-		Gwen::Color		m_Color;
+		Gwen::Color	m_Color;
 		double view_height_m_;
 		bool mouse_down_ = false;
+
+		Gwen::Point select_start_,select_end_;
+		bool selecting_ = false;
+		std::vector<pubviz::AABB> selected_aabbs_;
 		
-		double view_x_ = 0.0;
-		double view_y_ = 0.0;
-		double view_z_ = 0.0;
+		//double view_x_ = 0.0;
+		//double view_y_ = 0.0;
+		//double view_z_ = 0.0;
+
+		bool paused_ = false;
 		
-		double pitch_ = 0.0;
-		double yaw_ = 0.0;
-		
-		ViewType view_type_ = ViewType::Orbit;
+		//ViewType view_type_ = ViewType::Orbit;
+
+		// Properties
+		EnumProperty* view_type_;
+		FloatProperty* pitch_;
+		FloatProperty* yaw_;
+		FloatProperty* view_x_;
+		FloatProperty* view_y_;
+		FloatProperty* view_z_;
 		
 		double x_mouse_position_ = 0.0;
 		double y_mouse_position_ = 0.0;

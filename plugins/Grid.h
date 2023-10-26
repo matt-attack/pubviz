@@ -26,7 +26,7 @@
 #include "../Plugin.h"
 #include "../properties.h"
 
-class GridPlugin: public Plugin
+class GridPlugin: public pubviz::Plugin
 {
 	FloatProperty* start_x_;
 	FloatProperty* start_y_;
@@ -52,6 +52,13 @@ public:
 	virtual void Update()
 	{
 	
+	}
+
+
+	// Clear out any historical data so the view gets cleared
+	virtual void Clear()
+	{
+
 	}
 	
 	virtual void Render()
@@ -87,13 +94,13 @@ public:
 	virtual void Initialize(Gwen::Controls::Properties* tree)
 	{
 		// add any properties
-		x_count_ = AddNumberProperty(tree, "X Count", 10);
-		y_count_ = AddNumberProperty(tree, "Y Count", 10);
+		x_count_ = AddNumberProperty(tree, "X Count", 10, 0, 100, 1, "Number of grid cells along X axis.");
+		y_count_ = AddNumberProperty(tree, "Y Count", 10, 0, 100, 1, "Number of grid cells along Y axis.");
 		
-		start_x_ = AddFloatProperty(tree, "Start X", -50.0, -100000, 100000);
-		start_y_ = AddFloatProperty(tree, "Start Y", -50.0, -100000, 100000);
+		start_x_ = AddFloatProperty(tree, "Start X", -50.0, -100000, 100000, 1, "Left X position of grid.");
+		start_y_ = AddFloatProperty(tree, "Start Y", -50.0, -100000, 100000, 1, "Bottom Y position of grid.");
 		
-		cell_size_ = AddFloatProperty(tree, "Size", 10.0);
+		cell_size_ = AddFloatProperty(tree, "Cell Size", 10.0, 0, 1000.0, 1.0, "Side dimension of grid cells.");
 		
 		color_ = AddColorProperty(tree, "Color", Gwen::Color(125,125,125));
 	}
@@ -103,5 +110,7 @@ public:
 		return "Grid";
 	}
 };
+
+REGISTER_PLUGIN("grid", GridPlugin)
 
 #endif

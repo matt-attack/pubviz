@@ -1,15 +1,14 @@
 
-
-#include <pubsub/Node.h>
-
 #include <stdlib.h>
 #include <memory.h>
 
-#include "pubviz.h"
+#include "../controls/sackviz.h"
 
 #include <Gwen/Gwen.h>
 #include <Gwen/Application.h>
 #include <Gwen/Renderers/OpenGL.h>
+
+#include <pubsub/Node.h>
 
 #ifdef WIN32
 // disables the console on windows
@@ -20,8 +19,8 @@ int WinMain(
 	int       nShowCmd
 )
 {
-	int argc;
-	wchar_t** args = CommandLineToArgvW(GetCommandLineW(), &argc);
+	char** args = __argv;
+	int argc = __argc;
 #else
 int main(int argc, char** args)
 {
@@ -32,22 +31,23 @@ int main(int argc, char** args)
 	Gwen::Application<Gwen::Renderer::OpenGL> app;
 	//app.SetDefaultFont("Open Sans", 10);
 
-	auto window = app.AddWindow("Pubviz", 700, 500);
-	PubViz* ppUnit = new PubViz(window);
-	ppUnit->SetPos(0, 0);
+	auto control = new SackViz(app.AddWindow("Sackviz", 700, 500));
+	if (argc > 1)
+	{
+		control->Open(args[1]);
+		if (argc > 2)
+		{
+			control->LoadConfig(args[2]);
+		}
+	}
+	control->SetPos(0, 0);
 	
 	// Wait for exit, use this instead of spin
-	while (app.Okay())
+	while (ps_okay())
 	{
 		if (!app.SpinOnce())
 		{
 			break;
-		}
-		
-		//if (!window->NeedsRedraw())
-		{
-			// If we dont need a redraw, sleep until we get new input
-			//Gwen::Platform::WaitForEvent();
 		}
 	}
 

@@ -15,7 +15,7 @@
 #include <Gwen/Controls/PropertyTree.h>
 
 #include "OpenGLCanvas.h"
-#include "Plugin.h"
+#include "../Plugin.h"
 
 
 #include "Parameters.h"
@@ -34,8 +34,40 @@ namespace Gwen
 	}
 }
 
-class PubViz : public Gwen::Controls::DockBase
+class BaseRegisterObject
 {
+public:
+
+	virtual pubviz::Plugin* Construct() = 0;
+
+	static void Add(const std::string& type, BaseRegisterObject* builder);
+
+	static pubviz::Plugin* Construct(const std::string& type);
+};
+
+std::map<std::string, BaseRegisterObject*>& GetPluginList();
+
+template<class T>
+struct RegisterObject: public BaseRegisterObject
+{
+	RegisterObject(std::string name)
+	{
+		printf("Registered plugin %s as %s\n", typeid(T).name(), name.c_str());
+		BaseRegisterObject::Add(name, this);
+	}
+
+	virtual pubviz::Plugin* Construct()
+	{
+		return new T;
+	}
+};
+
+#define REGISTER_PLUGIN(name, class) static RegisterObject<class> register_##class(name);
+
+class GraphCanvas;
+class PubViz: public Gwen::Controls::DockBase
+{
+		std::map<std::string, PropertyBase*> properties_;
 	public:
 
 		GWEN_CONTROL(PubViz, Gwen::Controls::DockBase);
@@ -48,7 +80,11 @@ class PubViz : public Gwen::Controls::DockBase
 
 		virtual void Layout(Gwen::Skin::Base* skin) override;
 		
-		Plugin* AddPlugin(const std::string& name);
+		pubviz::Plugin* AddPlugin(const std::string& name);
+
+		void LoadConfig(const char* filename);
+
+		inline Gwen::Controls::TreeControl* GetSelection() { return selection_; }
 
 	private:
 		
@@ -56,9 +92,11 @@ class PubViz : public Gwen::Controls::DockBase
 		void OnAddPlugin(Gwen::Controls::Base* control);
 		void OnRemovePlugin( Gwen::Controls::Base* control);
 		void OnAddPluginFinish(Gwen::Controls::Base* control);
-		void OnBackgroundChange(Gwen::Controls::Base* control);
-		void OnFrameChange(Gwen::Controls::Base* control);
 		void OnCenter(Gwen::Controls::Base* control);
+        void OnShowConfigChanged(Gwen::Controls::Base* control);
+		void OnShowSelectionChanged(Gwen::Controls::Base* control);
+		void OnShowStatusBarChanged(Gwen::Controls::Base* control);
+        void OnPause(Gwen::Controls::Base* control);
 		
 		void OnParametersClose(Gwen::Controls::Base* control)
 		{
@@ -67,17 +105,24 @@ class PubViz : public Gwen::Controls::DockBase
 		
 		void OnConfigSave(Gwen::Event::Info info);
 		void OnConfigLoad(Gwen::Event::Info info);
+		void OnGraphClosed(Gwen::Controls::Base* base);
 		
 		void ClearPlugins();
 		
 		Gwen::Controls::PropertyTree* plugin_tree_;
+		Gwen::Controls::TreeControl* selection_;
+		Gwen::Controls::Button* pause_button_;
+		Gwen::Controls::MenuItem* pause_item_;
+		Gwen::Controls::MenuItem* show_config_, *show_selection_, *show_status_bar_;
 		OpenGLCanvas* canvas_;
 		
 		Parameters* parameters_page_ = 0;
 		
 		ps_node_t node_;
 		
-		std::vector<Plugin*> plugins_;
+		std::vector<pubviz::Plugin*> plugins_;
+
+		std::map<GraphCanvas*, bool> graphs_;
 
 		Gwen::Controls::StatusBar*	m_StatusBar;
 		unsigned int				m_iFrames;

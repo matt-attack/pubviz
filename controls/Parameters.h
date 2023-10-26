@@ -99,9 +99,14 @@ class DoubleParameter : public Gwen::Controls::Base
 		
 		void SetRange(double min, double max)
 		{
-			min_->SetText(std::to_string(min));
-			max_->SetText(std::to_string(max));
+			char buf[100];
+			sprintf(buf, "%g", min);
+			min_->SetText(buf);
+			sprintf(buf, "%g", max);
+			max_->SetText(buf);
 			slider_->SetRange(min, max);
+			min_->SizeToContents();
+			max_->SizeToContents();
 		}
 		
 		void Update()
@@ -111,6 +116,8 @@ class DoubleParameter : public Gwen::Controls::Base
 			{
 				return;
 			}
+
+			printf("%f != %f\n", slider_->GetFloatValue(), last_commanded_value_);
 			
 			// retry if value is not equal to expected after a little bit
 			if (pubsub::Time::now() > last_commanded_time_ + pubsub::Duration(0.2))
@@ -138,7 +145,7 @@ class DoubleParameter : public Gwen::Controls::Base
 		void SendUpdatedValue(double value)
 		{
 			// todo send the param change
-			// ps_node_change_parameter(name_.c_str(), value);
+			ps_node_set_parameter(node_, name_.c_str(), value);
 			last_commanded_value_ = value;
 			last_commanded_time_ = pubsub::Time::now();
 		}
@@ -195,32 +202,7 @@ class Parameters : public Gwen::Controls::Base
 			iter->second->UpdateValue(value);
 		}
 		
-		void SetNode(ps_node_t* node)
-		{
-			// lets also set up everything we need here
-			node_ = node;
-			
-			myself = this;
-			
-			node->param_confirm_cb = Parameters::AckCB;
-			
-			struct ps_subscriber_options options;
-			ps_subscriber_options_init(&options);
-			options.skip = 0;
-			options.queue_size = 100;
-			options.want_message_def = false;
-			options.allocator = 0;
-			options.ignore_local = false;
-			options.preferred_transport = false ? 1 : 0;
-			options.cb_data = 0;
-			/*options.cb = [](void* message, unsigned int size, void* data, const ps_msg_info_t* info)
-			{
-				// todo deserialize
-				free(message);
-			};*/
-
-			ps_node_create_subscriber_adv(node_, "/parameters", 0, &param_sub_, &options);
-		}
+		void SetNode(ps_node_t* node);
 		
 		void Layout( Gwen::Skin::Base* skin ) override;
 

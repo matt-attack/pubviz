@@ -28,7 +28,7 @@
 
 #include <pubsub/Marker.msg.h>
 
-class MarkerPlugin: public Plugin
+class MarkerPlugin: public pubviz::Plugin
 {
 	FloatProperty* alpha_;
 	ColorProperty* color_;
@@ -43,11 +43,6 @@ class MarkerPlugin: public Plugin
 	
 	std::map<int, pubsub::msg::Marker> markers_;
 	
-	void UpdateFromMessage()
-	{
-
-	}
-	
 	std::string current_topic_;
 	void Subscribe(std::string str)
 	{
@@ -56,7 +51,7 @@ class MarkerPlugin: public Plugin
 			ps_sub_destroy(&subscriber_);
 		}
 		
-		markers_.clear();
+		Clear();
 		
 		current_topic_ = str;
     	struct ps_subscriber_options options;
@@ -95,6 +90,13 @@ public:
 		{
 			while (data = (pubsub::msg::Marker*)ps_sub_deque(&subscriber_))
 			{
+				if (Paused())
+				{
+				    free(data->data);
+				    free(data);//todo use allocator free
+					continue;
+				}
+
 				// user is responsible for freeing the message and its arrays
 				markers_[data->id] = *data;
 				free(data->data);
@@ -103,6 +105,12 @@ public:
 				Redraw();
 			}
 		}
+	}
+
+	// Clear out any historical data so the view gets cleared
+	virtual void Clear()
+	{
+		markers_.clear();
 	}
 		
 	virtual void Render()
@@ -118,7 +126,7 @@ public:
 		// draw the marker
 		Gwen::Color color = color_->GetValue();
 		glLineWidth(line_width_->GetValue());
-		if (last_msg_.marker_type == 0)
+		if (last_msg_.marker_type == pubsub::msg::Marker::LINE_LIST_2D)
 		{
 			// 2d lines
 			glBegin(GL_LINES);
@@ -137,7 +145,7 @@ public:
 				{
 					glColor3f(color.r / 255.0, color.g / 255.0, color.b / 255.0);
 				}
-				if (last_msg_.frame == 0)
+				if (last_msg_.frame == pubsub::msg::Marker::FRAME_WGS84)
 				{
 					if (GetCanvas()->wgs84_mode_)
 					{
@@ -164,7 +172,7 @@ public:
 			}
 			glEnd();
 		}
-		else if (last_msg_.marker_type == 1)
+		else if (last_msg_.marker_type == pubsub::msg::Marker::LINE_SEGMENTS_2D)
 		{
 			// 2d line segments
 			int i = 0;
@@ -187,7 +195,7 @@ public:
 						uint8_t b = (c & 0xFF);
 						glColor3f(r / 255.0, g / 255.0, b / 255.0);
 					}
-					if (last_msg_.frame == 0)
+					if (last_msg_.frame == pubsub::msg::Marker::FRAME_WGS84)
 					{
 						if (GetCanvas()->wgs84_mode_)
 						{
@@ -217,7 +225,7 @@ public:
 				glEnd();
 			}
 		}
-		else if (last_msg_.marker_type == 2)
+		else if (last_msg_.marker_type == pubsub::msg::Marker::POLYGON_2D)
 		{
 			// 2d polygons (just draw outline atm)
 			int i = 0;
@@ -248,14 +256,14 @@ public:
 	virtual void Initialize(Gwen::Controls::Properties* tree)
 	{
 		// add any properties
-		alpha_ = AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1);
+		alpha_ = AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1, "Marker transparency.");
 		
-		color_ = AddColorProperty(tree, "Color", Gwen::Color(255,50,50));
+		color_ = AddColorProperty(tree, "Color", Gwen::Color(255,50,50), "Default marker color.");
 		
-		topic_ = AddTopicProperty(tree, "Topic", "/marker");
+		topic_ = AddTopicProperty(tree, "Topic", "/marker", "", "pubsub__Marker");
 		topic_->onChange = std::bind(&MarkerPlugin::Subscribe, this, std::placeholders::_1);
 		
-		line_width_ = AddNumberProperty(tree, "Line Width", 4, 1, 100, 2);
+		line_width_ = AddNumberProperty(tree, "Line Width", 4, 1, 100, 2, "Width in pixels for marker lines.");
 		
 		Subscribe(topic_->GetValue());
 	}
@@ -265,5 +273,7 @@ public:
 		return "Marker";
 	}
 };
+
+REGISTER_PLUGIN("marker", MarkerPlugin)
 
 #endif
