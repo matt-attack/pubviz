@@ -567,6 +567,16 @@ void SackViewer::OpenFile(const std::string& file)
 		}
 	}
 
+	// sort messages in each message array
+	for (auto& topic: bag_data_)
+	{
+		std::sort(topic.second.messages.begin(), topic.second.messages.end(),
+		    [](const Message& a, const Message& b) -> bool
+	    {
+		    return a.time < b.time;
+	    });
+	}
+
     // close any viewers that arent relevant and update the rest
     auto viewers_copy = viewers_;
     for (auto& viewer: viewers_copy)
@@ -783,6 +793,10 @@ void SackViewer::UpdateViewers()
 		std::string str = "timestamp: " + std::to_string(msg.time/1000000.0);
 		auto node = tree->AddNode(str);
 		node->SetSelectable(false);// not plottable, so dont allow selecting
+		if (items.size() == 0 || str != items[0])
+		{
+			node->GetButton()->SetTextColorOverride(Gwen::Color(255, 0, 0, 255));
+		}
 
         const int max_array_length = 100;
 		
