@@ -51,7 +51,7 @@
 #include "../plugins/Path.h"
 #include "../plugins/Image.h"
 #include "../plugins/GPS.h"
-#include "../plugins/Dial.h"
+#include "../plugins/Gauge.h"
 
 #include <Gwen/Controls/Dialogs/FileOpen.h>
 #include <Gwen/Controls/Dialogs/FileSave.h>
@@ -522,7 +522,7 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	
 	ps_node_system_query(&node_);
 
-	node_.adv_cb = [](const char* topic, const char* type, const char* node, const ps_advertise_req_t* data)
+	node_.adv_cb = [](const char* topic, const char* type, const char* node, const ps_advertise_req_t* data, void* cbdata)
 	{
 		// check if we already have the topic
 		if (_found_topics.find(topic) != _found_topics.end())
@@ -550,7 +550,7 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	
 	//AddPlugin("image");
 
-	AddPlugin("dial");
+	AddPlugin("gauge");
 	AddPlugin("grid");
 	AddPlugin("gps");
 		AddPlugin("costmap");

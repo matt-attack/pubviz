@@ -1,6 +1,6 @@
 
-#ifndef PUBVIZ_PLUGIN_GAUGE_H
-#define PUBVIZ_PLUGIN_GAUGE_H
+#ifndef PUBVIZ_PLUGIN_DIAL_H
+#define PUBVIZ_PLUGIN_DIAL_H
 
 #include <Gwen/Gwen.h>
 #include <Gwen/Align.h>
@@ -29,7 +29,7 @@
 
 #include <pubsub/Image.msg.h>
 
-class GaugePlugin: public pubviz::Plugin
+class DialPlugin: public pubviz::Plugin
 {
 	FloatProperty* min_value_;
 	FloatProperty* max_value_;
@@ -66,12 +66,12 @@ class GaugePlugin: public pubviz::Plugin
 	
 public:
 
-	GaugePlugin()
+	DialPlugin()
 	{
 
 	}
 	
-	virtual ~GaugePlugin()
+	virtual ~DialPlugin()
 	{
 		if (sub_open_)
 		{
@@ -304,7 +304,7 @@ public:
 	{
 		// add any properties
 		topic_ = AddTopicProperty(tree, "Topic", "/image", "", "");
-		topic_->onChange = std::bind(&GaugePlugin::Subscribe, this, std::placeholders::_1);
+		topic_->onChange = std::bind(&DialPlugin::Subscribe, this, std::placeholders::_1);
 
 		field_ = AddStringProperty(tree, "Field", "width");
 
@@ -324,6 +324,6 @@ public:
 	}
 };
 
-REGISTER_PLUGIN("gauge", GaugePlugin)
+REGISTER_PLUGIN("gauge", DialPlugin)
 
 #endif
