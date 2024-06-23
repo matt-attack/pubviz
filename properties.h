@@ -3,6 +3,7 @@
 #define PUBVIZ_PROPERTIES_H
 
 #include <Gwen/Controls/PropertyTree.h>
+#include <Gwen/Controls/Property/Button.h>
 #include <Gwen/Controls/Property/Checkbox.h>
 #include <Gwen/Controls/Property/ColorSelector.h>
 #include <Gwen/Controls/Property/ComboBox.h>
@@ -86,6 +87,54 @@ public:
     }
 
 	std::function<void(bool)> onChange;
+};
+
+class ButtonProperty: public PropertyBase
+{
+	Gwen::Controls::Property::Button* property_;
+	
+	void OnChange(Gwen::Controls::Base* prop)
+	{
+		if (onChange)
+		{
+			onChange();
+		}
+	}
+	
+public:
+
+	ButtonProperty(Gwen::Controls::Properties* tree, const std::string& name, const std::string& description = "")
+	{
+		property_ = new Gwen::Controls::Property::Button(tree);
+		auto item = tree->Add("", property_, name);
+		item->onChange.Add(this, &ButtonProperty::OnChange);
+		if (description.length())
+		{
+			item->SetToolTip(description);
+		}
+	}
+	
+	virtual std::string Serialize()
+	{
+		return "";
+	}
+	
+	virtual void Deserialize(const std::string& str)
+	{
+
+	}
+
+    void Hide()
+    {
+        property_->GetParent()->Hide();
+    }
+
+    void Show()
+    {
+        property_->GetParent()->Show();
+    }
+
+	std::function<void()> onChange;
 };
 
 class NumberProperty: public PropertyBase

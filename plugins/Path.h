@@ -43,7 +43,7 @@ class PathPlugin : public pubviz::Plugin
 	bool sub_open_ = false;
 	ps_sub_t subscriber_;
 
-	pubsub::msg::Path last_msg_;
+	pubsub::msg::Path* last_msg_ = 0;
 
 	std::string current_topic_;
 	void Subscribe(std::string str)
@@ -78,6 +78,11 @@ public:
 		delete show_points_;
 		delete point_size_;
 
+		if (last_msg_)
+		{
+			delete last_msg_;
+		}
+
 		if (sub_open_)
 		{
 			ps_sub_destroy(&subscriber_);
@@ -88,7 +93,9 @@ public:
 	// Clear out any historical data so the view gets cleared
 	virtual void Clear()
 	{
-		last_msg_.points_length = 0;
+		if (last_msg_)
+		delete last_msg_;
+		last_msg_ = 0;
 	}
 
 	virtual void Update()
@@ -102,15 +109,16 @@ public:
 			{
 				if (Paused())
 				{
-					free(data->points);
-					free(data);//todo use allocator free
+					delete data;
 					continue;
 				}
 
 				// user is responsible for freeing the message and its arrays
-				last_msg_ = *data;
-				free(data->points);
-				free(data);//todo use allocator free
+				if (last_msg_)
+				{
+					delete last_msg_;
+				}
+				last_msg_ = data;
 
 				Redraw();
 			}
@@ -135,7 +143,7 @@ public:
 	std::vector<Vertex> transformed_pts_;
 	virtual void Render()
 	{
-		if (last_msg_.points_length == 0)
+		if (last_msg_ == 0)
 		{
 			return;
 		}
@@ -143,32 +151,32 @@ public:
 		Gwen::Color color = color_->GetValue();
 
 		points_.clear();
-		if (last_msg_.path_type == pubsub::msg::Path::PATH_XY)
+		if (last_msg_->path_type == pubsub::msg::Path::PATH_XY)
 		{
-			for (int i = 0; i < (int)last_msg_.points_length - 1; i += 2)
+			for (int i = 0; i < (int)last_msg_->points.size() - 1; i += 2)
 			{
-				points_.push_back({ last_msg_.points[i], last_msg_.points[i + 1], 0.0 });
+				points_.push_back({ last_msg_->points[i], last_msg_->points[i + 1], 0.0 });
 			}
 		}
-		if (last_msg_.path_type == pubsub::msg::Path::PATH_XY_Y)
+		else if (last_msg_->path_type == pubsub::msg::Path::PATH_XY_Y)
 		{
-			for (int i = 0; i < (int)last_msg_.points_length - 2; i += 3)
+			for (int i = 0; i < (int)last_msg_->points.size() - 2; i += 3)
 			{
-				points_.push_back({ last_msg_.points[i], last_msg_.points[i + 1], 0.0 });
+				points_.push_back({ last_msg_->points[i], last_msg_->points[i + 1], 0.0 });
 			}
 		}
-		else if (last_msg_.path_type == pubsub::msg::Path::PATH_XYZ)
+		else if (last_msg_->path_type == pubsub::msg::Path::PATH_XYZ)
 		{
-			for (int i = 0; i < (int)last_msg_.points_length - 2; i += 3)
+			for (int i = 0; i < (int)last_msg_->points.size() - 2; i += 3)
 			{
-				points_.push_back({ last_msg_.points[i], last_msg_.points[i + 1], last_msg_.points[i + 2] });
+				points_.push_back({ last_msg_->points[i], last_msg_->points[i + 1], last_msg_->points[i + 2] });
 			}
 		}
-		else if (last_msg_.path_type == pubsub::msg::Path::PATH_XYZ_Y)
+		else if (last_msg_->path_type == pubsub::msg::Path::PATH_XYZ_Y)
 		{
-			for (int i = 0; i < (int)last_msg_.points_length - 3; i += 4)
+			for (int i = 0; i < (int)last_msg_->points.size() - 3; i += 4)
 			{
-				points_.push_back({ last_msg_.points[i], last_msg_.points[i + 1], last_msg_.points[i + 2] });
+				points_.push_back({ last_msg_->points[i], last_msg_->points[i + 1], last_msg_->points[i + 2] });
 			}
 		}
 		else
@@ -176,36 +184,19 @@ public:
 			printf("ERROR: Unknown path type\n");
 		}
 
+		auto frame = OpenGLCanvas::WGS84;
+		if (last_msg_->frame != pubsub::msg::Path::FRAME_WGS84)
+		{
+			frame = OpenGLCanvas::Odom;
+		}
 		// Now transform the points
 		transformed_pts_.clear();
 		transformed_pts_.reserve(points_.size());
 		for (auto& pt : points_)
 		{
-			if (last_msg_.frame == pubsub::msg::Path::FRAME_WGS84)
-			{
-				if (GetCanvas()->wgs84_mode_)
-				{
-					double x, y;
-					GetCanvas()->local_xy_.FromLatLon(pt.x, pt.y, x, y);
-
-					transformed_pts_.push_back({ x, y, pt.z });
-				}
-				else
-				{
-					// todo
-				}
-			}
-			else
-			{
-				if (GetCanvas()->wgs84_mode_)
-				{
-					// todo
-				}
-				else
-				{
-					transformed_pts_.push_back(pt);
-				}
-			}
+			Vec3 p(pt.x, pt.y, pt.z);
+			GetCanvas()->TransformToView(frame, p);
+			transformed_pts_.push_back({p.x,p.y,p.z});
 		}
 
 		// Now render the points

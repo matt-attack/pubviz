@@ -52,6 +52,9 @@
 #include "../plugins/Image.h"
 #include "../plugins/GPS.h"
 #include "../plugins/Gauge.h"
+#include "../plugins/PlanPath.h"
+#include "../plugins/Measure.h"
+#include "../plugins/Map.h"
 
 #include <Gwen/Controls/Dialogs/FileOpen.h>
 #include <Gwen/Controls/Dialogs/FileSave.h>
@@ -87,6 +90,11 @@ PubViz::~PubViz()
 }
 
 void PubViz::OnConfigSave(Gwen::Event::Info info)
+{
+	SaveConfig(info.String.c_str());
+}
+
+void PubViz::SaveConfig(const std::string& file)
 {
 	std::string config;
 	// save our own configuration first
@@ -132,7 +140,7 @@ void PubViz::OnConfigSave(Gwen::Event::Info info)
 		config += "\n";
 	}
 	
-	FILE* f = fopen(info.String.c_str(), "wb");
+	FILE* f = fopen(file.c_str(), "wb");
 	fwrite(config.c_str(), 1, config.length(), f);
 	fclose(f);
 }
@@ -168,8 +176,16 @@ void PubViz::LoadConfig(const char* filename)
 	FILE *f = fopen(filename, "rb");
 	if (f == 0)
 	{
+		((Gwen::Controls::WindowCanvas*)GetParent())->SetTitle("Pubviz");
+		current_config_file_ = "";
 		return;// failed to open file
 	}
+
+	current_config_file_ = filename;
+
+	std::string title = "Pubviz (" + std::string(filename) + ")";
+	((Gwen::Controls::WindowCanvas*)GetParent())->SetTitle(title);
+
 	fseek(f, 0, SEEK_END);
 	long fsize = ftell(f);
 	fseek(f, 0, SEEK_SET);  /* same as rewind(f); */
@@ -332,6 +348,18 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 
 		graphs_[graph] = true;
 	}
+	else if (pMenuItem->GetText() == L"Save Config")
+	{
+		if (current_config_file_.length())
+		{
+			// save!
+			SaveConfig(current_config_file_);
+		}
+		else
+		{
+			Gwen::Dialogs::FileSave(true, String("Save Config"), String("pubviz.config"), String(".config|*.config|All|*.*"), this, &ThisClass::OnConfigSave);
+		}
+	}
 	else if (pMenuItem->GetText() == L"Save Config As")
 	{
 		Gwen::Dialogs::FileSave(true, String("Save Config"), String("pubviz.config"), String(".config|*.config|All|*.*"), this, &ThisClass::OnConfigSave);
@@ -422,7 +450,8 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 		Gwen::Controls::MenuItem* pRoot = menu_->AddItem(L"File");
 		pRoot->GetMenu()->AddItem(L"Clear Plugins", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Load Config", "", "Ctrl+O")->SetAction(this, &ThisClass::MenuItemSelect);
-		pRoot->GetMenu()->AddItem(L"Save Config As", "", "Ctrl+S")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddItem(L"Save Config", "", "Ctrl+S")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddItem(L"Save Config As", "", "Ctrl+Shift+S")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddDivider();
 		pRoot->GetMenu()->AddItem(L"Screenshot", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddDivider();
@@ -448,12 +477,12 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 		pRoot->GetMenu()->AddDivider();
 		pRoot->GetMenu()->AddItem(L"Plot", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Change Parameters", "", "Shift+P")->SetAction(this, &ThisClass::MenuItemSelect);
-		pause_item_ = pRoot->GetMenu()->AddItem(L"Pause", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
+		pause_item_ = pRoot->GetMenu()->AddItem(L"Pause", "", "Space")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Clear History", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddDivider();
 		pRoot->GetMenu()->AddItem(L"Orbit", "", "Ctrl+O")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Top Down", "", "Ctrl+T")->SetAction(this, &ThisClass::MenuItemSelect);
-		pRoot->GetMenu()->AddItem(L"First Person", "", "Ctrl+T")->SetAction(this, &ThisClass::MenuItemSelect);
+		pRoot->GetMenu()->AddItem(L"First Person", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddDivider();
 		pRoot->GetMenu()->AddItem(L"Top", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Left", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
@@ -522,7 +551,7 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	
 	ps_node_system_query(&node_);
 
-	node_.adv_cb = [](const char* topic, const char* type, const char* node, const ps_advertise_req_t* data, void* cbdata)
+	node_.adv_cb = [](const char* topic, const char* type, const char* node, const ps_advertise_req_t* data, void* cb_data)
 	{
 		// check if we already have the topic
 		if (_found_topics.find(topic) != _found_topics.end())
@@ -550,14 +579,15 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	
 	//AddPlugin("image");
 
-	AddPlugin("gauge");
+	//AddPlugin("gauge");
 	AddPlugin("grid");
-	AddPlugin("gps");
-		AddPlugin("costmap");
-		AddPlugin("marker");
-		AddPlugin("pointcloud");
-		AddPlugin("path");
-		AddPlugin("pose");
+	//AddPlugin("gps");
+		//AddPlugin("costmap");
+		//AddPlugin("marker");
+		//AddPlugin("pointcloud");
+		//AddPlugin("path");
+		//AddPlugin("pose");
+	//AddPlugin("plan_path");
 	
 	add_button->onPress.Add( this, &ThisClass::OnAddPlugin );
 
@@ -671,6 +701,19 @@ pubviz::Plugin* PubViz::AddPlugin(const std::string& name)
 	box->SetChecked(true);
 	box->SetMargin(Padding(0, 0, 5, 0));
 
+	auto b = new Gwen::Controls::Button(node->GetButton());
+	b->SetText("v");
+	b->SizeToContents();
+	b->Dock(Pos::Right);
+	b->onDown.Add(this, &PubViz::OnDownPlugin);// should be on up, but it gets triggered twice somehow
+	b->UserData.Set<pubviz::Plugin*>("plugin", plugin);
+	b = new Gwen::Controls::Button(node->GetButton());
+	b->SetText("^");
+	b->SizeToContents();
+	b->Dock(Pos::Right);
+	b->onDown.Add(this, &PubViz::OnUpPlugin);
+	b->UserData.Set<pubviz::Plugin*>("plugin", plugin);
+
 	plugin->tree_node_ = node;
 	plugin->enabled_ = box;
 	plugin->Initialize(props);
@@ -690,13 +733,105 @@ pubviz::Plugin* PubViz::AddPlugin(const std::string& name)
 	return plugin;
 }
 
+template <class T, class B>
+int find(const T& t, const B& value)
+{
+	for (int i = 0; i < t.size(); i++)
+	{
+		if (t[i] == value)
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
+void PubViz::OnUpPlugin(Gwen::Controls::Base* control)
+{
+	auto plugin = control->UserData.Get<pubviz::Plugin*>("plugin");
+
+	auto p = plugin->props_->GetParent();
+	auto pp = p->GetParent();
+	auto& children = ((Gwen::Controls::TreeNode*)pp)->GetChildNodes();
+
+	// then reorder our plugins
+	auto old = plugins_;
+	int index = find(old, plugin);
+	if (index == 0)
+	{
+		return;// nothing to do
+	}
+
+	plugins_.clear();
+	for (int i = 0; i < index - 1; i++)
+	{
+		plugins_.push_back(old[i]);
+	}
+	plugins_.push_back(plugin);
+	plugins_.push_back(old[index-1]);
+	for (int i = index+1; i < old.size(); i++)
+	{
+		plugins_.push_back(old[i]);
+	}
+	canvas_->plugins_ = plugins_;
+
+	// then add back all the children
+	auto start = children.front();
+	children.clear();
+	children.push_back(start);
+	for (const auto& p: plugins_)
+	{
+		children.push_back(p->props_->GetParent());
+	}
+	p->InvalidateParent();
+}
+
+void PubViz::OnDownPlugin(Gwen::Controls::Base* control)
+{
+	auto plugin = control->UserData.Get<pubviz::Plugin*>("plugin");
+	auto p = plugin->props_->GetParent();
+	auto pp = p->GetParent();
+	auto& children = ((Gwen::Controls::TreeNode*)pp)->GetChildNodes();
+
+	// then reorder our plugins
+	auto old = plugins_;
+	int index = find(old, plugin);
+	if (index == (old.size()-1))
+	{
+		return;// nothing to do
+	}
+
+	plugins_.clear();
+	for (int i = 0; i <= index - 1; i++)
+	{
+		plugins_.push_back(old[i]);
+	}
+	plugins_.push_back(old[index+1]);
+	plugins_.push_back(plugin);
+	for (int i = index+2; i < old.size(); i++)
+	{
+		plugins_.push_back(old[i]);
+	}
+	canvas_->plugins_ = plugins_;
+
+	// then add back all the children
+	auto start = children.front();
+	children.clear();
+	children.push_back(start);
+	for (const auto& p: plugins_)
+	{
+		children.push_back(p->props_->GetParent());
+	}
+	p->InvalidateParent();
+}
+
 void PubViz::OnAddPlugin(Gwen::Controls::Base* control)
 {
 	Controls::WindowControl* window = new Controls::WindowControl( GetCanvas() );
 	window->SetTitle( L"Add Plugin" );
 	window->SetSize( 200, 100 );
 	window->MakeModal( true );
-	window->Position( Pos::Center );
+	window->SetPos(GetCanvas()->Width()/2 - 100, GetCanvas()->Height()/2 - 50);
 	window->SetDeleteOnClose( true );
 	
 	Gwen::Controls::ComboBox* combo = new Gwen::Controls::ComboBox( window );
@@ -762,17 +897,28 @@ void PubViz::Render(Gwen::Skin::Base* skin)
 	{
 		double x, y;
 		canvas_->GetMousePosition(x, y);
-		m_StatusBar->SetText(Gwen::Utility::Format(L"%i fps    X: %f Y: %f", val * 2, x, y));
+		if (canvas_->wgs84_mode_)
+		{
+			double lat, lon;
+			canvas_->local_xy_.ToLatLon(x, y, lat, lon);
+			m_StatusBar->SetText(Gwen::Utility::Format(L"%i fps    Lat: %f Lon: %f", val * 2, lat, lon));
+		}
+		else
+		{
+			m_StatusBar->SetText(Gwen::Utility::Format(L"%i fps    X: %f Y: %f", val * 2, x, y));
+		}
 	}
 	else
 	{
 		if (canvas_->wgs84_mode_)
 		{
-			m_StatusBar->SetText(Gwen::Utility::Format(L"%i fps    Lat: %f Lon: %f Alt: %f", val * 2, canvas_->view_lat_, canvas_->view_lon_, canvas_->view_alt_));
+			m_StatusBar->SetText(Gwen::Utility::Format(L"%i fps", val * 2));
 		}
 		else
 		{
-			m_StatusBar->SetText(Gwen::Utility::Format(L"%i fps    X: %f Y: %f Z: %f", val * 2, canvas_->view_x_, canvas_->view_y_, canvas_->view_z_));
+			double x, y, z;
+			canvas_->GetViewCenter(x, y, z);
+			m_StatusBar->SetText(Gwen::Utility::Format(L"%i fps    X: %f Y: %f Z: %f", val * 2, x, y, z));
 		}
 	}
 

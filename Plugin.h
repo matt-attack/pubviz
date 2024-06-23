@@ -63,6 +63,9 @@ namespace pubviz
 		// Returns info about a selected item including bounds (todo)
 		virtual std::map<std::string, std::string> Select(uint32_t index, AABB& size) { return {}; }
 
+		// Applies only for 2d
+		virtual bool OnMapClick(double x, double y) { return false; }
+
 		// Returns if the plugin is enabled and should be rendered
 		bool Enabled()
 		{
@@ -104,8 +107,14 @@ namespace pubviz
 			out += tree_node_->GetToggleButton()->GetToggleState() ? "false" : "true";
 			// lets just write it as CSV
 			int i = 0;
-			for (auto& prop : properties_)
+
+			for (const auto& prop : properties_)
 			{
+				// skip ButtonProperties
+				if (dynamic_cast<ButtonProperty*>(prop.second))
+				{
+					continue;
+				}
 				out += ",";
 				out += prop.first;
 				out += ",";
@@ -222,6 +231,14 @@ namespace pubviz
 			const std::string& description = "")
 		{
 			auto prop = new EnumProperty(tree, name, def, enums, description);
+			properties_[name] = prop;
+			return prop;
+		}
+
+		ButtonProperty* AddButtonProperty(Gwen::Controls::Properties* tree, const char* name,
+			const std::string& description = "")
+		{
+			auto prop = new ButtonProperty(tree, name, description);
 			properties_[name] = prop;
 			return prop;
 		}

@@ -49,7 +49,6 @@ GraphSubscriber::GraphSubscriber(const std::string& topic)
 	ps_subscriber_options_init(&options);
 	options.skip = 0;
 	options.queue_size = 0;
-	options.want_message_def = true;
 	options.allocator = 0;
 	options.ignore_local = false;
 	options.preferred_transport = false ? 1 : 0;
@@ -156,7 +155,7 @@ GWEN_CONTROL_CONSTRUCTOR( GraphCanvas )
 		ps_node_init_ex(&node, "pubviz", "", false, false);
 		//ps_node_init(&node, "pubviz", "", false);
 
-		node.adv_cb = [](const char* topic, const char* type, const char* node, const ps_advertise_req_t* data)
+		node.adv_cb = [](const char* topic, const char* type, const char* node, const ps_advertise_req_t* data, void* cb_data)
 		{
 			// check if we already have the topic
 			if (_graph_topics.find(topic) != _graph_topics.end())

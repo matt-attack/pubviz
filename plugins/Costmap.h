@@ -33,18 +33,20 @@ class CostmapPlugin: public pubviz::Plugin
 	FloatProperty* alpha_;
 	ColorProperty* color_;
 	BooleanProperty* show_outline_;
+	NumberProperty* alpha_threshold_;
 	
 	TopicProperty* topic_;
 	
 	bool sub_open_ = false;
 	ps_sub_t subscriber_;
 	
-	pubsub::msg::Costmap last_msg_;
+	pubsub::msg::Costmap* last_msg_ = 0;
 	
 	unsigned int texture_ = -1;
 	
 	void UpdateFromMessage()
 	{
+		if (last_msg_ == 0) return;
 		Redraw();
 		
 		if (texture_ != -1)
@@ -52,24 +54,27 @@ class CostmapPlugin: public pubviz::Plugin
 			glDeleteTextures(1, &texture_);
 		}
 		
-		if (last_msg_.width* last_msg_.height != last_msg_.data_length)
+		if (last_msg_->width * last_msg_->height != last_msg_->data.size())
 		{
-			last_msg_.data_length = 0;
+			delete last_msg_;
+			last_msg_ = 0;
 			printf("ERROR: bad costmap size\n");
 			return;
 		}
 		
 		// make the color buffer
 		std::vector<uint32_t> pixels;
-		pixels.resize(last_msg_.width*last_msg_.height);
+		pixels.resize(last_msg_->width*last_msg_->height);
 		
 		int texture_size = pixels.size()*4;
+
+		int32_t alpha_threshold = alpha_threshold_->GetValue();
 		
 		// now fill in each pixel with the intensity
-		for (int i = 0; i < last_msg_.data_length; i++)
+		for (int i = 0; i < last_msg_->data.size(); i++)
 		{
-			uint8_t px = last_msg_.data[i];
-			uint8_t a = 255;
+			uint8_t px = last_msg_->data[i];
+			uint8_t a = px <= alpha_threshold ? 0 : 255;
 			pixels[i] = (a << 24) | (px << 16) | (px << 8) | px;
 		}
 		
@@ -90,8 +95,8 @@ class CostmapPlugin: public pubviz::Plugin
 		  GL_TEXTURE_2D,
 		  0,
 		  GL_RGBA,
-		  last_msg_.width,
-		  last_msg_.height,
+		  last_msg_->width,
+		  last_msg_->height,
 		  0,
 		  GL_RGBA,
 		  GL_UNSIGNED_BYTE,
@@ -122,18 +127,7 @@ class CostmapPlugin: public pubviz::Plugin
 public:
 
 	CostmapPlugin()
-	{
-		// just make a quick test costmap
-		last_msg_.frame = 0;
-		last_msg_.width = 10;
-		last_msg_.height = 10;
-		last_msg_.resolution = 5.0;
-		last_msg_.left = 0.0;
-		last_msg_.bottom = 0.0;
-		last_msg_.data_length = 0;//10*10;
-		//last_msg_.data = new uint8_t[10*10];
-		//UpdateFromMessage();
-		
+	{	
 		// dont use pubsub here
 	}
 	
@@ -142,6 +136,11 @@ public:
 		delete color_;
 		delete alpha_;
 		delete show_outline_;
+
+		if (last_msg_)
+		{
+			delete last_msg_;
+		}
 		
 		if (sub_open_)
 		{
@@ -161,14 +160,12 @@ public:
 		if (texture_ != -1)
 		{
 			glDeleteTextures(1, &texture_);
-			last_msg_.data_length = 0;
-			free(last_msg_.data);
-			last_msg_.data = 0;
+			delete last_msg_;
+			last_msg_ = 0;
 			texture_ = -1;
 		}
 	}
 	
-		
 	virtual void Update()
 	{
 		// process any messages
@@ -180,15 +177,16 @@ public:
 			{
 				if (Paused())
 				{
-					free(data->data);
-					free(data);//todo use allocator free
+					delete data;
 					continue;
 				}
 
 				// user is responsible for freeing the message and its arrays
-				last_msg_ = *data;
-				free(data->data);
-				free(data);//todo use allocator free
+				if (last_msg_)
+				{
+					delete last_msg_;
+				}
+				last_msg_ = data;
 				UpdateFromMessage();
 			}
 		}
@@ -197,18 +195,25 @@ public:
 	virtual void Render()
 	{		
 		// exit early if we dont have a messag
-		if (last_msg_.data_length == 0)
+		if (last_msg_ == 0)
 		{
 			return;
 		}
-
-		if (GetCanvas()->wgs84_mode_)
-		{
-			return;// not supported for the moment
-		}
 		
-		double width = last_msg_.resolution*last_msg_.width;
-		double height = last_msg_.resolution*last_msg_.height;
+		double width = last_msg_->resolution*last_msg_->width;
+		double height = last_msg_->resolution*last_msg_->height;
+
+		Vec3d pts[4];
+		pts[0] = Vec3d(last_msg_->left, last_msg_->bottom, 0);
+		pts[1] = Vec3d(last_msg_->left, last_msg_->bottom + height, 0);
+		pts[2] = Vec3d(last_msg_->left + width, last_msg_->bottom + height, 0);
+		pts[3] = Vec3d(last_msg_->left + width, last_msg_->bottom, 0);
+
+		// transform to view frame
+		for (int i = 0; i < 4; i++)
+		{
+			GetCanvas()->TransformToView(OpenGLCanvas::Odom, pts[i]);
+		}
 		
 		// draw the bounds of the costmap
 		if (show_outline_->GetValue())
@@ -219,16 +224,18 @@ public:
 			Gwen::Color color = color_->GetValue();
 			glColor3f(color.r/255.0, color.g/255.0, color.b/255.0);
 			
-			glVertex2f(last_msg_.left, last_msg_.bottom);
-			glVertex2f(last_msg_.left, last_msg_.bottom + height);
-			glVertex2f(last_msg_.left + width, last_msg_.bottom + height);
-			glVertex2f(last_msg_.left + width, last_msg_.bottom);
-			glVertex2f(last_msg_.left, last_msg_.bottom);
+			glVertex2f(pts[0].x, pts[0].y);
+			glVertex2f(pts[1].x, pts[1].y);
+			glVertex2f(pts[2].x, pts[2].y);
+			glVertex2f(pts[3].x, pts[3].y);
+			glVertex2f(pts[0].x, pts[0].y);
 			
 			glEnd();
 		}
 
 		glEnable(GL_BLEND);
+		glEnable(GL_ALPHA_TEST);
+		glAlphaFunc(GL_GREATER, 0);
 		
 		// Now draw the costmap itself
 		glEnable(GL_TEXTURE_2D);
@@ -238,24 +245,25 @@ public:
 		glColor4f(1.0f, 1.0f, 1.0f, alpha_->GetValue() );
 
 		glTexCoord2d(0, 0);
-		glVertex2d(last_msg_.left + 0, last_msg_.bottom + 0);
+		glVertex2f(pts[0].x, pts[0].y);
 		glTexCoord2d(1.0, 0);
-		glVertex2d(last_msg_.left + width, last_msg_.bottom + 0);
+		glVertex2f(pts[3].x, pts[3].y);
 		glTexCoord2d(1.0, 1.0);
-		glVertex2d(last_msg_.left + width, last_msg_.bottom + height);
+		glVertex2f(pts[2].x, pts[2].y);
 
 		glTexCoord2d(0, 0);
-		glVertex2d(last_msg_.left + 0, last_msg_.bottom + 0);
+		glVertex2f(pts[0].x, pts[0].y);
 		glTexCoord2d(1.0, 1.0);
-		glVertex2d(last_msg_.left + width, last_msg_.bottom + height);
+		glVertex2f(pts[2].x, pts[2].y);
 		glTexCoord2d(0, 1.0);
-		glVertex2d(last_msg_.left + 0, last_msg_.bottom + height);
+		glVertex2f(pts[1].x, pts[1].y);
 
 		glEnd();
 
 		glBindTexture(GL_TEXTURE_2D, 0);
 		glDisable(GL_TEXTURE_2D);
 
+		glDisable(GL_ALPHA_TEST);
 		glDisable(GL_BLEND);
 	}
 	
@@ -269,6 +277,12 @@ public:
 		
 		show_outline_ = AddBooleanProperty(tree, "Show Outline", true, "If true, draw an outline around the costmap.");
 		color_ = AddColorProperty(tree, "Outline Color", Gwen::Color(255,50,50), "Color to use to draw border of costmap.");
+
+		alpha_threshold_ = AddNumberProperty(tree, "Alpha Threshold", -1, -1, 255, 1, "Costs at or below which costmap cells are invisible.");
+		alpha_threshold_->onChange = [this](int number)
+		{
+			UpdateFromMessage();
+		};
 		
 		Subscribe(topic_->GetValue());
 	}

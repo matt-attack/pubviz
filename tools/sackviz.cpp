@@ -32,6 +32,7 @@ int main(int argc, char** args)
 	//app.SetDefaultFont("Open Sans", 10);
 
 	auto control = new SackViz(app.AddWindow("Sackviz", 700, 500));
+	control->GetSkin()->GetRender()->EnableVSync(true);
 	if (argc > 1)
 	{
 		control->Open(args[1]);

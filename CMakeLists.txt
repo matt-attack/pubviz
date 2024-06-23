@@ -34,7 +34,7 @@ target_include_directories(sackviz PUBLIC
   ${pubsub_INCLUDE_DIRS}
   ${librucksack_INCLUDE_DIRS})
 target_link_libraries(sackviz GWEN_opengl GWEN_static ${pubsub_LIBRARIES} 
-  debug ${librucksack_DEBUG_LIBRARIES}
+  debug ${librucksack_LIBRARIES}
   optimized ${librucksack_LIBRARIES})
 set_property(TARGET sackviz PROPERTY CXX_STANDARD 11)
 

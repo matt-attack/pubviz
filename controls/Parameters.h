@@ -62,7 +62,7 @@ class DoubleParameter : public Gwen::Controls::Base
 			
 			max_ = new Gwen::Controls::Label( this );
 			max_->SetAlignment( Gwen::Pos::CenterV | Gwen::Pos::Left );
-			max_->SetText( "10.0" );
+			max_->SetText( "0.0" );
 			max_->Dock( Gwen::Pos::Right );
 			max_->SetTabable( false );
 			max_->SetKeyboardInputEnabled( false );
@@ -80,21 +80,23 @@ class DoubleParameter : public Gwen::Controls::Base
 			label_->SetText(name);
 			name_ = name;
 		}
-		
-		void SetValue(double val)
+
+		double remote_value_;
+		void SetRemoteValue(double val)
 		{
-			text_box_->SetText(std::to_string(val));
-			slider_->SetFloatValue(val);
-			last_commanded_value_ = val;
+			remote_value_ = val;
+			//printf("setting remote to %f\n", val);
 		}
-		
-		// from acks
-		void UpdateValue(double val)
+
+		void SetLocalValue(double val, bool send = true)
 		{
+			//printf("setting local to %f\n", val);
+			if (send == false)
+			{
+				last_commanded_value_ = val;
+			}
 			text_box_->SetText(std::to_string(val));
 			slider_->SetFloatValue(val);
-			
-			// todo, how to handle this messing up the slider
 		}
 		
 		void SetRange(double min, double max)
@@ -111,13 +113,24 @@ class DoubleParameter : public Gwen::Controls::Base
 		
 		void Update()
 		{
+			// if the request timed out, reset to the last received value
+			if (!FloatEqual(last_commanded_value_, remote_value_))
+			{
+				// if we fail to update after so long, give up
+				if (pubsub::Time::now() > last_changed_time_ + pubsub::Duration(2.0))
+				{
+					SetLocalValue(remote_value_, false);
+					printf("Change timed out on parameter '%s', resetting to previous value %lf\n", name_.c_str(), remote_value_);
+				}
+			}
+
 			// if value still not equal to expected and the last request timed out, try again
-			if (slider_->GetFloatValue() == last_commanded_value_)
+			if (FloatEqual(remote_value_, last_commanded_value_))
 			{
 				return;
 			}
 
-			printf("%f != %f\n", slider_->GetFloatValue(), last_commanded_value_);
+			//printf("%f != %f\n", remote_value_, last_commanded_value_);
 			
 			// retry if value is not equal to expected after a little bit
 			if (pubsub::Time::now() > last_commanded_time_ + pubsub::Duration(0.2))
@@ -128,23 +141,37 @@ class DoubleParameter : public Gwen::Controls::Base
 		}
 
 	private:
+
+		static bool FloatEqual(double a, double b)
+		{
+			return std::abs(a-b) < 0.000001;
+		}
 	
 		void TextChanged(Gwen::Controls::Base* control)
 		{
 			double value = std::atof(text_box_->GetValue().c_str());
 			slider_->SetFloatValue(value);
-			SendUpdatedValue(value);
+			last_changed_time_ = pubsub::Time::now();
+			if (!FloatEqual(value, last_commanded_value_))// prevents double sends on update
+			{
+				SendUpdatedValue(value);
+			}
 		}
 		
 		void SliderMoved(Gwen::Controls::Base* control)
 		{
-			text_box_->SetText(std::to_string(slider_->GetFloatValue()));
-			SendUpdatedValue(slider_->GetFloatValue());
+			double value = slider_->GetFloatValue();
+			text_box_->SetText(std::to_string(value));
+			last_changed_time_ = pubsub::Time::now();
+			if (!FloatEqual(value, last_commanded_value_))// prevents double sends on update
+			{
+				SendUpdatedValue(value);
+			}
 		}
 		
 		void SendUpdatedValue(double value)
 		{
-			// todo send the param change
+			//printf("Sending set param to set %s to %f\n", name_.c_str(), value);
 			ps_node_set_parameter(node_, name_.c_str(), value);
 			last_commanded_value_ = value;
 			last_commanded_time_ = pubsub::Time::now();
@@ -163,11 +190,9 @@ class DoubleParameter : public Gwen::Controls::Base
 		ps_node_t* node_;
 		
 		double last_commanded_value_ = 0.0;
+		pubsub::Time last_changed_time_ = pubsub::Time(0);
 		pubsub::Time last_commanded_time_ = pubsub::Time(0);
 };
-
-class Parameters;
-extern Parameters* myself;
 
 class PubViz;
 class Parameters : public Gwen::Controls::Base
@@ -189,9 +214,10 @@ class Parameters : public Gwen::Controls::Base
 			ps_sub_destroy(&param_sub_);
 		}
 		
-		static void AckCB(const char* name, double value)
+		static void AckCB(const char* name, double value, void* data)
 		{
-			printf("Got ack for %s %f\n", name, value);
+			Parameters* myself = (Parameters*)data;
+			//printf("Got param change ack for %s %f\n", name, value);
 			
 			auto iter = myself->params_.find(name);
 			if (iter == myself->params_.end())
@@ -199,7 +225,7 @@ class Parameters : public Gwen::Controls::Base
 				return;
 			}
 			
-			iter->second->UpdateValue(value);
+			iter->second->SetRemoteValue(value);
 		}
 		
 		void SetNode(ps_node_t* node);

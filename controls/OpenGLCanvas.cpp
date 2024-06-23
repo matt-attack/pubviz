@@ -4,17 +4,17 @@
 
 #include "OpenGLCanvas.h"
 
-#include <GL/glew.h>
-
 #include "../Plugin.h"
 #include "pubviz.h"
+
+
+#include <GL/glew.h>
 
 #ifndef _WIN32
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-#include <GL/gl.h>
-#include <GL/glx.h>
 #endif
+
 
 #include <cmath>
 #include <unordered_map>
@@ -26,8 +26,8 @@ using namespace Gwen::Controls;
 
 GWEN_CONTROL_CONSTRUCTOR( OpenGLCanvas )
 {
-	view_height_m_ = 150.0;
 	m_Color = Gwen::Color( 50, 50, 50, 255 );
+	glewInit();
 }
 
 bool OpenGLCanvas::OnMouseWheeled( int delta )
@@ -47,15 +47,18 @@ bool OpenGLCanvas::OnMouseWheeled( int delta )
 		return true;
 	}
 
+	double start_height = view_h_->GetValue();
+	double rate = std::max(0.1, log(start_height/4.0));
 	if (delta < 0)
 	{
-		view_height_m_ += 0.1*(double)delta;
-		view_height_m_ = std::max(1.0, view_height_m_);
+		start_height += 0.1*(double)delta*rate;
+		start_height = std::max(1.0, start_height);
 	}
 	else
 	{
-		view_height_m_ += 0.1*(double)delta;
+		start_height += 0.1*(double)delta*rate;
 	}
+	view_h_->SetValue(start_height);
 	
 	// Mark the window as dirty so it redraws
 	Redraw();
@@ -65,22 +68,42 @@ bool OpenGLCanvas::OnMouseWheeled( int delta )
 
 void OpenGLCanvas::ResetView()
 {
-	view_height_m_ = 150.0;
+	view_h_->SetValue(150.0);
 	view_x_->SetValue(0.0);
 	view_y_->SetValue(0.0);
 	view_z_->SetValue(0.0);
-	view_abs_x_ = 0.0;
-	view_abs_y_ = 0.0;
-	view_abs_z_ = 0.0;
 	pitch_->SetValue(0.0);
 	yaw_->SetValue(0.0);
 	
 	Redraw();
 }
 
-void OpenGLCanvas::OnMouseClickLeft( int /*x*/, int /*y*/, bool down )
+void OpenGLCanvas::OnMouseClickLeft( int x, int y, bool down )
 {
 	mouse_down_ = down;
+
+	if (down && view_type_->GetValue() == ViewType::TopDown)
+	{
+		double cx, cy, cz;
+		GetViewCenter(cx, cy, cz);
+		auto scale = GetCanvas()->Scale();
+		auto np = CanvasPosToLocal({x,y});
+		x = np.x;
+		y = np.y;
+		auto height = Height()*scale;
+		auto width = Width()*scale;
+		double pixels_per_meter = height/view_h_->GetValue();
+		double x_mouse_position = (x - width*0.5)/pixels_per_meter + cx;
+		double y_mouse_position = (height*0.5 - y)/pixels_per_meter + cy;
+		// todo is this the right order/priority?
+		for (auto& plugin: plugins_)
+		{
+			if (plugin->Enabled() && plugin->OnMapClick(x_mouse_position, y_mouse_position))
+			{
+				break;
+			}
+		}
+	}
 }
 
 void OpenGLCanvas::OnMouseClickRight( int x, int y, bool bDown )
@@ -110,7 +133,7 @@ void OpenGLCanvas::OnMouseClickRight( int x, int y, bool bDown )
 		// Now create the framebuffer using that texture as the color buffer
 		glBindFramebuffer(GL_FRAMEBUFFER, selection_frame_buffer_);
 
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, selection_texture_, 0);  
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, selection_texture_, 0);
 		
 		// Do a dummy check
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -282,12 +305,59 @@ void OpenGLCanvas::OnMouseClickRight( int x, int y, bool bDown )
 	select_start_ = select_end_ = Gwen::Point(x, y);
 }
 
-void OpenGLCanvas::OnMouseMoved(int x, int y, int dx, int dy)
+void OpenGLCanvas::WorldToPixel(double x, double y, double z, int& px, int& py)
 {
-	// now convert to units
-	double pixels_per_meter = GetCanvas()->Height()/view_height_m_;
-	x_mouse_position_ = (x - GetCanvas()->Width()*0.5)/pixels_per_meter + view_x_->GetValue();
-	y_mouse_position_ = (GetCanvas()->Height()*0.5 - y)/pixels_per_meter + view_y_->GetValue();
+	auto scale = GetCanvas()->Scale();
+	auto height = Height()*scale;
+	/*auto width = Width()*scale;
+
+	// for now only works with 2d todo should use matrices
+	x -= view_x_->GetValue();
+	y -= view_y_->GetValue();
+
+	double pixels_per_meter = height/view_height_m_;
+	x *= pixels_per_meter;
+	y *= pixels_per_meter;
+
+	x += width*0.5;
+	y -= height*0.5;
+	px = x;
+	py = -y;*/
+	double wx, wy, wz;
+	double m[16];
+	double p[16];
+	for (int i = 0; i < 16; i++)
+	{
+		m[i] = model_[i];
+		p[i] = proj_[i];
+	}
+	gluProject(x, y, z, m, p, vp_, &wx, &wy, &wz);
+	px = wx/scale;
+	py = wy/scale;
+
+    auto np = CanvasPosToLocal({px,py});
+	px = np.x;
+	py = Height()*scale - np.y;
+    py -= 20;
+    //printf("x: %f y: %f z: %f\n", x, y, z);
+    //printf("x: %i y: %i\n", px, py);
+}
+
+void OpenGLCanvas::OnMouseMoved(int canvas_x, int canvas_y, int dx, int dy)
+{
+	// convert mouse position to physical units
+	auto scale = GetCanvas()->Scale();
+	auto np = CanvasPosToLocal({canvas_x, canvas_y});
+	float x = np.x;
+	float y = np.y;
+	auto height = Height()*scale;
+	auto width = Width()*scale;
+	double pixels_per_meter = height/view_h_->GetValue();
+
+	double cx, cy, cz;
+	GetViewCenter(cx, cy, cz);
+	x_mouse_position_ = (x - width*0.5)/pixels_per_meter + cx;
+	y_mouse_position_ = (height*0.5 - y)/pixels_per_meter + cy;
 	
 	// now apply offset
 	if (mouse_down_)
@@ -296,9 +366,6 @@ void OpenGLCanvas::OnMouseMoved(int x, int y, int dx, int dy)
 		{
 			view_x_->SetValue(view_x_->GetValue() - dx/pixels_per_meter);
 			view_y_->SetValue(view_y_->GetValue() + dy/pixels_per_meter);
-
-			view_abs_x_ -= dx / pixels_per_meter;
-			view_abs_y_ += dy / pixels_per_meter;
 		}
 		else
 		{
@@ -315,9 +382,10 @@ void OpenGLCanvas::OnMouseMoved(int x, int y, int dx, int dy)
 
 	if (selecting_)
 	{
-		select_end_ = Gwen::Point(x,y);
+		select_end_ = Gwen::Point(canvas_x,canvas_y);
 		Redraw();
 	}
+	Redraw();// to get numbers to update
 }
 
 #include <pubsub_cpp/Time.h>
@@ -376,6 +444,8 @@ std::map<std::string, PropertyBase*> OpenGLCanvas::CreateProperties(Gwen::Contro
 	props["View Y"] = view_y_;
 	view_z_ = new FloatProperty(tree, "View Z", 0, -100000, 100000);
 	props["View Z"] = view_z_;
+	view_h_ = new FloatProperty(tree, "Height", 150, 1, 1000000);
+	props["Height"] = view_h_;
 
 	view_type_->onChange = [this](std::string value)
 	{
@@ -407,23 +477,18 @@ void OpenGLCanvas::SetupViewMatrices()
 {
 	auto width = Width();
     auto height = Height();
-	double view_x = view_x_->GetValue();
-	double view_y = view_y_->GetValue();
-	double view_z = view_z_->GetValue();
-	if (wgs84_mode_)
-	{
-		view_x = view_abs_x_;
-		view_y = view_abs_y_;
-		view_z = view_abs_z_;
-	}
+	double view_x, view_y, view_z;
+	GetViewCenter(view_x, view_y, view_z);
 	double yaw = yaw_->GetValue();
 	double pitch = pitch_->GetValue();
 	auto view_type = view_type_->GetValue();
 	if (view_type == ViewType::TopDown)
 	{
 		// set up the view matrix for the current zoom level (ortho, topdown)
-		float half_height = view_height_m_/2.0;
+		float half_height = view_h_->GetValue()/2.0;
 		float half_width = half_height*((float)width/(float)height);
+		view_width_ = half_width*2;
+		view_height_ = half_height*2;
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
 		glOrtho( -half_width + view_x, half_width + view_x, -half_height + view_y, half_height + view_y, -10000.0, 10000.0 );
@@ -461,7 +526,7 @@ void OpenGLCanvas::SetupViewMatrices()
 	else if (view_type == ViewType::Orbit)
 	{
 		// set up the view matrix for the current zoom level (orbit)
-		float half_height = view_height_m_/2.0;
+		float half_height = view_h_->GetValue()/2.0;
 		float half_width = half_height*((float)width/(float)height);
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
@@ -485,6 +550,11 @@ void OpenGLCanvas::SetupViewMatrices()
 		glClear(GL_DEPTH_BUFFER_BIT);
 		glDepthFunc(GL_LEQUAL);
 	}
+
+	// save the matrices
+	glGetFloatv(GL_MODELVIEW_MATRIX, model_);
+	glGetFloatv(GL_PROJECTION_MATRIX, proj_);
+	glGetIntegerv(GL_VIEWPORT, vp_);
 }
 
 void OpenGLCanvas::Render( Skin::Base* skin )

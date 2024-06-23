@@ -14,7 +14,7 @@
 #include <Gwen/Controls/Property/Numeric.h>
 #include <Gwen/Controls/ImagePanel.h>
 
-#include "FreeImage.h"
+#include "../FreeImage.h"
 
 #define GLEW_STATIC
 #include <GL/glew.h>
@@ -46,26 +46,25 @@ class ImagePlugin: public pubviz::Plugin
 	bool sub_open_ = false;
 	ps_sub_t subscriber_;
 	
-	pubsub::msg::Image last_msg_;
+	pubsub::msg::Image* last_msg_ = 0;
 	
 	unsigned int texture_ = -1;//okay, now show image in a new popout
 
 	// returns false if the message is invalid
-	bool CheckSize(const pubsub::msg::Image& image, int bpp)
+	bool CheckSize(int bpp)
 	{
-		int expected = image.height*image.width*bpp;
+		int expected = last_msg_->height*last_msg_->width*bpp;
 
-		if (image.data_length != expected)
+		if (last_msg_->data.size() != expected)
 		{
-			printf("ERROR: Invalid image data length on topic '%s' got %i but expected %i\n",
-				topic_->GetValue().c_str(), image.data_length, expected);
+			printf("ERROR: Invalid image data length on topic '%s' got %i but expected %i bytes.\n",
+				topic_->GetValue().c_str(), last_msg_->data.size(), expected);
 
 			// mark message as invalid
-			if (last_msg_.data)
+			if (last_msg_)
 			{
-				free(last_msg_.data);
-				last_msg_.data = 0;
-				last_msg_.data_length = 0;
+				free(last_msg_);
+				last_msg_ = 0;
 			}
 			return false;
 		}
@@ -84,65 +83,65 @@ class ImagePlugin: public pubviz::Plugin
 		
 		// make the color buffer
 		std::vector<uint32_t> pixels;
-		pixels.resize(last_msg_.width*last_msg_.height);
+		pixels.resize(last_msg_->width*last_msg_->height);
 		
 		// now fill in each pixel
 		GLenum texture_format = GL_RGBA;
-		if (last_msg_.type == pubsub::msg::Image::R8G8B8A8)
+		if (last_msg_->type == pubsub::msg::Image::R8G8B8A8)
 		{
-			if (!CheckSize(last_msg_, 4)) { return; }
-			memcpy(pixels.data(), last_msg_.data, pixels.size());
+			if (!CheckSize(4)) { return; }
+			memcpy(pixels.data(), last_msg_->data.data(), pixels.size());
 		}
-		else if (last_msg_.type == pubsub::msg::Image::R8G8B8)
+		else if (last_msg_->type == pubsub::msg::Image::R8G8B8)
 		{
-			if (!CheckSize(last_msg_, 3)) { return; }
+			if (!CheckSize(3)) { return; }
 			for (int i = 0; i < pixels.size(); i++)
 			{
 				uint8_t a = 255;
-				uint8_t pr = last_msg_.data[i * 3];
-				uint8_t pg = last_msg_.data[i * 3 + 1];
-				uint8_t pb = last_msg_.data[i * 3 + 2];
+				uint8_t pr = last_msg_->data[i * 3];
+				uint8_t pg = last_msg_->data[i * 3 + 1];
+				uint8_t pb = last_msg_->data[i * 3 + 2];
 				pixels[i] = (a << 24) | (pb << 16) | (pg << 8) | pr;
 			}
 		}
-		else if (last_msg_.type == pubsub::msg::Image::R32)
+		else if (last_msg_->type == pubsub::msg::Image::R32)
 		{
-			if (!CheckSize(last_msg_, 4)) { return; }
-			for (int i = 0; i < last_msg_.data_length; i++)
+			if (!CheckSize(4)) { return; }
+			for (int i = 0; i < last_msg_->data.size()/4; i++)
 			{
-				uint8_t px = last_msg_.data[i*4 + 3];// just use the high byte
+				uint8_t px = last_msg_->data[i*4 + 3];// just use the high byte
 				uint8_t a = 255;
 				pixels[i] = (a << 24) | (px << 16) | (px << 8) | px;
 			}
 		}
-		else if (last_msg_.type == pubsub::msg::Image::R16)
+		else if (last_msg_->type == pubsub::msg::Image::R16)
 		{
-			if (!CheckSize(last_msg_, 2)) { return; }
-			for (int i = 0; i < last_msg_.data_length; i++)
+			if (!CheckSize(2)) { return; }
+			for (int i = 0; i < last_msg_->data.size()/2; i++)
 			{
-				uint8_t px = last_msg_.data[i*2 + 1];// just use the high byte
+				uint8_t px = last_msg_->data[i*2];// at the moment use the low byte
 				uint8_t a = 255;
 				pixels[i] = (a << 24) | (px << 16) | (px << 8) | px;
 			}
 		}
-		else if (last_msg_.type == pubsub::msg::Image::R8)
+		else if (last_msg_->type == pubsub::msg::Image::R8)
 		{
-			if (!CheckSize(last_msg_, 1)) { return; }
-			for (int i = 0; i < last_msg_.data_length; i++)
+			if (!CheckSize(1)) { return; }
+			for (int i = 0; i < last_msg_->data.size(); i++)
 			{
-				uint8_t px = last_msg_.data[i];
+				uint8_t px = last_msg_->data[i];
 				uint8_t a = 255;
 				pixels[i] = (a << 24) | (px << 16) | (px << 8) | px;
 			}
 		}
-		else if (last_msg_.type == pubsub::msg::Image::YUYV)
+		else if (last_msg_->type == pubsub::msg::Image::YUYV)
 		{
-			if (!CheckSize(last_msg_, 2)) { return; }
+			if (!CheckSize(2)) { return; }
 			for (int i = 1; i < pixels.size(); i++)
 			{
-        		auto y = last_msg_.data[i*2];
-        		auto u = last_msg_.data[i*2-1];
-        		auto v = last_msg_.data[i*2+1];
+        		auto y = last_msg_->data[i*2];
+        		auto u = last_msg_->data[i*2-1];
+        		auto v = last_msg_->data[i*2+1];
         		if ((i&0b1) == 0)
           			std::swap(u,v);
         		int8_t c = (int8_t) (y - 16);
@@ -156,14 +155,14 @@ class ImagePlugin: public pubviz::Plugin
 				pixels[i] = (a << 24) | (b << 16) | (g << 8) | r;
 			}
 		}
-		else if (last_msg_.type == pubsub::msg::Image::JPEG)
+		else if (last_msg_->type == pubsub::msg::Image::JPEG)
 		{
-			FIMEMORY* mem = FreeImage_OpenMemory(last_msg_.data, last_msg_.data_length);
+			FIMEMORY* mem = FreeImage_OpenMemory(last_msg_->data.data(), last_msg_->data.size());
 			FIBITMAP* img = FreeImage_LoadFromMemory(FIF_JPEG, mem);
 			FIBITMAP* bits32 = FreeImage_ConvertTo32Bits( img );
 			FreeImage_FlipVertical( bits32 );
 			// copy!
-			memcpy(pixels.data(), FreeImage_GetBits( bits32 ), 4*last_msg_.height*last_msg_.width);
+			memcpy(pixels.data(), FreeImage_GetBits( bits32 ), 4*last_msg_->height*last_msg_->width);
 			FreeImage_Unload( bits32 );
 			FreeImage_Unload( img );
 			FreeImage_CloseMemory(mem);
@@ -201,8 +200,8 @@ class ImagePlugin: public pubviz::Plugin
 		  GL_TEXTURE_2D,
 		  0,
 		  GL_RGBA,
-		  last_msg_.width,
-		  last_msg_.height,
+		  last_msg_->width,
+		  last_msg_->height,
 		  0,
 		  texture_format,
 		  GL_UNSIGNED_BYTE,
@@ -213,8 +212,8 @@ class ImagePlugin: public pubviz::Plugin
 
 		
 		Gwen::Texture tex;
-		tex.width = last_msg_.width;
-		tex.height = last_msg_.height;
+		tex.width = last_msg_->width;
+		tex.height = last_msg_->height;
 		tex.data = (void*)&texture_;
 		image_panel_->SetTexture(tex);
 	}
@@ -242,10 +241,7 @@ public:
 
 	ImagePlugin()
 	{
-		// just make a quick test costmap
-		last_msg_.width = 0;
-		last_msg_.height = 0;
-		last_msg_.data_length = 0;
+		// dont use pubsub here
 	}
 	
 	virtual ~ImagePlugin()
@@ -253,6 +249,11 @@ public:
 		Gwen::Texture tex;
 		image_panel_->SetTexture(tex);
 		page_->Close();
+
+		if (last_msg_)
+		{
+			delete last_msg_;
+		}
 		
 		if (sub_open_)
 		{
@@ -272,9 +273,8 @@ public:
 		if (texture_ != -1)
 		{
 			glDeleteTextures(1, &texture_);
-			last_msg_.data_length = 0;
-			free(last_msg_.data);
-			last_msg_.data = 0;
+			delete last_msg_;
+			last_msg_ = 0;
 			texture_ = -1;
 		}
 	}
@@ -290,15 +290,16 @@ public:
 			{
 				if (Paused())
 				{
-					free(data->data);
-					free(data);//todo use allocator free
+					delete data;
 					continue;
 				}
 
 				// user is responsible for freeing the message and its arrays
-				last_msg_ = *data;
-				free(data->data);
-				free(data);//todo use allocator free
+				if (last_msg_)
+				{
+					delete last_msg_;
+				}
+				last_msg_ = data;
 				UpdateFromMessage();
 			}
 		}
