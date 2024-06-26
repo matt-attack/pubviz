@@ -301,11 +301,18 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		std::map<std::string, PropertyBase*> CreateProperties(Gwen::Controls::Properties* props);
 
 	protected:
+
+		bool shift_select_ = false;
+		void DoPick();
 	
 		void OnMouseMoved(int x, int y, int dx, int dy) override;
 		bool OnMouseWheeled( int iDelta ) override;
 		void OnMouseClickLeft( int /*x*/, int /*y*/, bool /*bDown*/ ) override;
 		void OnMouseClickRight( int /*x*/, int /*y*/, bool /*bDown*/ ) override;
+		void OnMouseDoubleClickLeft(int, int) override;
+		void OnMouseLeave() override;
+		
+		void OnClear(Gwen::Controls::Base* c);
 
 		Gwen::Color	m_Color;
 		//double view_height_m_;

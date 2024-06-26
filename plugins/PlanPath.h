@@ -216,10 +216,16 @@ public:
 		return "Plan Path";
 	}
 
-	// Applies only for 2d
-	virtual bool OnMapClick(double x, double y)
+	virtual std::vector<std::pair<std::string, std::function<void()>>> ContextMenu(double x, double y) override
 	{
-		printf("map_click %f %f\n", x, y);
+		return {{"Add Path Point", [this, x, y]() { OnMapDoubleClick(x, y); }}, 
+                {"Clear Path", [this]() {points_.clear(); Redraw();}}};
+	}
+
+	// Applies only for 2d
+	virtual bool OnMapDoubleClick(double x, double y) override
+	{
+		//printf("map_click %f %f\n", x, y);
 		Vec3d pos(x, y, 0);
 		auto src = GetCanvas()->wgs84_mode() ? OpenGLCanvas::Map : OpenGLCanvas::Odom;
 		auto dst = frame_enum_ == pubsub::msg::Path::FRAME_WGS84 ? OpenGLCanvas::WGS84 : OpenGLCanvas::Odom;

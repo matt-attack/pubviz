@@ -63,8 +63,11 @@ namespace pubviz
 		// Returns info about a selected item including bounds (todo)
 		virtual std::map<std::string, std::string> Select(uint32_t index, AABB& size) { return {}; }
 
-		// Applies only for 2d
-		virtual bool OnMapClick(double x, double y) { return false; }
+		// Applies only for 2d. Return true if event is handled.
+		virtual bool OnMapDoubleClick(double x, double y) { return false; }
+
+		// Called on right click to add items to a context menu
+		virtual std::vector<std::pair<std::string, std::function<void()>>> ContextMenu(double x, double y) { return {}; }
 
 		// Returns if the plugin is enabled and should be rendered
 		bool Enabled()

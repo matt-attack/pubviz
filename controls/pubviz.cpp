@@ -92,6 +92,14 @@ PubViz::~PubViz()
 void PubViz::OnConfigSave(Gwen::Event::Info info)
 {
 	SaveConfig(info.String.c_str());
+	current_config_file_ = info.String.c_str();
+	std::string title = "Pubviz (" + std::string(current_config_file_) + ")";
+	((Gwen::Controls::WindowCanvas*)GetParent())->SetTitle(title);
+}
+
+void PubViz::OnConfigSaveAs(Gwen::Event::Info info)
+{
+	SaveConfig(info.String.c_str());
 }
 
 void PubViz::SaveConfig(const std::string& file)
@@ -362,7 +370,7 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 	}
 	else if (pMenuItem->GetText() == L"Save Config As")
 	{
-		Gwen::Dialogs::FileSave(true, String("Save Config"), String("pubviz.config"), String(".config|*.config|All|*.*"), this, &ThisClass::OnConfigSave);
+		Gwen::Dialogs::FileSave(true, String("Save Config"), String("pubviz.config"), String(".config|*.config|All|*.*"), this, &ThisClass::OnConfigSaveAs);
 	}
 	else if (pMenuItem->GetText() == L"Load Config")
 	{
@@ -477,7 +485,7 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 		pRoot->GetMenu()->AddDivider();
 		pRoot->GetMenu()->AddItem(L"Plot", "", "Ctrl+P")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Change Parameters", "", "Shift+P")->SetAction(this, &ThisClass::MenuItemSelect);
-		pause_item_ = pRoot->GetMenu()->AddItem(L"Pause", "", "Space")->SetAction(this, &ThisClass::MenuItemSelect);
+		pause_item_ = pRoot->GetMenu()->AddItem(L"Pause", "", "Ctrl+Space")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddItem(L"Clear History", "", "")->SetAction(this, &ThisClass::MenuItemSelect);
 		pRoot->GetMenu()->AddDivider();
 		pRoot->GetMenu()->AddItem(L"Orbit", "", "Ctrl+O")->SetAction(this, &ThisClass::MenuItemSelect);

@@ -108,6 +108,7 @@ class PubViz: public Gwen::Controls::DockBase
 		}
 		
 		void OnConfigSave(Gwen::Event::Info info);
+		void OnConfigSaveAs(Gwen::Event::Info info);
 		void OnConfigLoad(Gwen::Event::Info info);
 		void OnGraphClosed(Gwen::Controls::Base* base);
 		

@@ -78,27 +78,13 @@ void OpenGLCanvas::ResetView()
 	Redraw();
 }
 
-void OpenGLCanvas::OnMouseClickLeft( int x, int y, bool down )
+void OpenGLCanvas::OnMouseDoubleClickLeft( int x, int y )
 {
-	mouse_down_ = down;
-
-	if (down && view_type_->GetValue() == ViewType::TopDown)
+	if (view_type_->GetValue() == ViewType::TopDown)
 	{
-		double cx, cy, cz;
-		GetViewCenter(cx, cy, cz);
-		auto scale = GetCanvas()->Scale();
-		auto np = CanvasPosToLocal({x,y});
-		x = np.x;
-		y = np.y;
-		auto height = Height()*scale;
-		auto width = Width()*scale;
-		double pixels_per_meter = height/view_h_->GetValue();
-		double x_mouse_position = (x - width*0.5)/pixels_per_meter + cx;
-		double y_mouse_position = (height*0.5 - y)/pixels_per_meter + cy;
-		// todo is this the right order/priority?
 		for (auto& plugin: plugins_)
 		{
-			if (plugin->Enabled() && plugin->OnMapClick(x_mouse_position, y_mouse_position))
+			if (plugin->Enabled() && plugin->OnMapDoubleClick(x_mouse_position_, y_mouse_position_))
 			{
 				break;
 			}
@@ -106,203 +92,289 @@ void OpenGLCanvas::OnMouseClickLeft( int x, int y, bool down )
 	}
 }
 
-void OpenGLCanvas::OnMouseClickRight( int x, int y, bool bDown )
+void OpenGLCanvas::OnMouseLeave()
 {
-	if (selecting_)
+	// do a mouse up
+	if (mouse_down_)
 	{
-		auto r = GetSkin()->GetRender();
-		// finish selecting. do a render
+		OnMouseClickLeft(0, 0, false);
+	}
+}
 
-		// first create render target
-		if (selection_texture_ == 0)
+void OpenGLCanvas::OnMouseClickLeft( int x, int y, bool down )
+{
+	mouse_down_ = down;
+
+	// okay, implement selecting here
+
+	if (down)
+	{
+		selecting_ = true;
+		select_start_ = select_end_ = Gwen::Point(x, y);
+		if (Gwen::Input::IsKeyDown(Gwen::Key::Shift))
 		{
-			glGenTextures(1, &selection_texture_);
-			glGenFramebuffers(1, &selection_frame_buffer_);
+			// select mode
+			shift_select_ = true;
+			
+			return;
 		}
-
-		// "Bind" the newly created texture : all future texture functions will modify this texture
-		glBindTexture(GL_TEXTURE_2D, selection_texture_);
-		
-		// todo size it properly
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 50, 50, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glBindTexture(GL_TEXTURE_2D, 0);
-
-		// Now create the framebuffer using that texture as the color buffer
-		glBindFramebuffer(GL_FRAMEBUFFER, selection_frame_buffer_);
-
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, selection_texture_, 0);
-		
-		// Do a dummy check
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-		{
-			printf("Error creating framebuffer, it is incomplete!\n");
-		}
-		
-		GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
-		glDrawBuffers(1, DrawBuffers);
-		
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-				
-		// Resize the image to our new target size
-		glBindTexture(GL_TEXTURE_2D, selection_texture_);
-
-		auto scale = GetCanvas()->Scale();
-    	int width = Width()*scale;
-    	int height = Height()*scale;
-		
-		// Give an empty image to OpenGL ( the last "0" )
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glBindTexture(GL_TEXTURE_2D, 0);
-		
-		glBindFramebuffer(GL_FRAMEBUFFER, selection_frame_buffer_);
-
-    	float vp[4];
-    	glGetFloatv(GL_VIEWPORT, vp);
-		glViewport(0, 0, width, height);
-
-		glClearColor(1.0, 1.0, 1.0, 1.0);
-		
-		glClear( GL_COLOR_BUFFER_BIT );
-		
-		auto origin = LocalPosToCanvas();
-		origin.y -= 20;// skip past menu bar
-	
-		// force a flush essentially
-		r->EndClip();
-		r->StartClip();
-        
-		glMatrixMode(GL_TEXTURE);
-		glPushMatrix();
-		glMatrixMode(GL_PROJECTION);
-		glPushMatrix();
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		glPushAttrib(GL_ALL_ATTRIB_BITS);
-
-		SetupViewMatrices();
-
-		// now render
-		uint32_t current_id = 0xFF000000;
-		struct plugin_info
-		{
-			uint32_t start_id;
-			uint32_t end_id;
-			pubviz::Plugin* plugin;
-		};
-		std::vector<plugin_info> visible_plugins;
-		for (auto plugin: plugins_)
-		{
-			if (plugin->Enabled())
-			{
-				uint32_t start_id = current_id;
-				current_id = plugin->RenderSelect(current_id);
-				uint32_t end_id = current_id;
-				current_id += 1;
-				// save the id ranges for this plugin so we can map from select id to plugin
-				if (start_id != end_id)
-				{
-					plugin_info info;
-					info.start_id = start_id & 0xFFFFFF;
-					info.end_id = end_id & 0xFFFFFF;
-					info.plugin = plugin;
-					visible_plugins.push_back(info);
-				}
-			}
-		}
-		
-		// Force a flush
-		r->EndClip();
-
-
-		glFlush();
-		glFinish(); 
-
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-
-		// Now read out the selected area
-		auto start = CanvasPosToLocal(select_start_);
-		auto end = CanvasPosToLocal(select_end_);
-		int32_t start_x = std::min(start.x, end.x)*scale;
-		int32_t sw = std::max<int>(std::abs(start.x - end.x)*scale,1);
-		int32_t sh = std::max<int>(std::abs(start.y - end.y)*scale,1);
-		int32_t start_y = std::min(height - start.y*scale, height - end.y*scale);
-		uint32_t* pixels = new uint32_t[sw*sh];
-		glReadPixels(start_x, start_y, sw, sh, GL_RGBA, GL_UNSIGNED_BYTE, (uint8_t*)pixels);
-
-		// Find all selections
-		std::unordered_map<uint32_t, bool> selected;
-		for (int i = 0; i < sw*sh; i++)
-		{
-			if (pixels[i] != 0xFFFFFFFF)
-			{
-				selected[pixels[i] & 0x00FFFFFF] = true;
-			}
-		}
-		// Then select all selections
-		PubViz* p = (PubViz*)GetParent();
-
-		// add to selection if shift is pressed
-		// todo remove from selection if ctrl is pressed
-		if (!Gwen::Input::IsKeyDown(Gwen::Key::Shift))
-		{
-			// todo dont allow double selection in shift mode
-			p->GetSelection()->Clear();
-			selected_aabbs_.clear();
-		}
-		auto sel = p->GetSelection();
-		for (auto id: selected)
-		{
-			// Find the associated plugin with this index
-			for (const auto& p: visible_plugins)
-			{
-				if (id.first <= p.end_id && id.first >= p.start_id)
-				{
-					//printf("Selected %i from plugin %s\n", id.first, p.plugin->GetTitle().c_str());
-					// Add properties about this selected item to our selection list
-					auto node = sel->AddNode("Point (" + std::to_string(id.first) + ")");
-					pubviz::AABB aabb;
-					auto map = p.plugin->Select(id.first - p.start_id, aabb);
-					for (auto& kv: map)
-					{
-						node->AddNode(kv.first + ": " + kv.second);
-					}
-
-					// add it to the list of selections to render
-					selected_aabbs_.push_back(aabb);
-					//todo need selection size so we can draw it
-					break;
-				}
-			}
-		}
-		delete[] pixels;
-
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-		// restore matrices and viewport
-		glPopAttrib();
-		glMatrixMode(GL_MODELVIEW);
-		glPopMatrix();
-		glMatrixMode(GL_PROJECTION);
-		glPopMatrix();
-		glMatrixMode(GL_TEXTURE);
-		glPopMatrix();
-	
-		glDisable(GL_DEPTH_TEST);
-
-    	glViewport(vp[0], vp[1], vp[2], vp[3]);
-
-		Redraw();
 	}
 
-	selecting_ = bDown;
-	select_start_ = select_end_ = Gwen::Point(x, y);
+	if (!down)
+	{
+		// select if we didnt move more than a few pixels
+		if (selecting_)
+		{
+			select_end_ = Gwen::Point(x, y);
+			DoPick();
+		}
+		
+		shift_select_ = false;
+		selecting_ = false;
+	}
+}
+
+//todo how to implement context menu?
+
+//maybe add an oncontextmenu callback to each plugin? thats a cheap way to do it
+// options for right click should be a name, callback, and disabled/enabled
+
+void OpenGLCanvas::DoPick()
+{
+	auto r = GetSkin()->GetRender();
+	// finish selecting. do a render
+
+	// first create render target
+	if (selection_texture_ == 0)
+	{
+		glGenTextures(1, &selection_texture_);
+		glGenFramebuffers(1, &selection_frame_buffer_);
+	}
+
+	// "Bind" the newly created texture : all future texture functions will modify this texture
+	glBindTexture(GL_TEXTURE_2D, selection_texture_);
+		
+	// todo size it properly
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 50, 50, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	// Now create the framebuffer using that texture as the color buffer
+	glBindFramebuffer(GL_FRAMEBUFFER, selection_frame_buffer_);
+
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, selection_texture_, 0);
+		
+	// Do a dummy check
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+	{
+		printf("Error creating framebuffer, it is incomplete!\n");
+	}
+		
+	GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
+	glDrawBuffers(1, DrawBuffers);
+		
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+				
+	// Resize the image to our new target size
+	glBindTexture(GL_TEXTURE_2D, selection_texture_);
+
+	auto scale = GetCanvas()->Scale();
+   	int width = Width()*scale;
+   	int height = Height()*scale;
+	
+	// Give an empty image to OpenGL ( the last "0" )
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glBindTexture(GL_TEXTURE_2D, 0);
+		
+	glBindFramebuffer(GL_FRAMEBUFFER, selection_frame_buffer_);
+
+    float vp[4];
+    glGetFloatv(GL_VIEWPORT, vp);
+	glViewport(0, 0, width, height);
+
+	glClearColor(1.0, 1.0, 1.0, 1.0);
+		
+	glClear( GL_COLOR_BUFFER_BIT );
+		
+	auto origin = LocalPosToCanvas();
+	origin.y -= 20;// skip past menu bar
+	
+	// force a flush essentially
+	r->EndClip();
+	r->StartClip();
+        
+	glMatrixMode(GL_TEXTURE);
+	glPushMatrix();
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glPushAttrib(GL_ALL_ATTRIB_BITS);
+
+	SetupViewMatrices();
+
+	// now render
+	uint32_t current_id = 0xFF000000;
+	struct plugin_info
+	{
+		uint32_t start_id;
+		uint32_t end_id;
+		pubviz::Plugin* plugin;
+	};
+	std::vector<plugin_info> visible_plugins;
+	for (auto plugin: plugins_)
+	{
+		if (plugin->Enabled())
+		{
+			uint32_t start_id = current_id;
+			current_id = plugin->RenderSelect(current_id);
+			uint32_t end_id = current_id;
+			current_id += 1;
+			// save the id ranges for this plugin so we can map from select id to plugin
+			if (start_id != end_id)
+			{
+				plugin_info info;
+				info.start_id = start_id & 0xFFFFFF;
+				info.end_id = end_id & 0xFFFFFF;
+				info.plugin = plugin;
+				visible_plugins.push_back(info);
+			}
+		}
+	}
+		
+	// Force a flush
+	r->EndClip();
+
+	glFlush();
+	glFinish(); 
+
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+	// Now read out the selected area
+	auto start = CanvasPosToLocal(select_start_);
+	auto end = CanvasPosToLocal(select_end_);
+	int32_t start_x = std::min(start.x, end.x)*scale;
+	int32_t sw = std::max<int>(std::abs(start.x - end.x)*scale,1);
+	int32_t sh = std::max<int>(std::abs(start.y - end.y)*scale,1);
+	int32_t start_y = std::min(height - start.y*scale, height - end.y*scale);
+	uint32_t* pixels = new uint32_t[sw*sh];
+	glReadPixels(start_x, start_y, sw, sh, GL_RGBA, GL_UNSIGNED_BYTE, (uint8_t*)pixels);
+
+	// Find all selections
+	std::unordered_map<uint32_t, bool> selected;
+	for (int i = 0; i < sw*sh; i++)
+	{
+		if (pixels[i] != 0xFFFFFFFF)
+		{
+			selected[pixels[i] & 0x00FFFFFF] = true;
+		}
+	}
+	// Then select all selections
+	PubViz* p = (PubViz*)GetParent();
+
+	// add to selection if shift is pressed
+	// todo remove from selection if ctrl is pressed
+	if (!Gwen::Input::IsKeyDown(Gwen::Key::Shift))
+	{
+		// todo dont allow double selection in shift mode
+		p->GetSelection()->Clear();
+		selected_aabbs_.clear();
+	}
+	auto sel = p->GetSelection();
+	for (auto id: selected)
+	{
+		// Find the associated plugin with this index
+		for (const auto& p: visible_plugins)
+		{
+			if (id.first <= p.end_id && id.first >= p.start_id)
+			{
+				//printf("Selected %i from plugin %s\n", id.first, p.plugin->GetTitle().c_str());
+				// Add properties about this selected item to our selection list
+				auto node = sel->AddNode("Point (" + std::to_string(id.first) + ")");
+				pubviz::AABB aabb;
+				auto map = p.plugin->Select(id.first - p.start_id, aabb);
+				for (auto& kv: map)
+				{
+					node->AddNode(kv.first + ": " + kv.second);
+				}
+
+				// add it to the list of selections to render
+				selected_aabbs_.push_back(aabb);
+				//todo need selection size so we can draw it
+				break;
+			}
+		}
+	}
+	delete[] pixels;
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// restore matrices and viewport
+	glPopAttrib();
+	glMatrixMode(GL_MODELVIEW);
+	glPopMatrix();
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+	glMatrixMode(GL_TEXTURE);
+	glPopMatrix();
+	
+	glDisable(GL_DEPTH_TEST);
+
+   	glViewport(vp[0], vp[1], vp[2], vp[3]);
+
+	Redraw();
+}
+
+void OpenGLCanvas::OnClear(Gwen::Controls::Base* c)
+{
+	for (auto p: plugins_)
+	{
+		p->Clear();
+	}
+}
+
+void OpenGLCanvas::OnMouseClickRight( int x, int y, bool down )
+{
+	// show context menu if we have any plugins
+	if (down && plugins_.size())
+	{
+		//auto pos = CanvasPosToLocal(Gwen::Point(x, y));
+		Gwen::Controls::Menu* menu = new Gwen::Controls::Menu(GetCanvas());
+		bool added = false;
+		for (auto p: plugins_)
+		{
+			if (!p->Enabled())
+			{
+				continue;
+			}
+			auto values = p->ContextMenu(x_mouse_position_, y_mouse_position_);// todo map coords
+			if (added && values.size())
+			{
+				// add a divider
+				menu->AddDivider();
+			}
+			for (auto& v: values)
+			{
+				// add each option
+				added = true;
+				menu->AddItem(v.first)->onMenuItemSelected.Add(this, v.second);
+			}
+		}
+		// add defaults and a divider if necessary
+		if (added)
+		{
+			menu->AddDivider();
+		}
+		menu->AddItem("Clear History")->SetAction(this, &ThisClass::OnClear);
+		menu->SetDeleteOnClose(true);
+		menu->SetPos(Gwen::Point(x,y));
+		menu->Show();
+	}
 }
 
 void OpenGLCanvas::WorldToPixel(double x, double y, double z, int& px, int& py)
@@ -362,7 +434,18 @@ void OpenGLCanvas::OnMouseMoved(int canvas_x, int canvas_y, int dx, int dy)
 	// now apply offset
 	if (mouse_down_)
 	{
-		if (view_type_->GetValue() == ViewType::TopDown)
+		if (selecting_ && !shift_select_) 
+		{
+			if (std::abs(canvas_x - select_start_.x) > 1 || std::abs(canvas_y - select_start_.y) > 1)
+			{
+				selecting_ = false;
+			}
+		}
+		if (shift_select_)
+		{
+
+		}
+		else if (view_type_->GetValue() == ViewType::TopDown)
 		{
 			view_x_->SetValue(view_x_->GetValue() - dx/pixels_per_meter);
 			view_y_->SetValue(view_y_->GetValue() + dy/pixels_per_meter);
@@ -382,7 +465,7 @@ void OpenGLCanvas::OnMouseMoved(int canvas_x, int canvas_y, int dx, int dy)
 
 	if (selecting_)
 	{
-		select_end_ = Gwen::Point(canvas_x,canvas_y);
+		select_end_ = Gwen::Point(canvas_x, canvas_y);
 		Redraw();
 	}
 	Redraw();// to get numbers to update
