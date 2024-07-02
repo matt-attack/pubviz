@@ -8,7 +8,7 @@
 #include <Gwen/Controls/Property/ColorSelector.h>
 #include <Gwen/Controls/Property/ComboBox.h>
 #include <Gwen/Controls/Property/Numeric.h>
-#include <Gwen/Controls/Property/Folder.h>
+#include <Gwen/Controls/Property/File.h>
 #include <Gwen/Controls/ListBox.h>
 
 #include <functional>
@@ -446,6 +446,71 @@ public:
 		property_ = new Gwen::Controls::Property::Text(tree);
 		auto item = tree->Add(name, property_, topic);
 		item->onChange.Add(this, &StringProperty::cbOnChange);
+		if (description.length())
+		{
+			item->SetToolTip(description);
+		}
+		value_ = topic;
+	}
+
+	void SetValue(const std::string& val)
+	{
+		value_ = val;
+		property_->SetPropertyValue(val, true);
+	}
+	
+	inline const std::string& GetValue()
+	{
+		return value_;
+	}
+	
+	virtual std::string Serialize()
+	{
+		return value_;
+	}
+	
+	virtual void Deserialize(const std::string& str)
+	{
+		value_ = str;
+		property_->SetPropertyValue(str, true);
+	}
+
+    void Hide()
+    {
+        property_->GetParent()->Hide();
+    }
+
+    void Show()
+    {
+        property_->GetParent()->Show();
+    }
+	
+	std::function<void(std::string)> onChange;
+};
+
+class FileProperty: public PropertyBase
+{
+	Gwen::Controls::Property::Text* property_;
+	
+	std::string value_;
+	
+	void cbOnChange(Gwen::Controls::Base* prop)
+	{
+		property_->Redraw();
+		value_ = property_->GetPropertyValue().c_str();
+		if (onChange)
+		{
+			onChange(value_);
+		}
+	}
+	
+public:
+
+	FileProperty(Gwen::Controls::Properties* tree, const std::string& name, std::string topic = "", const std::string& description = "")
+	{
+		property_ = new Gwen::Controls::Property::File(tree);
+		auto item = tree->Add(name, property_, topic);
+		item->onChange.Add(this, &FileProperty::cbOnChange);
 		if (description.length())
 		{
 			item->SetToolTip(description);

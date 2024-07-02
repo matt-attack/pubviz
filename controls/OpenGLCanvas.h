@@ -49,6 +49,8 @@ class OpenGLCanvas : public Gwen::Controls::Base
 
 		Matrix3x4d map_to_odom_;
 		Matrix3x4d odom_to_map_;
+		Matrix3x4d vehicle_to_odom_;
+		Matrix3x4d vehicle_to_map_;
 	public:
 
 		inline double view_width() { return view_width_; }
@@ -86,7 +88,8 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		{
 			Map,
 			Odom,
-			WGS84
+			WGS84,
+			Vehicle// only supported as a src frame, and Map and Odom are only supported dst frames
 		};
 
 		void TransformToFrame(Frame src, Frame dst, Vec3d& pos) const
@@ -101,6 +104,10 @@ class OpenGLCanvas : public Gwen::Controls::Base
 				{
 					// transform to map
 					pos = odom_to_map_.transform(pos);
+				}
+				else if (src == Vehicle)
+				{
+					pos = vehicle_to_map_.transform(pos);
 				}
 				else//wgs84
 				{
@@ -143,6 +150,10 @@ class OpenGLCanvas : public Gwen::Controls::Base
 				else if (src == Odom)
 				{
 					// do nothing
+				}
+				else if (src == Vehicle)
+				{
+					pos = vehicle_to_odom_.transform(pos);
 				}
 				else// wgs84
 				{
@@ -228,6 +239,9 @@ class OpenGLCanvas : public Gwen::Controls::Base
 			// then we want to add the vehicl
 			map_to_odom_ = odom_to_map_;
 			map_to_odom_.invert();
+
+			vehicle_to_odom_ = Matrix3x4d(odom_rot, Vec3d(x,y,z));
+			vehicle_to_map_ = vehicle_to_map;
 		}
 		
 		// Sets the view origin

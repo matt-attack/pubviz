@@ -230,6 +230,14 @@ namespace pubviz
 			return prop;
 		}
 
+		FileProperty* AddFileProperty(Gwen::Controls::Properties* tree, const char* name, std::string val,
+			const std::string& description = "")
+		{
+			auto prop = new FileProperty(tree, name, val, description);
+			properties_[name] = prop;
+			return prop;
+		}
+
 		EnumProperty* AddEnumProperty(Gwen::Controls::Properties* tree, const char* name, std::string def, std::vector<std::string> enums,
 			const std::string& description = "")
 		{

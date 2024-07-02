@@ -94,8 +94,8 @@ public:
 	virtual void Initialize(Gwen::Controls::Properties* tree)
 	{
 		// add any properties
-		x_count_ = AddNumberProperty(tree, "X Count", 10, 0, 100, 1, "Number of grid cells along X axis.");
-		y_count_ = AddNumberProperty(tree, "Y Count", 10, 0, 100, 1, "Number of grid cells along Y axis.");
+		x_count_ = AddNumberProperty(tree, "X Count", 10, 0, 1000, 1, "Number of grid cells along X axis.");
+		y_count_ = AddNumberProperty(tree, "Y Count", 10, 0, 1000, 1, "Number of grid cells along Y axis.");
 		
 		start_x_ = AddFloatProperty(tree, "Start X", -50.0, -100000, 100000, 1, "Left X position of grid.");
 		start_y_ = AddFloatProperty(tree, "Start Y", -50.0, -100000, 100000, 1, "Bottom Y position of grid.");

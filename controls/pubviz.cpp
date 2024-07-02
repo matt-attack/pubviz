@@ -55,6 +55,7 @@
 #include "../plugins/PlanPath.h"
 #include "../plugins/Measure.h"
 #include "../plugins/Map.h"
+#include "../plugins/RobotImage.h"
 
 #include <Gwen/Controls/Dialogs/FileOpen.h>
 #include <Gwen/Controls/Dialogs/FileSave.h>
