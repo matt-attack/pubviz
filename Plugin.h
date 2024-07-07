@@ -95,6 +95,7 @@ namespace pubviz
 		// Indicate that we want a redraw
 		void Redraw()
 		{
+			// todo add a rate limit here
 			props_->Redraw();
 		}
 
@@ -207,9 +208,9 @@ namespace pubviz
 		}
 
 		TopicProperty* AddTopicProperty(Gwen::Controls::Properties* tree, const char* name, std::string topic,
-			const std::string& description = "", const std::string& type = "", bool use_for_title = true)
+			const std::string& description = "", const std::string& type = "", bool use_for_title = true, bool published = true)
 		{
-			auto prop = new TopicProperty(tree, name, topic, description, type);
+			auto prop = new TopicProperty(tree, name, topic, description, type, published);
 			properties_[name] = prop;
 			auto p = (Gwen::Controls::PropertyTreeNode*)tree->GetParent();
 			if (use_for_title)

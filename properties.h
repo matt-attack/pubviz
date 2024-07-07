@@ -273,8 +273,8 @@ public:
 	std::function<void(int)> onChange;
 };
 
-extern std::map<std::string, std::vector<std::string>> _topics;
-extern std::map<std::string, bool> _found_topics;
+extern std::map<std::string, std::vector<std::string>> _published_topics;
+extern std::map<std::string, std::vector<std::string>> _subscribed_topics;
 
 class TopicProperty: public PropertyBase
 {
@@ -283,6 +283,7 @@ class TopicProperty: public PropertyBase
 	
 	std::string value_;
 	std::string message_type_;
+	bool published_;
 	
 	void cbOnChange(Gwen::Controls::Base* prop)
 	{
@@ -311,10 +312,11 @@ class TopicProperty: public PropertyBase
 		// populate the topic list
 		topic_list_->Clear();
 		int added_count = 0;
+		auto& topics = published_ ? _published_topics : _subscribed_topics;
 		if (message_type_.length())
 		{
-			auto list = _topics.find(message_type_);
-			if (list != _topics.end())
+			auto list = topics.find(message_type_);
+			if (list != topics.end())
 			{
 				for (const auto& topic: list->second)
 				{
@@ -325,10 +327,13 @@ class TopicProperty: public PropertyBase
 		}
 		else
 		{
-			for (const auto& topic: _found_topics)
+			for (const auto& list: topics)
 			{
-				topic_list_->AddItem(topic.first, topic.first);
-				added_count++;
+				for (const auto& topic: list.second)
+				{
+					topic_list_->AddItem(topic, topic);
+					added_count++;
+				}
 			}
 		}
 		if (added_count == 0)
@@ -354,9 +359,10 @@ class TopicProperty: public PropertyBase
 	
 public:
 
-	TopicProperty(Gwen::Controls::Properties* tree, const std::string& name, std::string topic = "", std::string description = "", std::string type = "")
+	TopicProperty(Gwen::Controls::Properties* tree, const std::string& name, std::string topic = "", std::string description = "", std::string type = "", bool published=true)
 	{
 		message_type_ = type;
+		published_ = published;
 
 		property_ = new Gwen::Controls::Property::Text(tree->GetParent());
 		auto item = tree->Add(name, property_, topic);

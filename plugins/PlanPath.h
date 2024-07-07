@@ -170,7 +170,7 @@ public:
 
 		color_ = AddColorProperty(tree, "Color", Gwen::Color(255, 50, 50));
 
-		topic_ = AddTopicProperty(tree, "Topic", "/path", "", "pubsub__Path");
+		topic_ = AddTopicProperty(tree, "Topic", "/path", "", "pubsub__Path", true, false);
 		topic_->onChange = std::bind(&PlanPathPlugin::ChangeTopic, this, std::placeholders::_1);
 
 		line_width_ = AddNumberProperty(tree, "Line Width", 4, 1, 100, 2);
@@ -188,18 +188,7 @@ public:
 		publish_ = AddButtonProperty(tree, "Publish");
 		publish_->onChange = [this]()
 		{
-			std::vector<double> points;
-			for (const auto& pt: points_)
-			{
-				points.push_back(pt.x);
-				points.push_back(pt.y);
-				points.push_back(pt.z);
-			}
-			pubsub::msg::Path msg;
-			msg.frame = frame_enum_;
-		    msg.path_type = pubsub::msg::Path::PATH_XY_Y;
-			msg.points = points;
-			ps_pub_publish_ez(&publisher_, &msg);
+			Publish();
 		};
 		clear_ = AddButtonProperty(tree, "Clear");
 		clear_->onChange = [this]()
@@ -211,6 +200,22 @@ public:
 		ChangeTopic(topic_->GetValue());
 	}
 
+	void Publish()
+	{
+		std::vector<double> points;
+		for (const auto& pt: points_)
+		{
+			points.push_back(pt.x);
+			points.push_back(pt.y);
+			points.push_back(pt.z);
+		}
+		pubsub::msg::Path msg;
+		msg.frame = frame_enum_;
+		msg.path_type = pubsub::msg::Path::PATH_XY_Y;
+		msg.points = points;
+		ps_pub_publish_ez(&publisher_, &msg);
+	}
+
 	std::string GetTitle() override
 	{
 		return "Plan Path";
@@ -219,7 +224,8 @@ public:
 	virtual std::vector<std::pair<std::string, std::function<void()>>> ContextMenu(double x, double y) override
 	{
 		return {{"Add Path Point", [this, x, y]() { OnMapDoubleClick(x, y); }}, 
-                {"Clear Path", [this]() {points_.clear(); Redraw();}}};
+                {"Clear Path", [this]() {points_.clear(); Redraw();}},
+				{"Publish Path", [this]() { Publish(); }}};
 	}
 
 	// Applies only for 2d

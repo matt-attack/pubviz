@@ -443,8 +443,9 @@ void PubViz::Layout(Skin::Base* skin)
 	Invalidate();
 }
 
-std::map<std::string, std::vector<std::string>> _topics;
-std::map<std::string, bool> _found_topics;
+std::map<std::string, std::vector<std::string>> _published_topics;
+std::map<std::string, std::vector<std::string>> _subscribed_topics;
+std::map<std::string, bool> _found_pub_topics, _found_sub_topics;
 
 GWEN_CONTROL_CONSTRUCTOR(PubViz)
 {
@@ -552,7 +553,7 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	add_button->SetText( L"Add Plugin" );
 	
 	//ps_node_init_ex(&node_, "pubviz_real", "", false, false);
-	ps_node_init_ex(&node_, "pubviz_real", "", true, false);
+	ps_node_init_ex(&node_, "pubviz", "", true, false);
 	
 	struct ps_transport_t tcp_transport;
     ps_tcp_transport_init(&tcp_transport, &node_);
@@ -563,15 +564,42 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	node_.adv_cb = [](const char* topic, const char* type, const char* node, const ps_advertise_req_t* data, void* cb_data)
 	{
 		// check if we already have the topic
-		if (_found_topics.find(topic) != _found_topics.end())
+		if (_found_pub_topics.find(topic) != _found_pub_topics.end())
+		{
+			return;
+		}
+
+		// ignore topics from ourselves
+		if (strcmp(node, "pubviz") == 0)
 		{
 			return;
 		}
 
 		//printf("Discovered topic %s..\n", topic);
 		
-		_topics[type].push_back(topic);
-		_found_topics[topic] = true;
+		_published_topics[type].push_back(topic);
+		_found_pub_topics[topic] = true;
+	};
+
+	// sometimes we also want subscribed topics
+	node_.sub_cb = [](const char* topic, const char* type, const char* node, const struct ps_subscribe_req_t* sub_data, void* data)
+	{
+		// check if we already have the topic
+		if (_found_sub_topics.find(topic) != _found_sub_topics.end())
+		{
+			return;
+		}
+
+		// ignore topics from ourselves
+		if (strcmp(node, "pubviz") == 0)
+		{
+			return;
+		}
+
+		//printf("Discovered topic %s..\n", topic);
+		
+		_subscribed_topics[type].push_back(topic);
+		_found_sub_topics[topic] = true;
 	};
 	
 	canvas_ = new OpenGLCanvas(this);
@@ -585,18 +613,8 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	{
 		properties_[p.first] = p.second;
 	}
-	
-	//AddPlugin("image");
 
-	//AddPlugin("gauge");
 	AddPlugin("grid");
-	//AddPlugin("gps");
-		//AddPlugin("costmap");
-		//AddPlugin("marker");
-		//AddPlugin("pointcloud");
-		//AddPlugin("path");
-		//AddPlugin("pose");
-	//AddPlugin("plan_path");
 	
 	add_button->onPress.Add( this, &ThisClass::OnAddPlugin );
 
