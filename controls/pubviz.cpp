@@ -248,8 +248,11 @@ void PubViz::LoadConfig(const char* filename)
 				printf("Invalid config\n");
 				return;
 			}
+			auto window = (Gwen::Controls::WindowCanvas*)GetParent();
 			double pitch = 0.0;
 			double yaw = 0.0;
+			int width = window->Width();
+			int height = window->Height();
 			for (int i = 0; i < pts.size(); i += 2)
 			{
 				auto key = pts[i];
@@ -269,11 +272,11 @@ void PubViz::LoadConfig(const char* filename)
 				}
 				else if (key == "window_width")
 				{
-					GetParent()->SetWidth(std::atoi(value.c_str()));
+					width = std::atoi(value.c_str());
 				}
 				else if (key == "window_height")
 				{
-					GetParent()->SetHeight(std::atoi(value.c_str()));
+					height = std::atoi(value.c_str());
 				}
 				else
 				{
@@ -285,6 +288,7 @@ void PubViz::LoadConfig(const char* filename)
 					}
 				}
 			}
+			window->SetWindowSize(width, height);
 			continue;
 		}
 		printf("loaded plugin %s\n", data[0].c_str());

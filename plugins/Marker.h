@@ -160,6 +160,7 @@ public:
 		{
 			// 2d line segments
 			int i = 0;
+			int ci = 0;
 			while (i < last_msg_.data.size())
 			{
 				int count = last_msg_.data[i];
@@ -170,7 +171,6 @@ public:
 				glColor3f(color.r/255.0, color.g/255.0, color.b/255.0);
 				for (; i < std::min<int>(end_index, last_msg_.data.size()-1); i += 2)
 				{
-					int ci = i / 2;
 					if (ci < last_msg_.colors.size())
 					{
 						uint32_t c = last_msg_.colors[ci];
@@ -184,6 +184,7 @@ public:
 					glVertex2f(pos.x, pos.y);
 				}
 				glEnd();
+				ci++;
 			}
 		}
 		else if (last_msg_.marker_type == pubsub::msg::Marker::POLYGON_2D)

@@ -127,6 +127,7 @@ class DoubleParameter : public Gwen::Controls::Base
 			// if value still not equal to expected and the last request timed out, try again
 			if (FloatEqual(remote_value_, last_commanded_value_))
 			{
+				label_->SetTextColor(Gwen::Color(0,0,0));
 				return;
 			}
 
@@ -175,6 +176,7 @@ class DoubleParameter : public Gwen::Controls::Base
 			ps_node_set_parameter(node_, name_.c_str(), value);
 			last_commanded_value_ = value;
 			last_commanded_time_ = pubsub::Time::now();
+			label_->SetTextColor(Gwen::Color(255,0,0));
 		}
 		
 		Gwen::Controls::HorizontalSlider* slider_;
