@@ -50,7 +50,7 @@ public:
     rho_lon_ = (rho_n - depth) * cos(origin_lat_);
   }
 
-  void ToLatLon(double x, double y, double& lat, double& lon)
+  void ToLatLon(double x, double y, double& lat, double& lon) const
   {
     double dLon = 1.0 * x - 0.0 * y;
     double dLat = 0.0 * x + 1.0 * y;
@@ -61,7 +61,7 @@ public:
     lon = RadiansToDegrees(rlon);
   }
 
-  void FromLatLon(double lat, double lon, double& x, double& y)
+  void FromLatLon(double lat, double lon, double& x, double& y) const
   {
     double rLat = DegreesToRadians(lat);
     double rLon = DegreesToRadians(lon);
@@ -72,22 +72,22 @@ public:
     y = -0.0 * dLon + 1.0 * dLat;
   }
 
-  inline double OriginLatitude()
+  inline double OriginLatitude() const
   {
     return RadiansToDegrees(origin_lat_);
   }
 
-  inline double OriginLongitude()
+  inline double OriginLongitude() const
   {
     return RadiansToDegrees(origin_lon_);
   }
 
-  inline double DegreesToRadians(double angle)
+  inline double DegreesToRadians(double angle) const
   {
     return angle * M_PI / 180.0;
   }
 
-  inline double RadiansToDegrees(double radians)
+  inline double RadiansToDegrees(double radians) const
   {
     return (180.0 / M_PI) * radians;
   }

@@ -68,6 +68,7 @@ class GraphCanvas;
 class PubViz: public Gwen::Controls::DockBase
 {
 		std::map<std::string, PropertyBase*> properties_;
+		std::string current_config_file_;
 	public:
 
 		GWEN_CONTROL(PubViz, Gwen::Controls::DockBase);
@@ -83,6 +84,7 @@ class PubViz: public Gwen::Controls::DockBase
 		pubviz::Plugin* AddPlugin(const std::string& name);
 
 		void LoadConfig(const char* filename);
+		void SaveConfig(const std::string& file);
 
 		inline Gwen::Controls::TreeControl* GetSelection() { return selection_; }
 
@@ -92,6 +94,8 @@ class PubViz: public Gwen::Controls::DockBase
 		void OnAddPlugin(Gwen::Controls::Base* control);
 		void OnRemovePlugin( Gwen::Controls::Base* control);
 		void OnAddPluginFinish(Gwen::Controls::Base* control);
+		void OnUpPlugin(Gwen::Controls::Base* control);
+		void OnDownPlugin(Gwen::Controls::Base* control);
 		void OnCenter(Gwen::Controls::Base* control);
         void OnShowConfigChanged(Gwen::Controls::Base* control);
 		void OnShowSelectionChanged(Gwen::Controls::Base* control);
@@ -104,6 +108,7 @@ class PubViz: public Gwen::Controls::DockBase
 		}
 		
 		void OnConfigSave(Gwen::Event::Info info);
+		void OnConfigSaveAs(Gwen::Event::Info info);
 		void OnConfigLoad(Gwen::Event::Info info);
 		void OnGraphClosed(Gwen::Controls::Base* base);
 		

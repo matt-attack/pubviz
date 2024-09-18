@@ -54,14 +54,6 @@ class GPSPlugin: public pubviz::Plugin
 
 	}
 
-	void OnFollowChange(bool state)
-	{
-		if (!state)
-		{
-			GetCanvas()->ResetViewOrigin();
-		}
-	}
-
 	void OnHistoryChange(int length)
 	{
 		if (messages_.size() > length)
@@ -206,7 +198,7 @@ public:
 		{
 			double x, y;
 
-			if (GetCanvas()->wgs84_mode_)
+			if (GetCanvas()->wgs84_mode())
 			{
 				GetCanvas()->local_xy_.FromLatLon(p.latitude, p.longitude, x, y);
 			}
@@ -263,7 +255,7 @@ public:
 		{
 			double x, y;
 
-			if (GetCanvas()->wgs84_mode_)
+			if (GetCanvas()->wgs84_mode())
 			{
 				GetCanvas()->local_xy_.FromLatLon(p.latitude, p.longitude, x, y);
 				//p.z = 0.0;

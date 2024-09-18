@@ -63,6 +63,12 @@ namespace pubviz
 		// Returns info about a selected item including bounds (todo)
 		virtual std::map<std::string, std::string> Select(uint32_t index, AABB& size) { return {}; }
 
+		// Applies only for 2d. Return true if event is handled.
+		virtual bool OnMapDoubleClick(double x, double y) { return false; }
+
+		// Called on right click to add items to a context menu
+		virtual std::vector<std::pair<std::string, std::function<void()>>> ContextMenu(double x, double y) { return {}; }
+
 		// Returns if the plugin is enabled and should be rendered
 		bool Enabled()
 		{
@@ -89,6 +95,7 @@ namespace pubviz
 		// Indicate that we want a redraw
 		void Redraw()
 		{
+			// todo add a rate limit here
 			props_->Redraw();
 		}
 
@@ -104,8 +111,14 @@ namespace pubviz
 			out += tree_node_->GetToggleButton()->GetToggleState() ? "false" : "true";
 			// lets just write it as CSV
 			int i = 0;
-			for (auto& prop : properties_)
+
+			for (const auto& prop : properties_)
 			{
+				// skip ButtonProperties
+				if (dynamic_cast<ButtonProperty*>(prop.second))
+				{
+					continue;
+				}
 				out += ",";
 				out += prop.first;
 				out += ",";
@@ -195,9 +208,9 @@ namespace pubviz
 		}
 
 		TopicProperty* AddTopicProperty(Gwen::Controls::Properties* tree, const char* name, std::string topic,
-			const std::string& description = "", const std::string& type = "", bool use_for_title = true)
+			const std::string& description = "", const std::string& type = "", bool use_for_title = true, bool published = true)
 		{
-			auto prop = new TopicProperty(tree, name, topic, description, type);
+			auto prop = new TopicProperty(tree, name, topic, description, type, published);
 			properties_[name] = prop;
 			auto p = (Gwen::Controls::PropertyTreeNode*)tree->GetParent();
 			if (use_for_title)
@@ -218,10 +231,26 @@ namespace pubviz
 			return prop;
 		}
 
+		FileProperty* AddFileProperty(Gwen::Controls::Properties* tree, const char* name, std::string val,
+			const std::string& description = "")
+		{
+			auto prop = new FileProperty(tree, name, val, description);
+			properties_[name] = prop;
+			return prop;
+		}
+
 		EnumProperty* AddEnumProperty(Gwen::Controls::Properties* tree, const char* name, std::string def, std::vector<std::string> enums,
 			const std::string& description = "")
 		{
 			auto prop = new EnumProperty(tree, name, def, enums, description);
+			properties_[name] = prop;
+			return prop;
+		}
+
+		ButtonProperty* AddButtonProperty(Gwen::Controls::Properties* tree, const char* name,
+			const std::string& description = "")
+		{
+			auto prop = new ButtonProperty(tree, name, description);
 			properties_[name] = prop;
 			return prop;
 		}

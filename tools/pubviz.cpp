@@ -40,7 +40,6 @@ int main(int argc, char** args)
 	{
 		ppUnit->LoadConfig(args[1]);
 	}
-	
 	// Wait for exit, use this instead of spin
 	while (app.Okay())
 	{
@@ -48,7 +47,7 @@ int main(int argc, char** args)
 		{
 			break;
 		}
-		
+
 		//if (!window->NeedsRedraw())
 		{
 			// If we dont need a redraw, sleep until we get new input

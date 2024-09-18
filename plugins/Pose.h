@@ -14,6 +14,7 @@
 #include <Gwen/Controls/Property/Numeric.h>
 
 #include <deque>
+#include <memory>
 
 #define GLEW_STATIC
 #include <GL/glew.h>
@@ -41,9 +42,11 @@ class PosePlugin : public pubviz::Plugin
 	BooleanProperty* follow_pose_;
 	NumberProperty* history_length_;
 	FloatProperty* sample_distance_;
-	BooleanProperty* draw_line_;
 	NumberProperty* point_size_;
 	EnumProperty* draw_style_;
+	EnumProperty* history_style_;
+
+	std::unique_ptr<BooleanProperty> use_transforms_;
 
 	TopicProperty* topic_;
 
@@ -61,15 +64,26 @@ class PosePlugin : public pubviz::Plugin
 	{
 		if (!state)
 		{
-			GetCanvas()->ResetViewOrigin();
+			// set the view to no longer follow but stay at same position
+			GetCanvas()->ResetViewPosition();
+		}
+		else
+		{
+			// center on the latest pose so it works while paused
+			if (messages_.size())
+			{
+				auto data = &messages_.back();
+				GetCanvas()->SetViewOrigin(data->x, data->y, data->z, data->latitude, data->longitude, data->altitude);
+				GetCanvas()->ResetViewPosition();
+			}
 		}
 	}
 
 	void OnHistoryChange(int length)
 	{
-		if (messages_.size() > length)
+		while (messages_.size() > length)
 		{
-			messages_.resize(length);
+			messages_.pop_front();
 		}
 	}
 
@@ -189,13 +203,16 @@ public:
 					messages_.pop_front();
 				}
 
-				// todo is there a better way to do this?
-				GetCanvas()->SetLocalXY(data->latitude, data->longitude);
+				if (use_transforms_->GetValue())
+				{
+					// update our transform between wgs84 and odom
+					GetCanvas()->SetTransform(data->x, data->y, data->z, data->odom_yaw, data->latitude, data->longitude, data->altitude, data->yaw);
+				}
 
 				if (follow_pose_->GetValue())
 				{
 					// center view on me
-					GetCanvas()->SetViewOrigin(data->x, data->y, data->z, data->latitude, data->longitude, 0.0);
+					GetCanvas()->SetViewOrigin(data->x, data->y, data->z, data->latitude, data->longitude, data->altitude);
 				}
 
 				free(data);//todo use allocator free
@@ -211,65 +228,113 @@ public:
 		messages_.clear();
 	}
 
+	inline void draw_frame(float alpha, float line_length, const pubsub::msg::Pose& p)
+	{
+		// first handle yaw
+		float x_x = 1.0 * cos(p.odom_yaw) - 0.0 * sin(p.odom_yaw);
+		float x_y = 1.0 * sin(p.odom_yaw) + 0.0 * cos(p.odom_yaw);
+		float x_z = 0.0;
+
+		float y_x = 0.0 * cos(p.odom_yaw) - 1.0 * sin(p.odom_yaw);
+		float y_y = 0.0 * sin(p.odom_yaw) + 1.0 * cos(p.odom_yaw);
+		float y_z = 0.0;
+
+		float z_x = 0.0;
+		float z_y = 0.0;
+		float z_z = 1.0;
+
+		// todo call begin and end less
+
+		// Draw axes
+		glBegin(GL_LINES);
+		// Red line to the right (x)
+		glColor4f(1, 0, 0, alpha);
+		glVertex3f(p.x + 0, p.y + 0, p.z + 0);
+		glVertex3f(p.x + x_x * line_length, p.y + x_y * line_length, p.z + x_z * line_length);
+
+		// Green line to the top (y)
+		glColor4f(0, 1, 0, alpha);
+		glVertex3f(p.x + 0, p.y + 0, p.z + 0);
+		glVertex3f(p.x + y_x * line_length, p.y + y_y * line_length, p.z + y_z * line_length);
+
+		// Blue line up (z)
+		glColor4f(0, 0, 1, alpha);
+		glVertex3f(p.x + 0, p.y + 0, p.z + 0);
+		glVertex3f(p.x + z_x * line_length, p.y + z_y * line_length, p.z + z_z * line_length);
+		glEnd();
+	}
+
 	virtual void Render()
 	{
 		const double line_length = line_length_->GetValue();
 		glLineWidth(line_width_->GetValue());
 
 		glEnable(GL_BLEND);
-		//glEnable(GL_POINT_SMOOTH);
+		glEnable(GL_POINT_SMOOTH);
 
 		float alpha = alpha_->GetValue();
 
 		auto color = color_->GetValue();
 
 		bool draw_points = draw_style_->GetValue() == "Points";
-		if (draw_line_->GetValue())
-		{
-			glBegin(GL_LINE_STRIP);
 
-			for (auto p : messages_)
+		// first draw history according to the history mode (so it is on bottom)
+		std::string style = history_style_->GetValue();
+		bool is_line = style == "Line";
+		bool is_point = style == "Points";
+		if (is_line) glBegin(GL_LINE_STRIP);
+		for (size_t i = 0; i < messages_.size(); i++)
+		{
+			auto p = messages_[i];
+			if (!is_line && i == 0)
 			{
-				if (GetCanvas()->wgs84_mode_)
-				{
-					GetCanvas()->local_xy_.FromLatLon(p.latitude, p.longitude, p.x, p.y);
-					p.z = 0.0;
-					p.odom_yaw = p.yaw;
-				}
-				glColor4f(color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, alpha);
-				glVertex3f(p.x, p.y, p.z);
+				continue;
 			}
-
-			glEnd();
-		}
-
-		for (auto p : messages_)
-		{
 			// start with just rendering axes
 			// 
 			// todo handle rotation
 
-			if (GetCanvas()->wgs84_mode_)
+			if (GetCanvas()->wgs84_mode())
 			{
 				GetCanvas()->local_xy_.FromLatLon(p.latitude, p.longitude, p.x, p.y);
-				p.z = 0.0;
+				p.z = p.altitude;
 				p.odom_yaw = p.yaw;
 			}
 
-			// first handle yaw
-			float x_x = 1.0 * cos(p.odom_yaw) - 0.0 * sin(p.odom_yaw);
-			float x_y = 1.0 * sin(p.odom_yaw) + 0.0 * cos(p.odom_yaw);
-			float x_z = 0.0;
+			if (is_line)
+			{
+				glColor4f(color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, alpha);
+				glVertex3f(p.x, p.y, p.z);
+			}
+			else if (is_point)
+			{
+				glPointSize(point_size_->GetValue());
+				glBegin(GL_POINTS);
+				glColor4f(color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, alpha);
+				glVertex3f(p.x, p.y, p.z);
+				glEnd();
+			}
+			else
+			{
+				draw_frame(alpha, line_length, p);
+			}
+		}
+		if (is_line) glEnd();
 
-			float y_x = 0.0 * cos(p.odom_yaw) - 1.0 * sin(p.odom_yaw);
-			float y_y = 0.0 * sin(p.odom_yaw) + 1.0 * cos(p.odom_yaw);
-			float y_z = 0.0;
-
-			float z_x = 0.0;
-			float z_y = 0.0;
-			float z_z = 1.0;
-
-			// todo handle pitch and roll later
+		// finally draw the latest message on top
+		if (messages_.size())
+		{
+			auto p = messages_.back();
+			// start with just rendering axes
+			// 
+			// todo handle rotation
+			// todo dont do this hack
+			if (GetCanvas()->wgs84_mode())
+			{
+				GetCanvas()->local_xy_.FromLatLon(p.latitude, p.longitude, p.x, p.y);
+				p.z = p.altitude;
+				p.odom_yaw = p.yaw;
+			}
 
 			if (draw_points)
 			{
@@ -281,28 +346,11 @@ public:
 			}
 			else
 			{
-				// todo call begin and end less
-
-				// Draw axes
-				glBegin(GL_LINES);
-				// Red line to the right (x)
-				glColor4f(1, 0, 0, alpha);
-				glVertex3f(p.x + 0, p.y + 0, p.z + 0);
-				glVertex3f(p.x + x_x * line_length, p.y + x_y * line_length, p.z + x_z * line_length);
-
-				// Green line to the top (y)
-				glColor4f(0, 1, 0, alpha);
-				glVertex3f(p.x + 0, p.y + 0, p.z + 0);
-				glVertex3f(p.x + y_x * line_length, p.y + y_y * line_length, p.z + y_z * line_length);
-
-				// Blue line up (z)
-				glColor4f(0, 0, 1, alpha);
-				glVertex3f(p.x + 0, p.y + 0, p.z + 0);
-				glVertex3f(p.x + z_x * line_length, p.y + z_y * line_length, p.z + z_z * line_length);
-				glEnd();
+				draw_frame(alpha, line_length, p);
 			}
 		}
-		//glDisable(GL_POINT_SMOOTH);
+
+		glDisable(GL_POINT_SMOOTH);
 		glDisable(GL_BLEND);
 	}
 
@@ -333,7 +381,9 @@ public:
 		sample_distance_ = AddFloatProperty(tree, "Sample Distance", 1.0, 0.0, 100, 1, "Minimum distance before dropping another history pose.");
 		sample_distance_->onChange = std::bind(&PosePlugin::OnSampleDistanceChange, this, std::placeholders::_1);
 
-		draw_line_ = AddBooleanProperty(tree, "Show History Line", false, "If true, draw a line between historical poses.");
+		history_style_ = AddEnumProperty(tree, "History Mode", "None", { "None", "Frames", "Line", "Points" }, "Draw style for history.");
+
+		use_transforms_.reset(AddBooleanProperty(tree, "Use Transform", true, "If true, uses this pose for the transform between odom and WGS84."));
 
 		OnDrawStyleChange("Frames");
 		Subscribe(topic_->GetValue());

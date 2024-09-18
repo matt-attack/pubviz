@@ -29,7 +29,7 @@
 
 #include <pubsub/Image.msg.h>
 
-class DialPlugin: public pubviz::Plugin
+class GaugePlugin: public pubviz::Plugin
 {
 	FloatProperty* min_value_;
 	FloatProperty* max_value_;
@@ -59,19 +59,18 @@ class DialPlugin: public pubviz::Plugin
     	struct ps_subscriber_options options;
     	ps_subscriber_options_init(&options);
     	options.preferred_transport = 1;// tcp yo
-		options.want_message_def = true;
     	ps_node_create_subscriber_adv(GetNode(), current_topic_.c_str(), NULL, &subscriber_, &options);
     	sub_open_ = true;
 	}
 	
 public:
 
-	DialPlugin()
+	GaugePlugin()
 	{
 
 	}
 	
-	virtual ~DialPlugin()
+	virtual ~GaugePlugin()
 	{
 		if (sub_open_)
 		{
@@ -304,7 +303,7 @@ public:
 	{
 		// add any properties
 		topic_ = AddTopicProperty(tree, "Topic", "/image", "", "");
-		topic_->onChange = std::bind(&DialPlugin::Subscribe, this, std::placeholders::_1);
+		topic_->onChange = std::bind(&GaugePlugin::Subscribe, this, std::placeholders::_1);
 
 		field_ = AddStringProperty(tree, "Field", "width");
 
@@ -320,10 +319,10 @@ public:
 	
 	std::string GetTitle() override
 	{
-		return "Dial";
+		return "Gauge";
 	}
 };
 
-REGISTER_PLUGIN("dial", DialPlugin)
+REGISTER_PLUGIN("gauge", GaugePlugin)
 
 #endif

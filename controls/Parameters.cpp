@@ -31,22 +31,18 @@ GWEN_CONTROL_CONSTRUCTOR( Parameters )
 	//p->SetPos(0,0);
 }
 
-Parameters* myself = 0;
-
 void Parameters::SetNode(ps_node_t* node)
 {
 	// lets also set up everything we need here
 	node_ = node;
 	
-	myself = this;
-	
 	node->param_confirm_cb = Parameters::AckCB;
+	node->param_confirm_cb_data = (void*)this;
 	
 	struct ps_subscriber_options options;
 	ps_subscriber_options_init(&options);
 	options.skip = 0;
 	options.queue_size = 100;
-	options.want_message_def = false;
 	options.allocator = 0;
 	options.ignore_local = false;
 	options.preferred_transport = true ? 1 : 0;
@@ -63,7 +59,7 @@ void Parameters::SetNode(ps_node_t* node)
 void Parameters::Layout( Gwen::Skin::Base* skin )
 {
 	// Update all of the parameters
-	/*for (auto param : params_)
+	for (auto param : params_)
 	{
 		param.second->Update();
 	}
@@ -74,9 +70,9 @@ void Parameters::Layout( Gwen::Skin::Base* skin )
 	while (data = (pubsub::msg::Parameters*)ps_sub_deque(&param_sub_))
 	{
 		// assert that its properly formatted
-		if (data->name_length != data->min_length ||
-			data->name_length != data->max_length ||
-			data->name_length != data->value_length)
+		if (data->name.size() != data->min.size() ||
+			data->name.size() != data->max.size() ||
+			data->name.size() != data->value.size())
 		{
 			printf("ERROR: Invalid parameter message.\n");
 			
@@ -84,9 +80,11 @@ void Parameters::Layout( Gwen::Skin::Base* skin )
 			free(data);
 			continue;
 		}
+
+		//printf("got parameter message\n");
 		
 		// add parameters to our list
-		for (int i = 0; i < data->name_length; i++)
+		for (int i = 0; i < data->name.size(); i++)
 		{
 			// todo handle more than double
 			DoubleParameter* param = 0;
@@ -96,21 +94,23 @@ void Parameters::Layout( Gwen::Skin::Base* skin )
 				param = new DoubleParameter(this);
 				param->Dock(Gwen::Pos::Top);
 				param->SetNode(node_);
+				param->SetName(data->name[i]);
+				param->SetRange(data->min[i], data->max[i]);
+				param->SetRemoteValue(std::atof(data->value[i]));
+				param->SetLocalValue(std::atof(data->value[i]), false);
 				params_[data->name[i]] = param;
 			}
 			else
 			{
+				// configure things that could have changed (not name or local value)
 				param = params_[data->name[i]];
+				param->SetRange(data->min[i], data->max[i]);
+				param->SetRemoteValue(std::atof(data->value[i]));
 			}
-			
-			// configure it
-			param->SetName(data->name[i]);
-			param->SetRange(data->min[i], data->max[i]);
-			param->SetValue(std::atof(data->value[i]));
 		}
 		data->~Parameters();
 		free(data);
-	}*/
+	}
 	Invalidate();// we are being hacky, just always invalidate so we keep laying out
 }
 

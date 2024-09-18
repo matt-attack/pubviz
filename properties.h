@@ -3,11 +3,12 @@
 #define PUBVIZ_PROPERTIES_H
 
 #include <Gwen/Controls/PropertyTree.h>
+#include <Gwen/Controls/Property/Button.h>
 #include <Gwen/Controls/Property/Checkbox.h>
 #include <Gwen/Controls/Property/ColorSelector.h>
 #include <Gwen/Controls/Property/ComboBox.h>
 #include <Gwen/Controls/Property/Numeric.h>
-#include <Gwen/Controls/Property/Folder.h>
+#include <Gwen/Controls/Property/File.h>
 #include <Gwen/Controls/ListBox.h>
 
 #include <functional>
@@ -86,6 +87,54 @@ public:
     }
 
 	std::function<void(bool)> onChange;
+};
+
+class ButtonProperty: public PropertyBase
+{
+	Gwen::Controls::Property::Button* property_;
+	
+	void OnChange(Gwen::Controls::Base* prop)
+	{
+		if (onChange)
+		{
+			onChange();
+		}
+	}
+	
+public:
+
+	ButtonProperty(Gwen::Controls::Properties* tree, const std::string& name, const std::string& description = "")
+	{
+		property_ = new Gwen::Controls::Property::Button(tree);
+		auto item = tree->Add("", property_, name);
+		item->onChange.Add(this, &ButtonProperty::OnChange);
+		if (description.length())
+		{
+			item->SetToolTip(description);
+		}
+	}
+	
+	virtual std::string Serialize()
+	{
+		return "";
+	}
+	
+	virtual void Deserialize(const std::string& str)
+	{
+
+	}
+
+    void Hide()
+    {
+        property_->GetParent()->Hide();
+    }
+
+    void Show()
+    {
+        property_->GetParent()->Show();
+    }
+
+	std::function<void()> onChange;
 };
 
 class NumberProperty: public PropertyBase
@@ -224,8 +273,8 @@ public:
 	std::function<void(int)> onChange;
 };
 
-extern std::map<std::string, std::vector<std::string>> _topics;
-extern std::map<std::string, bool> _found_topics;
+extern std::map<std::string, std::vector<std::string>> _published_topics;
+extern std::map<std::string, std::vector<std::string>> _subscribed_topics;
 
 class TopicProperty: public PropertyBase
 {
@@ -234,6 +283,7 @@ class TopicProperty: public PropertyBase
 	
 	std::string value_;
 	std::string message_type_;
+	bool published_;
 	
 	void cbOnChange(Gwen::Controls::Base* prop)
 	{
@@ -262,10 +312,11 @@ class TopicProperty: public PropertyBase
 		// populate the topic list
 		topic_list_->Clear();
 		int added_count = 0;
+		auto& topics = published_ ? _published_topics : _subscribed_topics;
 		if (message_type_.length())
 		{
-			auto list = _topics.find(message_type_);
-			if (list != _topics.end())
+			auto list = topics.find(message_type_);
+			if (list != topics.end())
 			{
 				for (const auto& topic: list->second)
 				{
@@ -276,10 +327,13 @@ class TopicProperty: public PropertyBase
 		}
 		else
 		{
-			for (const auto& topic: _found_topics)
+			for (const auto& list: topics)
 			{
-				topic_list_->AddItem(topic.first, topic.first);
-				added_count++;
+				for (const auto& topic: list.second)
+				{
+					topic_list_->AddItem(topic, topic);
+					added_count++;
+				}
 			}
 		}
 		if (added_count == 0)
@@ -305,9 +359,10 @@ class TopicProperty: public PropertyBase
 	
 public:
 
-	TopicProperty(Gwen::Controls::Properties* tree, const std::string& name, std::string topic = "", std::string description = "", std::string type = "")
+	TopicProperty(Gwen::Controls::Properties* tree, const std::string& name, std::string topic = "", std::string description = "", std::string type = "", bool published=true)
 	{
 		message_type_ = type;
+		published_ = published;
 
 		property_ = new Gwen::Controls::Property::Text(tree->GetParent());
 		auto item = tree->Add(name, property_, topic);
@@ -397,6 +452,71 @@ public:
 		property_ = new Gwen::Controls::Property::Text(tree);
 		auto item = tree->Add(name, property_, topic);
 		item->onChange.Add(this, &StringProperty::cbOnChange);
+		if (description.length())
+		{
+			item->SetToolTip(description);
+		}
+		value_ = topic;
+	}
+
+	void SetValue(const std::string& val)
+	{
+		value_ = val;
+		property_->SetPropertyValue(val, true);
+	}
+	
+	inline const std::string& GetValue()
+	{
+		return value_;
+	}
+	
+	virtual std::string Serialize()
+	{
+		return value_;
+	}
+	
+	virtual void Deserialize(const std::string& str)
+	{
+		value_ = str;
+		property_->SetPropertyValue(str, true);
+	}
+
+    void Hide()
+    {
+        property_->GetParent()->Hide();
+    }
+
+    void Show()
+    {
+        property_->GetParent()->Show();
+    }
+	
+	std::function<void(std::string)> onChange;
+};
+
+class FileProperty: public PropertyBase
+{
+	Gwen::Controls::Property::Text* property_;
+	
+	std::string value_;
+	
+	void cbOnChange(Gwen::Controls::Base* prop)
+	{
+		property_->Redraw();
+		value_ = property_->GetPropertyValue().c_str();
+		if (onChange)
+		{
+			onChange(value_);
+		}
+	}
+	
+public:
+
+	FileProperty(Gwen::Controls::Properties* tree, const std::string& name, std::string topic = "", const std::string& description = "")
+	{
+		property_ = new Gwen::Controls::Property::File(tree);
+		auto item = tree->Add(name, property_, topic);
+		item->onChange.Add(this, &FileProperty::cbOnChange);
 		if (description.length())
 		{
 			item->SetToolTip(description);

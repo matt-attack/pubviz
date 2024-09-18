@@ -11,13 +11,15 @@ This repository contains three tools:
 
 A tool for visualizing incoming data in both 2D and 3D. Largely uses immediate mode OpenGL for rendering for ease of implementation.
 
-![Example screenshot of pubviz.](pubviz_screenshot.png)
+![Example screenshot of a 2D view in pubviz.](pubviz_2d.png)
+
+![Example screenshot of a 3D view in pubviz.](pubviz_3d.png)
 
 It supports visualizing:
 
 * Point Clouds
 * Costmaps
-* Basic Markers (to be further improved)
+* Various Markers (to be further improved)
 * Grids
 * Images
 * Time series plots of individual data fields
@@ -27,7 +29,7 @@ It supports visualizing:
 
 # Sackviz
 
-A tool for introspecting and playing back Rucksack files. Also supports both time series and scatter plots of data.
+A tool for introspecting and playing back Rucksack files. Supports viewing both time series and scatter plots of data.
 
 ![Example screenshot of sackviz.](sackviz_screenshot.png)
 
