@@ -40,82 +40,78 @@ GWEN_CONTROL_CONSTRUCTOR( SackViewer )
 
 SackViewer::~SackViewer()
 {
-    if (run_thread_)
-    {
-        run_thread_ = false;
-        playback_thread_.join();
-    }
+  if (run_thread_)
+  {
+    run_thread_ = false;
+    playback_thread_.join();
+  }
 
 	for (auto& viewer: viewers_)
 	{
-        // todo delete string names in our callback
+    // todo delete string names in our callback
 		viewer.second.first->onClose.RemoveHandler(this);
 		viewer.second.first->Close();
 	}
-    viewers_.clear();
+  viewers_.clear();
 
-    CloseBag();
+  CloseBag();
 
-    if (node_initialized_)
-    {
-	    ps_node_destroy(&node_);
-    }
+  if (node_initialized_)
+  {
+	  ps_node_destroy(&node_);
+  }
 }
 
 #include "SackGraph.h"
 
 void SackViewer::OnFieldRightClick(Gwen::Controls::Base* pControl)
 {
-    auto item = (Gwen::Controls::TreeNode*)pControl;
+  auto item = (Gwen::Controls::TreeNode*)pControl;
 
-    //auto topic = item->UserData.Get<std::string>("topic");
-    //auto field = item->UserData.Get<std::string>("field");
+  //auto topic = item->UserData.Get<std::string>("topic");
+  //auto field = item->UserData.Get<std::string>("field");
 	auto parent = item->UserData.Get<Gwen::Controls::TreeNode*>("base");
 
-    //printf("Want to plot: %s\n", topic.c_str());
+  //printf("Want to plot: %s\n", topic.c_str());
 	auto menu = new Gwen::Controls::Menu(GetCanvas());
 	menu->AddItem("Plot")->SetAction(this, &ThisClass::OnMenuItemSelect);
 	menu->AddItem("Plot 2D")->SetAction(this, &ThisClass::OnMenuItemSelect);
-    menu->SetDeleteOnClose(true);
+  menu->SetDeleteOnClose(true);
 	menu->Show();
 
-    auto canvas = GetCanvas();
-    Gwen::Point mp = Gwen::Input::GetMousePosition();
-    mp -= canvas->WindowPosition();
-    mp.x /= canvas->Scale();
-    mp.y /= canvas->Scale();
+  auto canvas = GetCanvas();
+  Gwen::Point mp = Gwen::Input::GetMousePosition();
+  mp -= canvas->WindowPosition();
+  mp.x /= canvas->Scale();
+  mp.y /= canvas->Scale();
 
-    menu->SetPos(mp);
+  menu->SetPos(mp);
 }
 
 void SackViewer::CloseBag()
 {
-    // if we have a playback thread, stop it
-    if (node_initialized_ && run_thread_)
-    {
-        run_thread_ = false;
-        playback_thread_.join();
-    }
+  filename_ = "";
+  sack_.close();
+  
+  // if we have a playback thread, stop it
+  if (node_initialized_ && run_thread_)
+  {
+    run_thread_ = false;
+    playback_thread_.join();
+  }
 
 	// free any data we might have loaded
 	for (auto& arr: bag_data_)
 	{
-		for (const auto& msg: arr.second.messages)
-		{
-			delete[] msg.msg;
-		}
-
-        if (arr.second.publisher_initialized)
-        {
-            // kill the publisher
-            ps_pub_destroy(&arr.second.publisher);
-        }
+    if (arr.second.publisher_initialized)
+    {
+      // kill the publisher
+      ps_pub_destroy(&arr.second.publisher);
+    }
 
 		ps_free_message_definition(&arr.second.def);
 	}
-    bag_data_.clear();
-	
-    index_messages_.clear();
+  bag_data_.clear();
 }
 
 class UpdateAnim: public Gwen::Anim::Animation
@@ -130,137 +126,126 @@ public:
 
 void SackViewer::Play()
 {
-    if (!node_initialized_)
-    {
-        // startup the node
-        node_initialized_ = true;
-	    ps_node_init(&node_, "sack_viewer", "", true);
+  if (!node_initialized_)
+  {
+    // startup the node
+    node_initialized_ = true;
+    ps_node_init(&node_, "sack_viewer", "", true);
 
-        // Adds TCP transport
-        ps_tcp_transport_init(&_tcp_transport, &node_);
-        ps_node_add_transport(&node_, &_tcp_transport);
+    // Adds TCP transport
+    ps_tcp_transport_init(&_tcp_transport, &node_);
+    ps_node_add_transport(&node_, &_tcp_transport);
+  }
+
+  if (!run_thread_)
+  { 
+    // create pubs
+    for (auto& topic: bag_data_)
+    {
+      // create publisher if not already done
+      if (!topic.second.publisher_initialized)
+      {
+			  ps_node_create_publisher(&node_, topic.first.c_str(), &topic.second.def, &topic.second.publisher, topic.second.latched);
+        topic.second.publisher_initialized = true;
+      }
     }
 
-    if (!run_thread_)
+    // start the playback thread
+    reseek_ = true;
+    run_thread_ = true;
+    playback_thread_ = std::thread([this]()
     {
-        // index all the messages
-        index_messages_.clear();
-
-        index_messages_.reserve(10000);// to prevent most resizes
-
-        // index! (and create pubs)
-        for (auto& topic: bag_data_)
+      rucksack::SackIndexedReader reader;
+      
+      if (!reader.open(filename_))
+      {
+        throw 7;
+      }
+      uint64_t playback_position = 0;
+      while (run_thread_)
+      {
+        if (reseek_)
         {
-            // create publisher
-			ps_node_create_publisher(&node_, topic.first.c_str(), &topic.second.def, &topic.second.publisher, topic.second.latched);
-            topic.second.publisher_initialized = true;
-
-            // add messages
-            for (auto& msg: topic.second.messages)
-            {
-                IndexedMessage m;
-                m.time = msg.time;
-                m.length = msg.length;
-                m.channel = &topic.second;
-                m.msg = msg.msg;
-                index_messages_.push_back(m);
-            }
+          reseek_ = false;
+          // find the start position
+          playback_position = 0;
+          while (reader.index().messages[playback_position].timestamp < playhead_time_)
+          {
+            playback_position++;
+          }
         }
 
-        // sort
-	    std::sort(index_messages_.begin(), index_messages_.end(),
-		    [](const IndexedMessage& a, const IndexedMessage& b) -> bool
-	    {
-		    return a.time < b.time;
-	    });
-
-        // start the playback thread
-        reseek_ = true;
-        run_thread_ = true;
-        playback_thread_ = std::thread([this]()
+        if (!playing_)
         {
-            uint64_t playback_position = 0;
-            while (run_thread_)
+          ps_node_spin(&node_);
+          ps_sleep(10);
+          continue;
+        }
+
+        // Advance the playhead
+        auto new_time = playhead_time_ + 10000;
+        if (new_time > end_time_)
+        {
+          if (loop_playback_)
+          {
+            playhead_time_ = start_time_;
+            playback_position = 0;
+            continue;
+          }
+          playhead_time_ = end_time_;
+          ps_node_spin(&node_);
+          ps_sleep(10);
+          continue;
+        }
+        playhead_time_ = new_time;
+
+        // actually play the bag!
+        while (true)
+        {
+          reader.seek(playback_position);
+          rucksack::MessageHeader const* out_hdr; rucksack::SackChannelDetails const* out_info;
+          const void* data = reader.read(out_hdr, out_info);
+          if (new_time >= out_hdr->time)
+          {
+            if (should_publish_)
             {
-                if (reseek_)
-                {
-                    reseek_ = false;
-                    // find the start position
-                    playback_position = 0;
-                    while (index_messages_[playback_position].time < playhead_time_)
-                    {
-                        playback_position++;
-                    }
-                }
-
-                if (!playing_)
-                {
-                    ps_node_spin(&node_);
-                    ps_sleep(10);
-                    continue;
-                }
-
-                // Advance the playhead
-                auto new_time = playhead_time_ + 10000;
-                if (new_time > end_time_)
-                {
-                    if (loop_playback_)
-                    {
-                        playhead_time_ = start_time_;
-                        playback_position = 0;
-                        continue;
-                    }
-                    playhead_time_ = end_time_;
-                    ps_node_spin(&node_);
-                    ps_sleep(10);
-                    continue;
-                }
-                playhead_time_ = new_time;
-
-                // actually play the bag!
-                while (true)
-                {
-                    auto& hdr = index_messages_[playback_position];
-                    if (new_time >= hdr.time)
-                    {
-                        if (should_publish_)
-                        {
-                            // lets cheat for the moment, and just publish everything before this time
-                            ps_msg_t msg;
-		                    ps_msg_alloc(hdr.length, 0, &msg);
-        		            memcpy(ps_get_msg_start(msg.data), hdr.msg, hdr.length);
-		                    ps_pub_publish(&hdr.channel->publisher, &msg);
-                        }
-                        playback_position++;
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-
-                ps_node_spin(&node_);
-                ps_sleep(10);
+              // lets cheat for the moment, and just publish everything before this time
+              ps_msg_t msg;
+              ps_msg_alloc(out_hdr->length, 0, &msg);
+              memcpy(ps_get_msg_start(msg.data), data, out_hdr->length);
+              
+              ps_pub_publish(&bag_data_[out_info->topic].publisher, &msg);
             }
-        });
-    }
+            playback_position++;
+          }
+          else
+          {
+            break;
+          }
+        }
 
-    playing_ = true;
-    Gwen::Anim::Add(this, new UpdateAnim(this));
+        ps_node_spin(&node_);
+        ps_sleep(10);
+      }
+    });
+  }
 
-    Invalidate();
+  playing_ = true;
+  Gwen::Anim::Add(this, new UpdateAnim(this));
+
+  Invalidate();
 }
 
 void SackViewer::Pause()
 {
-    Gwen::Anim::Cancel(this);
+  Gwen::Anim::Cancel(this);
 
-    playing_ = false;
+  playing_ = false;
 }
 
 void SackViewer::Layout(Gwen::Skin::Base* skin)
 {   
-    // handle 
+  // handle 
 	BaseClass::Layout(skin);
 }
 
@@ -440,9 +425,9 @@ void SackViewer::AddPlot(bool twod, std::vector<std::pair<std::string, std::stri
 	button->SetClosable(true);
 	auto page = button->GetPage();
 	auto graph = new SackGraph(page);
-    graph->SetViewer(this);
+  graph->SetViewer(this);
 	graph->Dock(Pos::Fill);
-    page->GetParent()->GetParent()->SetWidth(580);
+  page->GetParent()->GetParent()->SetWidth(580);
 	button->GetTabControl()->SelectTab(button);
 	button->UserData.Set<SackGraph*>("graph", graph);
 	button->onClose.Add(this, &ThisClass::OnGraphClose);
@@ -458,11 +443,24 @@ void SackViewer::AddPlot(bool twod, std::vector<std::pair<std::string, std::stri
 
 		auto ch = graph->CreateChannel(topic, field_x, field_y);
 
-		auto& data = bag_data_[topic];
-		for (auto& msg : data.messages)
-		{
-			graph->AddMessageSample(ch, msg.time, msg.msg, &data.def, false, false);
-		}
+   	auto& data = bag_data_[topic];
+   	sack_.seek(0);
+   	rucksack::MessageHeader const* out_hdr; rucksack::SackChannelDetails const* out_info;
+   	int stream_id = 0;
+   	for (; stream_id < sack_.index().channels.size(); stream_id++)
+   	{
+   	  if (sack_.index().channels[stream_id].topic == topic)
+   	  {
+   	    break;
+   	  }
+   	}
+   	while (auto msgd = sack_.read(out_hdr, out_info, stream_id))
+   	{  
+   	  if (out_info->topic == topic)
+   	  {
+    	  graph->AddMessageSample(ch, out_hdr->time, msgd, &out_info->definition, false, false);
+    	}
+   	}
 
 		return;
 	}
@@ -470,17 +468,30 @@ void SackViewer::AddPlot(bool twod, std::vector<std::pair<std::string, std::stri
 	for (auto& item: plots)
 	{
 		auto topic = item.first;//item->UserData.Get<std::string>("topic");
-   		auto field = item.second;//item->UserData.Get<std::string>("field");
+    auto field = item.second;//item->UserData.Get<std::string>("field");
 
-   		//printf("Want to plot: %s:%s\n", topic.c_str(), field.c_str());
+   	//printf("Want to plot: %s:%s\n", topic.c_str(), field.c_str());
 
-   		auto ch = graph->CreateChannel(topic, field);
+   	auto ch = graph->CreateChannel(topic, field);
 
-   		auto& data = bag_data_[topic];
-   		for (auto& msg: data.messages)
-   		{
-       		graph->AddMessageSample(ch, msg.time, msg.msg, &data.def, false, false);
-   		}
+   	auto& data = bag_data_[topic];
+   	sack_.seek(0);
+   	rucksack::MessageHeader const* out_hdr; rucksack::SackChannelDetails const* out_info;
+   	int stream_id = 0;
+   	for (; stream_id < sack_.index().channels.size(); stream_id++)
+   	{
+   	  if (sack_.index().channels[stream_id].topic == topic)
+   	  {
+   	    break;
+   	  }
+   	}
+   	while (auto msgd = sack_.read(out_hdr, out_info, stream_id))
+   	{  
+   	  if (out_info->topic == topic)
+   	  {
+    	  graph->AddMessageSample(ch, out_hdr->time, msgd, &out_info->definition, false, false);
+    	}
+   	}
 	}
 
 	graphs_[graph] = true;
@@ -538,64 +549,56 @@ void SackViewer::OpenFile(const std::string& file)
 	start_time_ = std::numeric_limits<uint64_t>::max();
 	end_time_ = 0;
 
-    CloseBag();
+  CloseBag();
 	
-	rucksack::SackReader sack;
-	if (!sack.open(file))
+	if (!sack_.open(file))
 	{
 		printf("Error opening file.\n");
 		return;
 	}
 	
-	rucksack::MessageHeader const* hdr;
-	rucksack::SackChannelDetails const* info;
-	while (const void* msg = sack.read(hdr, info))
+	filename_ = file;
+	
+	auto& index = sack_.index();
+	int i = 0;
+	for (const auto& msg: index.messages)
 	{
-		start_time_ = std::min(start_time_, hdr->time);
-		end_time_ = std::max(end_time_, hdr->time);
+		start_time_ = std::min(start_time_, msg.timestamp);
+		end_time_ = std::max(end_time_, msg.timestamp);
 		
-		// if we want to use the message later, we need to copy it
-		char* cpy = new char[hdr->length];
-		memcpy(cpy, (const char*)msg, hdr->length);
-		auto& val = bag_data_[info->topic];
-		val.messages.push_back({hdr->time, hdr->length, cpy});
+		// many layers of indirection here, but its fine
+		auto& data = index.channels[index.chunks[msg.chunk_index].connection_id];
+		
+		// not fast but meh
+		auto& val = bag_data_[data.topic];
+		val.messages.push_back({msg.timestamp, i++});
 		
 		if (val.def.name == 0)
 		{
-			ps_copy_message_definition(&val.def, &info->definition);
-			val.latched = false;//info->latched;
+		  ps_copy_message_definition(&val.def, &data.definition);
+		  val.latched = data.latched;
 		}
 	}
 
-	// sort messages in each message array
-	for (auto& topic: bag_data_)
+  // close any viewers that arent relevant and update the rest
+  auto viewers_copy = viewers_;
+  for (auto& viewer: viewers_copy)
 	{
-		std::sort(topic.second.messages.begin(), topic.second.messages.end(),
-		    [](const Message& a, const Message& b) -> bool
-	    {
-		    return a.time < b.time;
-	    });
-	}
-
-    // close any viewers that arent relevant and update the rest
-    auto viewers_copy = viewers_;
-    for (auto& viewer: viewers_copy)
-	{
-        if (bag_data_.find(viewer.first) != bag_data_.end())
-        {
-            continue;
-        }
+    if (bag_data_.find(viewer.first) != bag_data_.end())
+    {
+      continue;
+    }
         
-        // todo delete string names in our callback
+    // todo delete string names in our callback
 		viewer.second.first->onClose.RemoveHandler(this);
 		viewer.second.first->Close();
 
-        viewers_.erase(viewer.first);
+    viewers_.erase(viewer.first);
 	}
 	
 	playhead_time_ = start_time_;
 
-    UpdateViewers();
+  UpdateViewers();
 }
 
 #include <Gwen/Application.h>
@@ -611,12 +614,12 @@ void SackViewer::OnMouseClickRight(int x, int y, bool bDown)
 			//auto window = Gwen::gApplication->AddWindow("", 1, 100, wpos.x + x, wpos.y + y, true);
 			//window->SetRemoveWhenChildless(true);
 //make a function which can pop this out automatically
-	        auto menu = new Gwen::Controls::Menu(GetCanvas());
+      auto menu = new Gwen::Controls::Menu(GetCanvas());
 			menu->SetPos(x, y);
-    	    menu->AddItem("View")->SetAction(this, &ThisClass::OnMenuItemSelect);
-    	    menu->SetDeleteOnClose(true);
+      menu->AddItem("View")->SetAction(this, &ThisClass::OnMenuItemSelect);
+      menu->SetDeleteOnClose(true);
 			menu->UserData.Set<int>("message_index", (pos.y-40)/40);
-            menu->Show();
+      menu->Show();
 			//window->DoThink();
 			auto size = menu->GetSize();
 			//window->SetWindowSize(size.x, size.y);
@@ -690,7 +693,7 @@ void SackViewer::OnMouseMoved(int x, int y, int dx, int dy)
 	playhead_time_ = std::max(start_time_, playhead_time_);
 	playhead_time_ = std::min(end_time_, playhead_time_);
 
-    reseek_ = true;
+  reseek_ = true;
 
 	Redraw();
 	
@@ -699,10 +702,6 @@ void SackViewer::OnMouseMoved(int x, int y, int dx, int dy)
 
 int BinarySearch(uint64_t target_time, const std::vector<SackViewer::Message>& array)
 {
-	SackViewer::Message msg;
-	msg.time = 0;
-	msg.msg = 0;
-	
 	int left = 0; int right = array.size() - 1;
 	while (left <= right)
 	{
@@ -746,7 +745,7 @@ void SackViewer::UpdateSelection(double min_x, double max_x)
 
 void SackViewer::UpdateViewers()
 {
-    auto current_time = playhead_time_;
+  auto current_time = playhead_time_;
 	// Now update topic visualizations based on the new playhead position
 	for (auto& t: bag_data_)
 	{
@@ -798,10 +797,17 @@ void SackViewer::UpdateViewers()
 			node->GetButton()->SetTextColorOverride(Gwen::Color(255, 0, 0, 255));
 		}
 
-        const int max_array_length = 100;
+    const int max_array_length = 100;
+    
+    // todo cache
+    //the cache should be indexed by message index into the bag
+    
+    sack_.seek(msg.message_index);
+    rucksack::MessageHeader const* out_hdr; rucksack::SackChannelDetails const* out_info;
+    const void* data = sack_.read(out_hdr, out_info);
 		
 		int it = 1;
-		struct ps_deserialize_iterator iter = ps_deserialize_start((const char*)msg.msg, &topic.def);
+		struct ps_deserialize_iterator iter = ps_deserialize_start((const char*)data, &topic.def);
 		const struct ps_msg_field_t* field; uint32_t length; const char* ptr;
 		while (ptr = ps_deserialize_iterate(&iter, &field, &length))
 		{
@@ -951,11 +957,11 @@ void SackViewer::UpdateViewers()
 			{
 				node->GetButton()->SetTextColorOverride(Gwen::Color(255, 0, 0, 255));
 			}
-            node->UserData.Set<std::string>("topic", t.first);
-            node->UserData.Set<std::string>("field", field->name);
+      node->UserData.Set<std::string>("topic", t.first);
+      node->UserData.Set<std::string>("field", field->name);
 			node->UserData.Set<Gwen::Controls::TreeNode*>("base", tree);
 			node->GetButton()->DragAndDrop_SetPackage(true, "topic");
-            node->onRightPress.Add(this, &ThisClass::OnFieldRightClick);
+      node->onRightPress.Add(this, &ThisClass::OnFieldRightClick);
 			it++;
 		}
 		tree->ExpandAll();

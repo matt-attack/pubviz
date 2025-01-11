@@ -19,6 +19,7 @@
 
 #include "SackGraph.h"
 
+#include <rucksack/rucksack.h>
 
 class PubViz;
 class SackViewer : public Gwen::Controls::Base
@@ -36,36 +37,36 @@ public:
 	~SackViewer();
 
 	virtual void Render( Gwen::Skin::Base* skin );
-		
+
+  std::string filename_;
 	void OpenFile(const std::string& file);
 
-    void Play();
+  void Play();
 
-    void Pause();
+  void Pause();
 
-    void LoopPlayback(bool yn)
-    {
-        loop_playback_ = yn;
-    }
+  void LoopPlayback(bool yn)
+  {
+    loop_playback_ = yn;
+  }
 
-    void ShouldPublish(bool yn)
-    {
-        should_publish_ = yn;
-    }
+  void ShouldPublish(bool yn)
+  {
+    should_publish_ = yn;
+  }
 
-    struct Message
+  struct Message
 	{
 		uint64_t time;
-        uint64_t length;
-		const char* msg;
+    uint64_t message_index;// sequential index into the file
 	};
 
-    uint64_t GetPlayheadTime() { return playhead_time_; }
-    uint64_t GetStartTime() { return start_time_; }
-    uint64_t GetEndTime() { return end_time_; }
+  uint64_t GetPlayheadTime() { return playhead_time_; }
+  uint64_t GetStartTime() { return start_time_; }
+  uint64_t GetEndTime() { return end_time_; }
 
-    void SetPlayheadTime(uint64_t time)
-    {
+  void SetPlayheadTime(uint64_t time)
+  {
         if (time < start_time_)
         {
             playhead_time_ = start_time_;
@@ -82,54 +83,46 @@ public:
         reseek_ = true;
 
 		UpdateViewers();
-    }
+  }
 
 protected:
 		
 	struct Stream
 	{
-		std::vector<Message> messages;
-		ps_message_definition_t def;
+    std::vector<Message> messages;
+    ps_message_definition_t def;
 
-		bool latched;
-        bool publisher_initialized;
-        ps_pub_t publisher;
+    bool latched;
+    bool publisher_initialized;
+    ps_pub_t publisher;
 			
 		Stream()
 		{
-			def.name = 0;
-            publisher_initialized = false;
-			latched = false;
+      def.name = 0;
+      publisher_initialized = false;
+      latched = false;
 		}
 	};
 	std::map<std::string, Stream> bag_data_;
 	uint64_t start_time_ = 0, end_time_ = 0;// in uS
 	uint64_t playhead_time_ = 0;
 
-    // Used if we enable playback mode
-    struct IndexedMessage
-    {
-        uint64_t time;
-        uint64_t length;
-        Stream* channel;
-        const char* msg;
-    };
-    std::vector<IndexedMessage> index_messages_;
-    ps_node_t node_;
-    bool node_initialized_ = false;
-    bool run_thread_ = false;
-    bool playing_ = false;
-    bool reseek_ = false;
-    bool loop_playback_ = false;
-    bool should_publish_ = false;
-    std::thread playback_thread_;
+  // Used if we enable playback mode
+  ps_node_t node_;
+  bool node_initialized_ = false;
+  bool run_thread_ = false;
+  bool playing_ = false;
+  bool reseek_ = false;
+  bool loop_playback_ = false;
+  bool should_publish_ = false;
+  std::thread playback_thread_;
 
-    struct Viewer
-    {
-        Gwen::Controls::TabButton* first;
-        Gwen::Controls::TreeControl* second;
-        int current_message = -1;
-    };
+  struct Viewer
+  {
+    Gwen::Controls::TabButton* first;
+    Gwen::Controls::TreeControl* second;
+    int current_message = -1;
+  };
 		
 	std::map<std::string, Viewer> viewers_;
 
@@ -146,14 +139,14 @@ protected:
 	void OnViewerClose(Gwen::Controls::Base* pControl);
 	void OnGraphClose(Gwen::Controls::Base* pControl);
 
-    void OnPreviousMessage(Gwen::Controls::Base* control);
-    void OnNextMessage(Gwen::Controls::Base* control);
-    void OnFirstMessage(Gwen::Controls::Base* control);
-    void OnLastMessage(Gwen::Controls::Base* control);
+  void OnPreviousMessage(Gwen::Controls::Base* control);
+  void OnNextMessage(Gwen::Controls::Base* control);
+  void OnFirstMessage(Gwen::Controls::Base* control);
+  void OnLastMessage(Gwen::Controls::Base* control);
 
-    void OnFieldRightClick(Gwen::Controls::Base* pControl);
+  void OnFieldRightClick(Gwen::Controls::Base* pControl);
 
-    void Layout(Gwen::Skin::Base* skin);
+  void Layout(Gwen::Skin::Base* skin);
 		
 public:
 
@@ -179,7 +172,9 @@ public:
 
 	Gwen::Point GetMinimumSize() override { return Gwen::Point(50, bag_data_.size()*40 + 45); }
 protected:
-    void CloseBag();
+  void CloseBag();
+  
+  rucksack::SackIndexedReader sack_;
 
 	bool mouse_down_ = false;
 		

@@ -321,7 +321,7 @@ bool SackGraph::DragAndDrop_HandleDrop( Gwen::DragAndDrop::Package* pPackage, in
 	auto def = viewer_->GetTopicDefinition(topic);
 	for (auto& msg: data)
 	{
-   		AddMessageSample(ch, msg.time, msg.msg, def, false, false);
+   		//AddMessageSample(ch, msg.time, msg.msg, def, false, false);
 	}
 
 	return true;
