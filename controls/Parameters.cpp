@@ -5,8 +5,6 @@
 
 #include "Parameters.h"
 
-#include <pubsub/Parameters.msg.h>
-
 #include <GL/glew.h>
 
 #ifndef _WIN32
@@ -42,16 +40,15 @@ void Parameters::SetNode(ps_node_t* node)
 	struct ps_subscriber_options options;
 	ps_subscriber_options_init(&options);
 	options.skip = 0;
-	options.queue_size = 100;
 	options.allocator = 0;
 	options.ignore_local = false;
 	options.preferred_transport = true ? 1 : 0;
-	options.cb_data = 0;
-			/*options.cb = [](void* message, unsigned int size, void* data, const ps_msg_info_t* info)
-			{
-				// todo deserialize
-				free(message);
-			};*/
+	options.cb_data = this;
+	options.cb = [](void* message, unsigned int size, void* data, const ps_msg_info_t* info)
+	{
+	  auto ths = (Parameters*)data;
+		ths->queue_.push_back((pubsub::msg::Parameters*)message);
+	};
 
 	ps_node_create_subscriber_adv(node_, "/parameters", pubsub::msg::Parameters::GetDefinition(), &param_sub_, &options);
 }
@@ -66,9 +63,10 @@ void Parameters::Layout( Gwen::Skin::Base* skin )
 	
 	// process any messages
 	// our sub has a message definition, so the queue contains real messages
-	pubsub::msg::Parameters* data;
-	while (data = (pubsub::msg::Parameters*)ps_sub_deque(&param_sub_))
+	while (queue_.size())
 	{
+	  auto data = queue_.front();
+	  queue_.pop_front();
 		// assert that its properly formatted
 		if (data->name.size() != data->min.size() ||
 			data->name.size() != data->max.size() ||
@@ -76,8 +74,7 @@ void Parameters::Layout( Gwen::Skin::Base* skin )
 		{
 			printf("ERROR: Invalid parameter message.\n");
 			
-			data->~Parameters();
-			free(data);
+			delete data;
 			continue;
 		}
 
@@ -107,9 +104,14 @@ void Parameters::Layout( Gwen::Skin::Base* skin )
 				param->SetRange(data->min[i], data->max[i]);
 				param->SetRemoteValue(std::atof(data->value[i]));
 			}
+			std::string description = data->description[i];
+			if (!description.length())
+			{
+			  description = "No description.";
+			}
+			param->SetDescription(description);
 		}
-		data->~Parameters();
-		free(data);
+		delete data;
 	}
 	Invalidate();// we are being hacky, just always invalidate so we keep laying out
 }

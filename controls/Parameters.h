@@ -15,6 +15,9 @@
 
 #include <pubsub_cpp/Time.h>
 
+
+#include <pubsub/Parameters.msg.h>
+
 #include <pubsub/Serialization.h>
 
 #include <pubsub_cpp/Node.h>
@@ -97,6 +100,13 @@ class DoubleParameter : public Gwen::Controls::Base
 			}
 			text_box_->SetText(std::to_string(val));
 			slider_->SetFloatValue(val);
+		}
+		
+		void SetDescription(const std::string& string)
+		{
+		  slider_->SetToolTip(string);
+		  label_->SetToolTip(string);
+		  text_box_->SetToolTip(string);
 		}
 		
 		void SetRange(double min, double max)
@@ -258,6 +268,8 @@ class Parameters : public Gwen::Controls::Base
 		Gwen::Color		m_Color;
 		double view_height_m_;
 		bool mouse_down_ = false;
+		
+		std::deque<pubsub::msg::Parameters*> queue_;
 		
 		Gwen::Controls::TextBox* field_name_;
 		Gwen::Controls::TextBox* topic_name_box_;
