@@ -51,7 +51,7 @@
 #include "../plugins/Path.h"
 #include "../plugins/Image.h"
 #include "../plugins/GPS.h"
-#include "../plugins/Gauge.h"
+//#include "../plugins/Gauge.h"
 #include "../plugins/PlanPath.h"
 #include "../plugins/Measure.h"
 #include "../plugins/Map.h"
@@ -87,7 +87,6 @@ pubviz::Plugin* BaseRegisterObject::Construct(const std::string& type)
 PubViz::~PubViz()
 {
 	ClearPlugins();
-	ps_node_destroy(&node_);
 }
 
 void PubViz::OnConfigSave(Gwen::Event::Info info)
@@ -394,7 +393,7 @@ void PubViz::MenuItemSelect(Controls::Base* pControl)
 		button->onClose.Add(this, &PubViz::OnParametersClose);
 		auto page = button->GetPage();
 		auto params = new Parameters(page);
-		params->SetNode(&node_);
+		params->SetNode(node_->getNode());
 		params->Dock(Pos::Fill);
 		page->GetParent()->GetParent()->SetWidth(500);
 		parameters_page_ = params;
@@ -443,7 +442,7 @@ void PubViz::Layout(Skin::Base* skin)
 {
 	BaseClass::Layout(skin);
 	
-	ps_node_spin(&node_);
+	ps_node_spin(node_->getNode());
 	Invalidate();
 }
 
@@ -556,16 +555,18 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	add_button->Dock(Pos::Bottom);
 	add_button->SetText( L"Add Plugin" );
 	
+	node_.reset(new pubsub::Node("pubviz", true));
+	
 	//ps_node_init_ex(&node_, "pubviz_real", "", false, false);
-	ps_node_init_ex(&node_, "pubviz", "", true, false);
+	//ps_node_init_ex(&node_, "pubviz", "", true, false);
 	
 	struct ps_transport_t tcp_transport;
-    ps_tcp_transport_init(&tcp_transport, &node_);
-    ps_node_add_transport(&node_, &tcp_transport);
+  ps_tcp_transport_init(&tcp_transport, node_->getNode());
+  ps_node_add_transport(node_->getNode(), &tcp_transport);
 	
-	ps_node_system_query(&node_);
+	ps_node_system_query(node_->getNode());
 
-	node_.adv_cb = [](const char* topic, const char* type, const char* node, const ps_advertise_req_t* data, void* cb_data)
+	node_->getNode()->adv_cb = [](const char* topic, const char* type, const char* node, const ps_advertise_req_t* data, void* cb_data)
 	{
 		// check if we already have the topic
 		if (_found_pub_topics.find(topic) != _found_pub_topics.end())
@@ -586,7 +587,7 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	};
 
 	// sometimes we also want subscribed topics
-	node_.sub_cb = [](const char* topic, const char* type, const char* node, const struct ps_subscribe_req_t* sub_data, void* data)
+	node_->getNode()->sub_cb = [](const char* topic, const char* type, const char* node, const struct ps_subscribe_req_t* sub_data, void* data)
 	{
 		// check if we already have the topic
 		if (_found_sub_topics.find(topic) != _found_sub_topics.end())
@@ -743,7 +744,7 @@ pubviz::Plugin* PubViz::AddPlugin(const std::string& name)
 	
 	auto node = (Gwen::Controls::TreeNode*)props->GetParent();
 	node->Open();
-	plugin->node_ = &node_;
+	plugin->node_ = node_.get();
 	plugin->plugin_button_ = node->GetButton();
 	plugin->canvas_ = canvas_;
 

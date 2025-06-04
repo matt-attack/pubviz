@@ -2,7 +2,7 @@
 #ifndef PUBVIZ_PLUGIN_H
 #define PUBVIZ_PLUGIN_H
 
-#include <pubsub/Node.h>
+#include <pubsub_cpp/Node.h>
 
 #include <Gwen/Controls/PropertyTree.h>
 
@@ -32,7 +32,7 @@ namespace pubviz
 
 		friend class ::PubViz;
 		friend class ::BaseRegisterObject;
-		ps_node_t* node_;
+		pubsub::Node* node_;
 		Gwen::Controls::Properties* props_;
 		OpenGLCanvas* canvas_;
 		Gwen::Controls::Button* plugin_button_;
@@ -81,7 +81,7 @@ namespace pubviz
 		}
 
 		// Get the node for this view
-		ps_node_t* GetNode()
+		pubsub::Node* GetNode()
 		{
 			return node_;
 		}
