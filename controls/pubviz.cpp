@@ -641,6 +641,19 @@ GWEN_CONTROL_CONSTRUCTOR(PubViz)
 	m_iFrames = 0;
 }
 
+void PubViz::AddPlaybackControls()
+{
+  auto button = new Controls::Button(m_StatusBar);
+	button->Dock(Pos::Right);
+	button->SetText(" > ");
+	button->SizeToContents();
+	button->onPress.Add([this]()
+	{
+	  skip_frames_++;
+	});
+	playback_controls_ = true;
+}
+
 void PubViz::OnShowConfigChanged(Gwen::Controls::Base* control)
 {
     auto item = (Gwen::Controls::MenuItem*)control;
@@ -691,17 +704,25 @@ void PubViz::OnShowStatusBarChanged(Gwen::Controls::Base* control)
 
 void PubViz::OnPause(Gwen::Controls::Base* control)
 {
+  if (playback_controls_)
+  {
+    playback_paused_ = !playback_paused_;
+  }
+  else
+  {
     canvas_->SetPaused(!canvas_->Paused());
-    if (canvas_->Paused())
-    {
-        pause_button_->SetText("Go Live");
-        pause_item_->SetText("Go Live");
-    }
-    else
-    {
-        pause_button_->SetText("Pause");
-        pause_item_->SetText("Pause");
-    }
+  }
+  
+  if (Paused())
+  {
+    pause_button_->SetText("Go Live");
+    pause_item_->SetText("Go Live");
+  }
+  else
+  {
+    pause_button_->SetText("Pause");
+    pause_item_->SetText("Pause");
+  }
 }
 
 void PubViz::OnCenter(Gwen::Controls::Base* control)

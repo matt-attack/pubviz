@@ -2,7 +2,7 @@
 #ifndef PUBVIZ_H
 #define PUBVIZ_H
 
-#include <pubsub/Node.h>
+#include <pubsub_cpp/Node.h>
 
 #include <Gwen/Gwen.h>
 #include <Gwen/Align.h>
@@ -87,6 +87,21 @@ class PubViz: public Gwen::Controls::DockBase
 		void SaveConfig(const std::string& file);
 
 		inline Gwen::Controls::TreeControl* GetSelection() { return selection_; }
+		
+		inline bool Paused()
+		{
+		  if (playback_controls_)
+		  {
+		    return playback_paused_;
+		  }
+			return canvas_->paused_;
+		}
+		
+		void AddPlaybackControls();
+		
+		int skip_frames_ = 0;
+		bool playback_controls_ = false;
+		bool playback_paused_ = false;
 
 	private:
 		
@@ -97,7 +112,7 @@ class PubViz: public Gwen::Controls::DockBase
 		void OnUpPlugin(Gwen::Controls::Base* control);
 		void OnDownPlugin(Gwen::Controls::Base* control);
 		void OnCenter(Gwen::Controls::Base* control);
-        void OnShowConfigChanged(Gwen::Controls::Base* control);
+    void OnShowConfigChanged(Gwen::Controls::Base* control);
 		void OnShowSelectionChanged(Gwen::Controls::Base* control);
 		void OnShowStatusBarChanged(Gwen::Controls::Base* control);
         void OnPause(Gwen::Controls::Base* control);
