@@ -443,22 +443,12 @@ void SackViewer::AddPlot(bool twod, std::vector<std::pair<std::string, std::stri
 
 		auto ch = graph->CreateChannel(topic, field_x, field_y);
 
-   	auto& data = bag_data_[topic];
-   	sack_.seek(0);
-   	rucksack::MessageHeader const* out_hdr; rucksack::SackChannelDetails const* out_info;
-   	int stream_id = 0;
-   	for (; stream_id < sack_.index().channels.size(); stream_id++)
+   	auto it = sack_.range(topic);
+   	while (auto msgd = it.next())
    	{
-   	  if (sack_.index().channels[stream_id].topic == topic)
+   	  if (it.info->topic == topic)
    	  {
-   	    break;
-   	  }
-   	}
-   	while (auto msgd = sack_.read(out_hdr, out_info, stream_id))
-   	{  
-   	  if (out_info->topic == topic)
-   	  {
-    	  graph->AddMessageSample(ch, out_hdr->time, msgd, &out_info->definition, false, false);
+    	  graph->AddMessageSample(ch, it.header->time, msgd, &it.info->definition, false, false);
     	}
    	}
 
@@ -474,22 +464,12 @@ void SackViewer::AddPlot(bool twod, std::vector<std::pair<std::string, std::stri
 
    	auto ch = graph->CreateChannel(topic, field);
 
-   	auto& data = bag_data_[topic];
-   	sack_.seek(0);
-   	rucksack::MessageHeader const* out_hdr; rucksack::SackChannelDetails const* out_info;
-   	int stream_id = 0;
-   	for (; stream_id < sack_.index().channels.size(); stream_id++)
+   	auto it = sack_.range(topic);
+   	while (auto msgd = it.next())
    	{
-   	  if (sack_.index().channels[stream_id].topic == topic)
+   	  if (it.info->topic == topic)
    	  {
-   	    break;
-   	  }
-   	}
-   	while (auto msgd = sack_.read(out_hdr, out_info, stream_id))
-   	{  
-   	  if (out_info->topic == topic)
-   	  {
-    	  graph->AddMessageSample(ch, out_hdr->time, msgd, &out_info->definition, false, false);
+    	  graph->AddMessageSample(ch, it.header->time, msgd, &it.info->definition, false, false);
     	}
    	}
 	}
@@ -809,7 +789,7 @@ void SackViewer::UpdateViewers()
 		int it = 1;
 		struct ps_deserialize_iterator iter = ps_deserialize_start((const char*)data, &topic.def);
 		const struct ps_msg_field_t* field; uint32_t length; const char* ptr;
-		while (ptr = ps_deserialize_iterate(&iter, &field, &length))
+		while (ptr = (const char*)ps_deserialize_iterate(&iter, &field, &length))
 		{
 			// add each field
 			std::string str = field->name;
@@ -818,7 +798,7 @@ void SackViewer::UpdateViewers()
 			{
 				// strings are already null terminated
 				str += '"';
-				str += ptr;
+				str += (const char*)ptr;
 				str += '"';
 			}
 			else
@@ -827,10 +807,10 @@ void SackViewer::UpdateViewers()
 				{
 					//printf("%s: ", field->name);
 				}
-                else if (length == 0)
-                {
-                    str += "[]";
-                }
+        else if (length == 0)
+        {
+          str += "[]";
+        }
 				else
 				{
 					str += "[";
