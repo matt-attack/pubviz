@@ -52,7 +52,7 @@ bool OpenGLCanvas::OnMouseWheeled( int delta )
 	if (delta < 0)
 	{
 		start_height += 0.1*(double)delta*rate;
-		start_height = std::max(1.0, start_height);
+		start_height = std::max(0.25, start_height);
 	}
 	else
 	{
@@ -310,6 +310,7 @@ void OpenGLCanvas::DoPick()
 			}
 		}
 	}
+	sel->ExpandAll();
 	delete[] pixels;
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -517,9 +518,9 @@ std::map<std::string, PropertyBase*> OpenGLCanvas::CreateProperties(Gwen::Contro
 	std::map<std::string, PropertyBase*> props;
 	view_type_ = new EnumProperty(tree, "View Type", "Orbit", {"Orbit", "Top Down", "FPS"});
 	props["view"] = view_type_;
-	yaw_ = new FloatProperty(tree, "Yaw", 0, -100000, 100000);
+	yaw_ = new FloatProperty(tree, "Yaw", 225, -100000, 100000);
 	props["yaw"] = yaw_;
-	pitch_ = new FloatProperty(tree, "Pitch", 0, -100000, 100000);
+	pitch_ = new FloatProperty(tree, "Pitch", 45, -100000, 100000);
 	props["pitch"] = pitch_;
 	view_x_ = new FloatProperty(tree, "View X", 0, -100000, 100000);
 	props["View X"] = view_x_;
@@ -527,7 +528,7 @@ std::map<std::string, PropertyBase*> OpenGLCanvas::CreateProperties(Gwen::Contro
 	props["View Y"] = view_y_;
 	view_z_ = new FloatProperty(tree, "View Z", 0, -100000, 100000);
 	props["View Z"] = view_z_;
-	view_h_ = new FloatProperty(tree, "Height", 150, 1, 1000000);
+	view_h_ = new FloatProperty(tree, "Height", 15, 0.25, 1000000);
 	props["Height"] = view_h_;
 
 	view_type_->onChange = [this](std::string value)
