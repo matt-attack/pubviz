@@ -41,17 +41,13 @@ class GaugePlugin: public pubviz::Plugin
 	TopicProperty* topic_;
 	StringProperty* field_;
 	
-	bool sub_open_ = false;
-	ps_sub_t subscriber_;
+	std::unique_ptr<pubsub::Subscriber> subscriber_;
 	double current_value_ = NAN;
 	
 	std::string current_topic_;
 	void Subscribe(std::string str)
 	{
-		if (sub_open_)
-		{
-			ps_sub_destroy(&subscriber_);
-		}
+		subscriber_.reset();
 		
 		Clear();
 		
@@ -60,7 +56,7 @@ class GaugePlugin: public pubviz::Plugin
     	ps_subscriber_options_init(&options);
     	options.preferred_transport = 1;// tcp yo
     	ps_node_create_subscriber_adv(GetNode(), current_topic_.c_str(), NULL, &subscriber_, &options);
-    	sub_open_ = true;
+
 	}
 	
 public:
@@ -72,11 +68,7 @@ public:
 	
 	virtual ~GaugePlugin()
 	{
-		if (sub_open_)
-		{
-			ps_sub_destroy(&subscriber_);
-			sub_open_ = false;
-		}
+
 	}
 
 	// Clear out any historical data so the view gets cleared
@@ -117,7 +109,7 @@ public:
 		current_value_ = NAN;
 
 		struct ps_deserialize_iterator iter = ps_deserialize_start((const char*)msg, &subscriber_.received_message_def);
-		const struct ps_msg_field_t* field; uint32_t length; const char* ptr;
+		const struct ps_msg_field_t* field; uint32_t length; const void* ptr;
 		while (ptr = ps_deserialize_iterate(&iter, &field, &length))
 		{
 			if (strcmp(field->name, field_->GetValue().c_str()) != 0)

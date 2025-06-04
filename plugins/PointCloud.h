@@ -68,8 +68,7 @@ class PointCloudPlugin: public pubviz::Plugin
 	
 	std::unique_ptr<TopicProperty> topic_;
 	
-	bool sub_open_ = false;
-	ps_sub_t subscriber_;
+	pubsub::Subscriber<pubsub::msg::PointCloud>::Ptr subscriber_;
 
 	struct Point3d
 	{
@@ -85,7 +84,7 @@ class PointCloudPlugin: public pubviz::Plugin
 		unsigned int color_vbo;
 
 		int stride;// number of floats per point
-		pubsub::msg::PointCloud* original_cloud;// used for re-coloring
+		pubsub::msg::PointCloudSharedConstPtr original_cloud;// used for re-coloring
 
 		// position of the cloud
 		float x, y, z;
@@ -97,11 +96,11 @@ class PointCloudPlugin: public pubviz::Plugin
 		{
 			glDeleteBuffers(1, &point_vbo);
 			glDeleteBuffers(1, &color_vbo);
-			delete original_cloud;
+			original_cloud.reset();
 		}
 	};
 
-    float latest_min_ = std::numeric_limits<float>::max();
+  float latest_min_ = std::numeric_limits<float>::max();
 	float latest_max_ = std::numeric_limits<float>::lowest();
 	void BuildCloudBuffers(Cloud* cloud)
 	{
@@ -119,7 +118,7 @@ class PointCloudPlugin: public pubviz::Plugin
 		int color_offset = 3;// intensity, give option for other values
 		auto field = coloring_field_->GetValue();
 		if (field == "X")
-        {
+    {
 			color_offset = 0;
 		}
 		else if (field == "Y")
@@ -149,8 +148,8 @@ class PointCloudPlugin: public pubviz::Plugin
 		}
 
 		// get min and max for the field
-        float min = std::numeric_limits<float>::max();
-		float max = std::numeric_limits<float>::lowest();
+    float min = std::numeric_limits<float>::max();
+    float max = std::numeric_limits<float>::lowest();
 		if (auto_min_max_->GetValue())
 		{
 			for (int i = 0; i < data->num_points; i++)
@@ -285,8 +284,8 @@ class PointCloudPlugin: public pubviz::Plugin
 		}
 	}
 
-    void ColoringModeChange(std::string mode)
-    {
+  void ColoringModeChange(std::string mode)
+  {
         // hide all properties to start
         min_color_->Hide();
         max_color_->Hide();
@@ -336,34 +335,34 @@ class PointCloudPlugin: public pubviz::Plugin
 		{
 			BuildCloudBuffers(&cloud);
 		}
-    }
+  }
 
-    void AutoMinMaxChange(bool value)
-    {
+  void AutoMinMaxChange(bool value)
+  {
 		// if we disabled it, update max and min values from latest
-        if (value)
-        {
-            min_value_->Hide();
-            max_value_->Hide();
-        }
-        else
-        {
-            min_value_->Show();
-            max_value_->Show();
+    if (value)
+    {
+      min_value_->Hide();
+      max_value_->Hide();
+    }
+    else
+    {
+      min_value_->Show();
+      max_value_->Show();
 
 			if (latest_max_ >= latest_min_)
 			{
 				min_value_->SetValue(latest_min_);
 				max_value_->SetValue(latest_max_);
 			}
-        }
+    }
 
 		// Recolor all clouds
 		for (auto& cloud: clouds_)
 		{
 			BuildCloudBuffers(&cloud);
 		}
-    }
+  }
 	
 	// Update our point texture if this changes
 	void TextChange(std::string value)
@@ -429,19 +428,12 @@ class PointCloudPlugin: public pubviz::Plugin
 	std::string current_topic_;
 	void Subscribe(std::string str)
 	{
-		if (sub_open_)
-		{
-			ps_sub_destroy(&subscriber_);
-		}
+	  subscriber_.reset();
 		
 		Clear();
-		
 		current_topic_ = str;
-    	struct ps_subscriber_options options;
-    	ps_subscriber_options_init(&options);
-    	options.preferred_transport = 1;// tcp yo
-    	ps_node_create_subscriber_adv(GetNode(), current_topic_.c_str(), &pubsub__PointCloud_def, &subscriber_, &options);
-    	sub_open_ = true;
+    subscriber_.reset(new pubsub::Subscriber<pubsub::msg::PointCloud>(*GetNode(), current_topic_, [this](auto msg) {}, 1, 1));
+    printf("SUBSCRIBED VIZ\n");
 	}
 	
 public:
@@ -457,11 +449,7 @@ public:
 		glDeleteFramebuffers(1, &frame_buffer_);
 		glDeleteTextures(1, &render_texture_);
 		
-		if (sub_open_)
-		{
-			ps_sub_destroy(&subscriber_);
-			sub_open_ = false;
-		}
+		subscriber_.reset();
 		
 		// free any buffers
 		for (auto cloud: clouds_)
@@ -473,22 +461,18 @@ public:
 	std::vector<Point3d> point_buf_;
 	std::vector<int> color_buf_;
 
-    Gwen::Color rainbow_table_[256];
-    Gwen::Color jet_table_[256];
+  Gwen::Color rainbow_table_[256];
+  Gwen::Color jet_table_[256];
 	
 	virtual void Update()
 	{
 		// process any messages
-		// our sub has a message definition, so the queue contains real messages
-		pubsub::msg::PointCloud* data;
-		if (sub_open_)
+		if (subscriber_)
 		{
-			while (data = (pubsub::msg::PointCloud*)ps_sub_deque(&subscriber_))
+			while (auto data = subscriber_->PopOne())
 			{
-				// user is responsible for freeing the message and its arrays
 				if (Paused())
 				{
-				    delete data;
 					continue;
 				}
 				
@@ -500,7 +484,6 @@ public:
 					clouds_.push_front(clouds_.back());
 					clouds_.pop_back();
 					cloud = &clouds_[0];
-					delete cloud->original_cloud;
 				}
 				else
 				{
@@ -518,7 +501,6 @@ public:
 					cloud->stride = 4;
 				cloud->num_points = data->num_points;
 				cloud->original_cloud = data;
-
 				BuildCloudBuffers(cloud);
 				
 				Redraw();

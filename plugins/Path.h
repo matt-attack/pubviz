@@ -40,27 +40,19 @@ class PathPlugin : public pubviz::Plugin
 
 	TopicProperty* topic_;
 
-	bool sub_open_ = false;
-	ps_sub_t subscriber_;
+	pubsub::Subscriber<pubsub::msg::Path>::Ptr subscriber_;
 
-	pubsub::msg::Path* last_msg_ = 0;
+	pubsub::msg::PathSharedConstPtr last_msg_;
 
 	std::string current_topic_;
 	void Subscribe(std::string str)
 	{
-		if (sub_open_)
-		{
-			ps_sub_destroy(&subscriber_);
-		}
+		subscriber_.reset();
 
 		Clear();
 
 		current_topic_ = str;
-		struct ps_subscriber_options options;
-		ps_subscriber_options_init(&options);
-		options.preferred_transport = 1;// tcp yo
-		ps_node_create_subscriber_adv(GetNode(), current_topic_.c_str(), &pubsub__Path_def, &subscriber_, &options);
-		sub_open_ = true;
+		subscriber_.reset(new pubsub::Subscriber<pubsub::msg::Path>(*GetNode(), current_topic_, [](auto msg) {}, 1, 1));
 	}
 
 public:
@@ -77,51 +69,31 @@ public:
 		delete line_width_;
 		delete show_points_;
 		delete point_size_;
-
-		if (last_msg_)
-		{
-			delete last_msg_;
-		}
-
-		if (sub_open_)
-		{
-			ps_sub_destroy(&subscriber_);
-			sub_open_ = false;
-		}
 	}
 
 	// Clear out any historical data so the view gets cleared
 	virtual void Clear()
 	{
-		if (last_msg_)
-		delete last_msg_;
-		last_msg_ = 0;
+		last_msg_.reset();
 	}
 
 	virtual void Update()
 	{
+	  if (!subscriber_)
+	  {
+	    return;
+	  }
 		// process any messages
-		// our sub has a message definition, so the queue contains real messages
-		pubsub::msg::Path* data;
-		if (sub_open_)
+		while (auto data = subscriber_->PopOne())
 		{
-			while (data = (pubsub::msg::Path*)ps_sub_deque(&subscriber_))
+			if (Paused())
 			{
-				if (Paused())
-				{
-					delete data;
-					continue;
-				}
-
-				// user is responsible for freeing the message and its arrays
-				if (last_msg_)
-				{
-					delete last_msg_;
-				}
-				last_msg_ = data;
-
-				Redraw();
+				continue;
 			}
+
+			last_msg_ = data;
+
+			Redraw();
 		}
 	}
 

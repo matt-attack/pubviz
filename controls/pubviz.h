@@ -123,7 +123,7 @@ class PubViz: public Gwen::Controls::DockBase
 		
 		Parameters* parameters_page_ = 0;
 		
-		ps_node_t node_;
+		std::unique_ptr<pubsub::Node> node_;
 		
 		std::vector<pubviz::Plugin*> plugins_;
 

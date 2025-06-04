@@ -36,8 +36,7 @@ class MarkerPlugin: public pubviz::Plugin
 	
 	TopicProperty* topic_;
 	
-	bool sub_open_ = false;
-	ps_sub_t subscriber_;
+	pubsub::Subscriber<pubsub::msg::Marker>::Ptr subscriber_;
 	
 	pubsub::msg::Marker last_msg_;
 	
@@ -46,19 +45,12 @@ class MarkerPlugin: public pubviz::Plugin
 	std::string current_topic_;
 	void Subscribe(std::string str)
 	{
-		if (sub_open_)
-		{
-			ps_sub_destroy(&subscriber_);
-		}
+		subscriber_.reset();
 		
 		Clear();
 		
 		current_topic_ = str;
-    	struct ps_subscriber_options options;
-    	ps_subscriber_options_init(&options);
-    	options.preferred_transport = 1;// tcp yo
-    	ps_node_create_subscriber_adv(GetNode(), current_topic_.c_str(), &pubsub__Marker_def, &subscriber_, &options);
-    	sub_open_ = true;
+    subscriber_.reset(new pubsub::Subscriber<pubsub::msg::Marker>(*GetNode(), current_topic_, [](auto msg){}, 100, 1));
 	}
 	
 public:
@@ -73,32 +65,22 @@ public:
 		delete color_;
 		delete alpha_;
 		delete line_width_;
-		
-		if (sub_open_)
-		{
-			ps_sub_destroy(&subscriber_);
-			sub_open_ = false;
-		}
 	}
 	
 	virtual void Update()
 	{
 		// process any messages
-		// our sub has a message definition, so the queue contains real messages
-		pubsub::msg::Marker* data;
-		if (sub_open_)
+		if (subscriber_)
 		{
-			while (data = (pubsub::msg::Marker*)ps_sub_deque(&subscriber_))
+			while (auto data = subscriber_->PopOne())
 			{
 				if (Paused())
 				{
-				    delete data;
 					continue;
 				}
 
 				// user is responsible for freeing the message and its arrays
 				markers_[data->id] = *data;
-				delete data;
 				
 				Redraw();
 			}

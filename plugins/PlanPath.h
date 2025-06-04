@@ -46,20 +46,15 @@ class PlanPathPlugin : public pubviz::Plugin
 	ButtonProperty* publish_;
 	ButtonProperty*	clear_;
 
-	bool pub_open_ = false;
-	ps_pub_t publisher_;
+	std::unique_ptr<pubsub::Publisher<pubsub::msg::Path>> publisher_;
 
 	std::string current_topic_;
 	void ChangeTopic(std::string str)
 	{
-		if (pub_open_)
-		{
-			ps_pub_destroy(&publisher_);
-		}
+	  publisher_.reset();
 
 		current_topic_ = str;
-		ps_node_create_publisher(GetNode(), current_topic_.c_str(), &pubsub__Path_def, &publisher_, true);
-		pub_open_ = true;
+		publisher_.reset(GetNode()->advertise<pubsub::msg::Path>(current_topic_, true));
 	}
 
 	void FrameChanged(std::string str)
@@ -85,12 +80,6 @@ public:
 		delete point_size_;
 		delete publish_;
 		delete clear_;
-
-		if (pub_open_)
-		{
-			ps_pub_destroy(&publisher_);
-			pub_open_ = false;
-		}
 	}
 
 	// Clear out any historical data so the view gets cleared
@@ -213,7 +202,7 @@ public:
 		msg.frame = frame_enum_;
 		msg.path_type = pubsub::msg::Path::PATH_XY_Y;
 		msg.points = points;
-		ps_pub_publish_ez(&publisher_, &msg);
+		publisher_->publish(msg);
 	}
 
 	std::string GetTitle() override

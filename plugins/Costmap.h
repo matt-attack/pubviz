@@ -37,16 +37,15 @@ class CostmapPlugin: public pubviz::Plugin
 	
 	TopicProperty* topic_;
 	
-	bool sub_open_ = false;
-	ps_sub_t subscriber_;
+	pubsub::Subscriber<pubsub::msg::Costmap>::Ptr subscriber_;
 	
-	pubsub::msg::Costmap* last_msg_ = 0;
+	pubsub::msg::CostmapSharedConstPtr last_msg_ = 0;
 	
 	unsigned int texture_ = -1;
 	
 	void UpdateFromMessage()
 	{
-		if (last_msg_ == 0) return;
+		if (!last_msg_) return;
 		Redraw();
 		
 		if (texture_ != -1)
@@ -56,8 +55,7 @@ class CostmapPlugin: public pubviz::Plugin
 		
 		if (last_msg_->width * last_msg_->height != last_msg_->data.size())
 		{
-			delete last_msg_;
-			last_msg_ = 0;
+			last_msg_.reset();
 			printf("ERROR: bad costmap size\n");
 			return;
 		}
@@ -109,19 +107,13 @@ class CostmapPlugin: public pubviz::Plugin
 	std::string current_topic_;
 	void Subscribe(std::string str)
 	{
-		if (sub_open_)
-		{
-			ps_sub_destroy(&subscriber_);
-		}
+	  subscriber_.reset();
 		
 		Clear();
 		
 		current_topic_ = str;
-    	struct ps_subscriber_options options;
-    	ps_subscriber_options_init(&options);
-    	options.preferred_transport = 1;// tcp yo
-    	ps_node_create_subscriber_adv(GetNode(), current_topic_.c_str(), &pubsub__Costmap_def, &subscriber_, &options);
-    	sub_open_ = true;
+    
+    subscriber_.reset(new pubsub::Subscriber<pubsub::msg::Costmap>(*GetNode(), current_topic_, [this](auto msg) {}, 1, 1));
 	}
 	
 public:
@@ -136,17 +128,8 @@ public:
 		delete color_;
 		delete alpha_;
 		delete show_outline_;
-
-		if (last_msg_)
-		{
-			delete last_msg_;
-		}
 		
-		if (sub_open_)
-		{
-			ps_sub_destroy(&subscriber_);
-			sub_open_ = false;
-		}
+		subscriber_.reset();
 		
 		if (texture_ != -1)
 		{
@@ -160,8 +143,7 @@ public:
 		if (texture_ != -1)
 		{
 			glDeleteTextures(1, &texture_);
-			delete last_msg_;
-			last_msg_ = 0;
+			last_msg_.reset();
 			texture_ = -1;
 		}
 	}
@@ -171,22 +153,16 @@ public:
 		// process any messages
 		// our sub has a message definition, so the queue contains real messages
 		pubsub::msg::Costmap* data;
-		if (sub_open_)
+		if (subscriber_)
 		{
-			while (data = (pubsub::msg::Costmap*)ps_sub_deque(&subscriber_))
+			while (auto msg = subscriber_->PopOne())
 			{
 				if (Paused())
 				{
-					delete data;
 					continue;
 				}
 
-				// user is responsible for freeing the message and its arrays
-				if (last_msg_)
-				{
-					delete last_msg_;
-				}
-				last_msg_ = data;
+				last_msg_ = msg;
 				UpdateFromMessage();
 			}
 		}
@@ -195,7 +171,7 @@ public:
 	virtual void Render()
 	{		
 		// exit early if we dont have a messag
-		if (last_msg_ == 0)
+		if (!last_msg_)
 		{
 			return;
 		}

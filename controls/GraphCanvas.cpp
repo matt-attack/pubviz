@@ -48,7 +48,6 @@ GraphSubscriber::GraphSubscriber(const std::string& topic)
 	struct ps_subscriber_options options;
 	ps_subscriber_options_init(&options);
 	options.skip = 0;
-	options.queue_size = 0;
 	options.allocator = 0;
 	options.ignore_local = false;
 	options.preferred_transport = false ? 1 : 0;
@@ -74,7 +73,7 @@ GraphSubscriber::GraphSubscriber(const std::string& topic)
 				printf("Updated fields for %s with %s\n", channel->topic_name.c_str(), sub->topic_name.c_str());
         	    //sub->canvas->field_list_->ClearItems();
         	    struct ps_deserialize_iterator iter = ps_deserialize_start((const char*)message, &sub->subscriber.received_message_def);
-	    	    const struct ps_msg_field_t* field; uint32_t length; const char* ptr;
+	    	    const struct ps_msg_field_t* field; uint32_t length; const void* ptr;
 	    	    while (ptr = ps_deserialize_iterate(&iter, &field, &length))
 	    	    {
 			        channel->canvas->field_list_->AddItem(field->name, field->name);

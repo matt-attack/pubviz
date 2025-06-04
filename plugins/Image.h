@@ -43,10 +43,9 @@ class ImagePlugin: public pubviz::Plugin
 	Gwen::Controls::ImagePanel* image_panel_;
 	Gwen::Controls::TabButton* page_;
 	
-	bool sub_open_ = false;
-	ps_sub_t subscriber_;
+	std::unique_ptr<pubsub::Subscriber<pubsub::msg::Image>> subscriber_;
 	
-	pubsub::msg::Image* last_msg_ = 0;
+	pubsub::msg::ImageSharedConstPtr last_msg_;
 	
 	unsigned int texture_ = -1;//okay, now show image in a new popout
 
@@ -61,11 +60,7 @@ class ImagePlugin: public pubviz::Plugin
 				topic_->GetValue().c_str(), last_msg_->data.size(), expected);
 
 			// mark message as invalid
-			if (last_msg_)
-			{
-				free(last_msg_);
-				last_msg_ = 0;
-			}
+			last_msg_.reset();
 			return false;
 		}
 		return true;
@@ -149,9 +144,14 @@ class ImagePlugin: public pubviz::Plugin
         		int8_t e = (int8_t) (v - 128);
 
 				uint8_t a = 255;
-        		uint8_t r = (uint8_t) (c + (1.370705 * (e))); 
-        		uint8_t g = (uint8_t) (c - (0.698001 * (d)) - (0.337633 * (e)));
-        		uint8_t b = (uint8_t) (c + (1.732446 * (d)));
+        int16_t r = (int16_t)(c + (1.370705f * (e)));
+				int16_t g = (int16_t)(c - (0.698001f * (d)) - (0.337633f * (e)));
+				int16_t b = (int16_t)(c + (1.732446f * (d)));
+				
+				if (r < 0)
+				  r = 0;
+				if (b < 0)
+				  b = 0;
 				pixels[i] = (a << 24) | (b << 16) | (g << 8) | r;
 			}
 		}
@@ -222,19 +222,12 @@ class ImagePlugin: public pubviz::Plugin
 	void Subscribe(std::string str)
 	{
 		page_->SetText("Image: " + str);
-		if (sub_open_)
-		{
-			ps_sub_destroy(&subscriber_);
-		}
+		subscriber_.reset();
 		
 		Clear();
 		
 		current_topic_ = str;
-    	struct ps_subscriber_options options;
-    	ps_subscriber_options_init(&options);
-    	options.preferred_transport = 1;// tcp yo
-    	ps_node_create_subscriber_adv(GetNode(), current_topic_.c_str(), &pubsub__Image_def, &subscriber_, &options);
-    	sub_open_ = true;
+    subscriber_.reset(new pubsub::Subscriber<pubsub::msg::Image>(*GetNode(), current_topic_, [this](auto msg){}, 1, 1));
 	}
 	
 public:
@@ -249,17 +242,6 @@ public:
 		Gwen::Texture tex;
 		image_panel_->SetTexture(tex);
 		page_->Close();
-
-		if (last_msg_)
-		{
-			delete last_msg_;
-		}
-		
-		if (sub_open_)
-		{
-			ps_sub_destroy(&subscriber_);
-			sub_open_ = false;
-		}
 		
 		if (texture_ != -1)
 		{
@@ -273,8 +255,7 @@ public:
 		if (texture_ != -1)
 		{
 			glDeleteTextures(1, &texture_);
-			delete last_msg_;
-			last_msg_ = 0;
+			last_msg_.reset();
 			texture_ = -1;
 		}
 	}
@@ -284,21 +265,15 @@ public:
 		// process any messages
 		// our sub has a message definition, so the queue contains real messages
 		pubsub::msg::Image* data;
-		if (sub_open_)
+		if (subscriber_)
 		{
-			while (data = (pubsub::msg::Image*)ps_sub_deque(&subscriber_))
+			while (auto data = subscriber_->PopOne())
 			{
 				if (Paused())
 				{
-					delete data;
 					continue;
 				}
 
-				// user is responsible for freeing the message and its arrays
-				if (last_msg_)
-				{
-					delete last_msg_;
-				}
 				last_msg_ = data;
 				UpdateFromMessage();
 			}

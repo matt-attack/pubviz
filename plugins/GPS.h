@@ -44,8 +44,7 @@ class GPSPlugin: public pubviz::Plugin
 	
 	TopicProperty* topic_;
 	
-	bool sub_open_ = false;
-	ps_sub_t subscriber_;
+	pubsub::Subscriber<pubsub::msg::GPS>::Ptr subscriber_;
 	
 	std::deque<pubsub::msg::GPS> messages_;
 	
@@ -73,19 +72,12 @@ class GPSPlugin: public pubviz::Plugin
 	std::string current_topic_;
 	void Subscribe(std::string str)
 	{
-		if (sub_open_)
-		{
-			ps_sub_destroy(&subscriber_);
-		}
+		subscriber_.reset();
 		
 		Clear();
 		
 		current_topic_ = str;
-    	struct ps_subscriber_options options;
-    	ps_subscriber_options_init(&options);
-    	//options.preferred_transport = 1;// tcp yo
-    	ps_node_create_subscriber_adv(GetNode(), current_topic_.c_str(), &pubsub__GPS_def, &subscriber_, &options);
-    	sub_open_ = true;
+    subscriber_.reset(new pubsub::Subscriber<pubsub::msg::GPS>(*GetNode(), current_topic_, [](auto msg){}, 100, 1));
 	}
 	
 public:
@@ -100,28 +92,20 @@ public:
 		delete color_;
 		delete alpha_;
 		delete line_width_;
-		
-		if (sub_open_)
-		{
-			ps_sub_destroy(&subscriber_);
-			sub_open_ = false;
-		}
 	}
 	
 	virtual void Update()
 	{
 		// process any messages
 		// our sub has a message definition, so the queue contains real messages
-		pubsub::msg::GPS* data;
-		if (sub_open_)
+		if (subscriber_)
 		{
 			double sample_dist = sample_distance_->GetValue();
 			auto sample_dist_sqr = sample_dist*sample_dist;
-			while (data = (pubsub::msg::GPS*)ps_sub_deque(&subscriber_))
+			while (auto data = subscriber_->PopOne())
 			{
 				if (Paused())
 				{
-				    free(data);//todo use allocator free
 					continue;
 				}
 
@@ -168,8 +152,6 @@ public:
 					// center view on me
 					//GetCanvas()->SetViewOrigin(data->x, data->y, data->z, data->latitude, data->longitude, 0.0);
 				}
-
-				free(data);//todo use allocator free
 				
 				Redraw();
 			}

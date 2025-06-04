@@ -414,7 +414,7 @@ void GraphBase::AddMessageSample(Channel* channel, pubsub::Time msg_time, const 
 	const char* y_name = channel->field_name_y.c_str();
 	
 	struct ps_deserialize_iterator iter = ps_deserialize_start((const char*)message, definition);
-	const struct ps_msg_field_t* field; uint32_t length; const char* ptr;
+	const struct ps_msg_field_t* field; uint32_t length; const void* ptr;
 	while (ptr = ps_deserialize_iterate(&iter, &field, &length))
 	{
 		if (field->type == FT_String)
