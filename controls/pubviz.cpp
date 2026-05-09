@@ -652,6 +652,16 @@ void PubViz::AddPlaybackControls()
 	{
 	  skip_frames_++;
 	});
+	button->AddAccelerator(".");
+	button = new Controls::Button(m_StatusBar);
+	button->Dock(Pos::Right);
+	button->SetText(" < ");
+	button->SizeToContents();
+	button->onPress.Add([this]()
+	{
+	  skip_frames_--;
+	});
+	button->AddAccelerator(",");
 	playback_controls_ = true;
 }
 

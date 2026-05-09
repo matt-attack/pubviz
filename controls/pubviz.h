@@ -115,7 +115,7 @@ class PubViz: public Gwen::Controls::DockBase
     void OnShowConfigChanged(Gwen::Controls::Base* control);
 		void OnShowSelectionChanged(Gwen::Controls::Base* control);
 		void OnShowStatusBarChanged(Gwen::Controls::Base* control);
-        void OnPause(Gwen::Controls::Base* control);
+    void OnPause(Gwen::Controls::Base* control);
 		
 		void OnParametersClose(Gwen::Controls::Base* control)
 		{

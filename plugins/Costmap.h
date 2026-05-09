@@ -30,12 +30,12 @@
 
 class CostmapPlugin: public pubviz::Plugin
 {
-	FloatProperty* alpha_;
-	ColorProperty* color_;
-	BooleanProperty* show_outline_;
-	NumberProperty* alpha_threshold_;
+	std::unique_ptr<FloatProperty> alpha_;
+	std::unique_ptr<ColorProperty> color_;
+	std::unique_ptr<BooleanProperty> show_outline_;
+	std::unique_ptr<NumberProperty> alpha_threshold_;
 	
-	TopicProperty* topic_;
+	std::unique_ptr<TopicProperty> topic_;
 	
 	pubsub::Subscriber<pubsub::msg::Costmap>::Ptr subscriber_;
 	
@@ -113,7 +113,7 @@ class CostmapPlugin: public pubviz::Plugin
 		
 		current_topic_ = str;
     
-    subscriber_.reset(new pubsub::Subscriber<pubsub::msg::Costmap>(*GetNode(), current_topic_, [this](auto msg) {}, 1, 1));
+    subscriber_.reset(new pubsub::Subscriber<pubsub::msg::Costmap>(*GetNode(), current_topic_, [this](const std::shared_ptr<pubsub::msg::Costmap>& msg) {}, 1, 1));
 	}
 	
 public:
@@ -125,10 +125,6 @@ public:
 	
 	virtual ~CostmapPlugin()
 	{
-		delete color_;
-		delete alpha_;
-		delete show_outline_;
-		
 		subscriber_.reset();
 		
 		if (texture_ != -1)
@@ -167,6 +163,12 @@ public:
 			}
 		}
 	}
+
+	std::vector<std::pair<Plugin::ErrorSeverity, std::string>> errors_;
+	std::vector<std::pair<Plugin::ErrorSeverity, std::string>> GetErrors() override
+	{
+	  return errors_;
+	}
 	
 	virtual void Render()
 	{		
@@ -186,9 +188,19 @@ public:
 		pts[3] = Vec3d(last_msg_->left + width, last_msg_->bottom, 0);
 
 		// transform to view frame
+		errors_.clear();
 		for (int i = 0; i < 4; i++)
 		{
-			GetCanvas()->TransformToView(OpenGLCanvas::Odom, pts[i]);
+		  try
+			{
+			  // todo just use matrix so I dont need to look this up 3x
+			  GetCanvas()->TransformToView(OpenGLCanvas::Odom, pts[i]);
+			}
+			catch (const TransformException& e)
+			{
+			  errors_.emplace_back(Plugin::ERROR, e.what());
+			  return;
+			}
 		}
 		
 		// draw the bounds of the costmap

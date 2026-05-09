@@ -30,11 +30,11 @@
 
 class MarkerPlugin: public pubviz::Plugin
 {
-	FloatProperty* alpha_;
-	ColorProperty* color_;
-	NumberProperty* line_width_;
+	std::unique_ptr<FloatProperty> alpha_;
+	std::unique_ptr<ColorProperty> color_;
+	std::unique_ptr<NumberProperty> line_width_;
 	
-	TopicProperty* topic_;
+	std::unique_ptr<TopicProperty> topic_;
 	
 	pubsub::Subscriber<pubsub::msg::Marker>::Ptr subscriber_;
 	
@@ -50,7 +50,7 @@ class MarkerPlugin: public pubviz::Plugin
 		Clear();
 		
 		current_topic_ = str;
-    subscriber_.reset(new pubsub::Subscriber<pubsub::msg::Marker>(*GetNode(), current_topic_, [](auto msg){}, 100, 1));
+    subscriber_.reset(new pubsub::Subscriber<pubsub::msg::Marker>(*GetNode(), current_topic_, [](const pubsub::msg::MarkerSharedPtr& msg){}, 100, 1));
 	}
 	
 public:
@@ -62,9 +62,7 @@ public:
 	
 	virtual ~MarkerPlugin()
 	{
-		delete color_;
-		delete alpha_;
-		delete line_width_;
+
 	}
 	
 	virtual void Update()
@@ -106,11 +104,6 @@ public:
 		// draw the marker
 		Gwen::Color color = color_->GetValue();
 		glLineWidth(line_width_->GetValue());
-		auto frame = OpenGLCanvas::WGS84;
-		if (last_msg_.frame != pubsub::msg::Marker::FRAME_WGS84)
-		{
-			frame = OpenGLCanvas::Odom;
-		}
 		auto canvas = GetCanvas();
 		if (last_msg_.marker_type == pubsub::msg::Marker::LINE_LIST_2D)
 		{
@@ -133,7 +126,7 @@ public:
 				}
 
 				Vec3d pos(last_msg_.data[i], last_msg_.data[i+1], 0);
-				canvas->TransformToView(frame, pos);
+				canvas->TransformToView(last_msg_.header.frame, pos);
 				glVertex2f(pos.x, pos.y);
 			}
 			glEnd();
@@ -162,7 +155,7 @@ public:
 						glColor3f(r / 255.0, g / 255.0, b / 255.0);
 					}
 					Vec3d pos(last_msg_.data[i], last_msg_.data[i+1], 0);
-					canvas->TransformToView(frame, pos);
+					canvas->TransformToView(last_msg_.header.frame, pos);
 					glVertex2f(pos.x, pos.y);
 				}
 				glEnd();
@@ -185,11 +178,11 @@ public:
 				for (; i < std::min<int>(end_index, last_msg_.data.size()-1); i += 2)
 				{
 					Vec3d pos(last_msg_.data[i], last_msg_.data[i+1], 0);
-					canvas->TransformToView(frame, pos);
+					canvas->TransformToView(last_msg_.header.frame, pos);
 					glVertex2f(pos.x, pos.y);
 				}
 				Vec3d pos(last_msg_.data[start_index], last_msg_.data[start_index+1], 0);
-				canvas->TransformToView(frame, pos);
+				canvas->TransformToView(last_msg_.header.frame, pos);
 				glVertex2f(pos.x, pos.y);
 				glEnd();
 			}
@@ -220,7 +213,7 @@ public:
 					glColor3f(color.r/255.0, color.g/255.0, color.b/255.0);
 				}
 				Vec3d pos(x, y, z);
-				canvas->TransformToView(frame, pos);
+				canvas->TransformToView(last_msg_.header.frame, pos);
 				glVertex3f(pos.x, pos.y, pos.z);
 				glEnd();
 			}

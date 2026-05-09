@@ -181,8 +181,8 @@ void OpenGLCanvas::DoPick()
 	glBindTexture(GL_TEXTURE_2D, selection_texture_);
 
 	auto scale = GetCanvas()->Scale();
-   	int width = Width()*scale;
-   	int height = Height()*scale;
+  int width = Width()*scale;
+  int height = Height()*scale;
 	
 	// Give an empty image to OpenGL ( the last "0" )
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
@@ -193,8 +193,8 @@ void OpenGLCanvas::DoPick()
 		
 	glBindFramebuffer(GL_FRAMEBUFFER, selection_frame_buffer_);
 
-    float vp[4];
-    glGetFloatv(GL_VIEWPORT, vp);
+  float vp[4];
+  glGetFloatv(GL_VIEWPORT, vp);
 	glViewport(0, 0, width, height);
 
 	glClearColor(1.0, 1.0, 1.0, 1.0);
@@ -408,10 +408,10 @@ void OpenGLCanvas::WorldToPixel(double x, double y, double z, int& px, int& py)
 	px = wx/scale;
 	py = wy/scale;
 
-    auto np = CanvasPosToLocal({px,py});
+  auto np = CanvasPosToLocal({px,py});
 	px = np.x;
 	py = Height()*scale - np.y;
-    py -= 20;
+  py -= 20;
     //printf("x: %f y: %f z: %f\n", x, y, z);
     //printf("x: %i y: %i\n", px, py);
 }
@@ -560,7 +560,7 @@ std::map<std::string, PropertyBase*> OpenGLCanvas::CreateProperties(Gwen::Contro
 void OpenGLCanvas::SetupViewMatrices()
 {
 	auto width = Width();
-    auto height = Height();
+  auto height = Height();
 	double view_x, view_y, view_z;
 	GetViewCenter(view_x, view_y, view_z);
 	double yaw = yaw_->GetValue();
@@ -652,9 +652,9 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	auto bounds = GetRenderBounds();
 
 	auto cb = GetCanvas()->GetRenderBounds();
-    auto origin = LocalPosToCanvas();
-    auto width = Width();
-    auto height = Height();
+  auto origin = LocalPosToCanvas();
+  auto width = Width();
+  auto height = Height();
 	
 	// force a flush essentially
 	r->EndClip();
@@ -668,8 +668,8 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	glPushMatrix();
 	glPushAttrib(GL_ALL_ATTRIB_BITS);
 
-    float vp[4];
-    glGetFloatv(GL_VIEWPORT, vp);
+  float vp[4];
+  glGetFloatv(GL_VIEWPORT, vp);
 	auto scale = GetCanvas()->Scale();
 	// convert the origin to offset of our bottom left from the bottom left of the window
 	origin.y = cb.h - (origin.y + height);
@@ -768,7 +768,7 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 	
 	glDisable(GL_DEPTH_TEST);
 
-    glViewport(vp[0], vp[1], vp[2], vp[3]);
+  glViewport(vp[0], vp[1], vp[2], vp[3]);
 	
 	// reset matrices
 	r->Begin();
@@ -783,6 +783,32 @@ void OpenGLCanvas::Render( Skin::Base* skin )
 		{
 			plugin->Paint();
 		}
+	}
+	
+	// draw all warnings
+	auto font = skin->GetDefaultFont();
+	int position = 0;
+	auto font_height = r->MeasureText(font, Gwen::Utility::StringToUnicode("Tg")).y;
+	auto warn_color = Gwen::Color(255, 165, 0, 255);
+	auto error_color = Gwen::Color(255, 0, 0, 255);
+	for (auto plugin: plugins_)
+	{
+	  auto warnings = plugin->GetErrors();
+	  if (warnings.size() == 0 || !plugin->Enabled())
+	  {
+	    continue;
+	  }
+
+	  // draw the text for each warning prefixed by the title
+	  for (const auto& warning: warnings)
+	  {
+	    auto p = (Gwen::Controls::PropertyTreeNode*)plugin->props_->GetParent();
+	    std::string title = p->GetText().c_str();
+	    std::string message = title + ": " + warning.second;
+	    r->SetDrawColor(warning.first ? error_color : warn_color);
+	    r->RenderText(font, {5, position*(font_height+3)}, message);
+	    position++;
+	  }
 	}
 
 	// Draw the selection box

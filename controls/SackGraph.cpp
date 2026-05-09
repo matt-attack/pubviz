@@ -46,12 +46,12 @@ bool SackGraph::OnMouseWheeled( int delta )
 
 void SackGraph::OnMouseClickLeft( int x, int y, bool down )
 {
-    mouse_down_ = down;
-    OnMouseMoved(x, y, 0, 0);
+  mouse_down_ = down;
+  OnMouseMoved(x, y, 0, 0);
 
 	Focus();
 
-    BaseClass::OnMouseClickLeft(x, y, down);
+  BaseClass::OnMouseClickLeft(x, y, down);
 }
 
 void SackGraph::OnMouseClickRight( int x, int y, bool down )
@@ -66,12 +66,12 @@ void SackGraph::OnMouseClickRight( int x, int y, bool down )
 		return;
 	}
 
-    selecting_ = down;
+  selecting_ = down;
 
 	auto start_x = GraphStartPosition();
-    auto graph_width = GraphWidth();
+  auto graph_width = GraphWidth();
 
-    double x_rel = CanvasPosToLocal(Gwen::Point(x, y)).x;
+  double x_rel = CanvasPosToLocal(Gwen::Point(x, y)).x;
 
 	if (!selecting_)
 	{
@@ -101,7 +101,7 @@ void SackGraph::OnMouseClickRight( int x, int y, bool down )
 
 	double rel_time = ((x_rel - start_x)/graph_width)*(max_x_ - min_x_) + min_x_;
 	selection_start_ = rel_time;
-    OnMouseMoved(x, y, 0, 0);
+  OnMouseMoved(x, y, 0, 0);
 	Redraw();
 }
 
@@ -191,9 +191,9 @@ bool SackGraph::OnKeyRight( bool bDown )
 
 void SackGraph::SetViewer(SackViewer* viewer)
 {
-    viewer_ = viewer;
-    max_x_ = (viewer->GetEndTime() - viewer->GetStartTime())/1000000.0;
-    start_time_ = viewer->GetStartTime();
+  viewer_ = viewer;
+  max_x_ = (viewer->GetEndTime() - viewer->GetStartTime())/1000000.0;
+  start_time_ = viewer->GetStartTime();
 }
 
 void SackGraph::PaintOnGraph(double start_x, double start_y, double graph_width, double graph_height)
@@ -234,10 +234,10 @@ void SackGraph::DrawOnGraph(double start_x, double start_y, double graph_width, 
 {
 	auto r = GetSkin()->GetRender();
 
-    // convert timestamp to bag time
-    double slider_time = (viewer_->GetPlayheadTime() - viewer_->GetStartTime())/1000000.0;
+  // convert timestamp to bag time
+  double slider_time = (viewer_->GetPlayheadTime() - viewer_->GetStartTime())/1000000.0;
 	pubsub::Time st(viewer_->GetPlayheadTime());
-    // draw the playhead
+  // draw the playhead
 	if (!is_2d_)
 	{
 		glLineWidth(4.0f);
@@ -257,12 +257,12 @@ void SackGraph::DrawOnGraph(double start_x, double start_y, double graph_width, 
 		glColor4f(1.0, 0.0, 0.0, 0.5);
  		double pt1x = start_x + graph_width*(selection_start_/*position here*/ - min_x_)/(max_x_ - min_x_);
 		double pt2x = start_x + graph_width*(selection_end_/*position here*/ - min_x_)/(max_x_ - min_x_);
-    	glVertex2f(pt1x, start_y);
-    	glVertex2f(pt1x, start_y + graph_height);
+  	glVertex2f(pt1x, start_y);
+  	glVertex2f(pt1x, start_y + graph_height);
 		glVertex2f(pt2x, start_y + graph_height);
 
 		glVertex2f(pt2x, start_y);
-    	glVertex2f(pt1x, start_y);
+   	glVertex2f(pt1x, start_y);
 		glVertex2f(pt2x, start_y + graph_height);
 
 		glEnd();
@@ -274,7 +274,7 @@ void SackGraph::DrawOnGraph(double start_x, double start_y, double graph_width, 
 	// todo use binary search
 	glPointSize(20);
 	glBegin(GL_POINTS);
-    glColor4f(0.0, 1.0, 1.0, 0.5);
+  glColor4f(0.0, 1.0, 1.0, 0.5);
 	for (auto channel: channels_)
 	{
 		if (channel->hidden) { continue; }
@@ -296,7 +296,7 @@ void SackGraph::DrawOnGraph(double start_x, double start_y, double graph_width, 
 
 void SackGraph::Render( Skin::Base* skin )
 {
-    GraphBase::Render(skin);
+  GraphBase::Render(skin);
 }
 
 bool SackGraph::DragAndDrop_HandleDrop( Gwen::DragAndDrop::Package* pPackage, int x, int y )

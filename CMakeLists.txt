@@ -20,6 +20,8 @@ target_include_directories(libpubviz PUBLIC
   ${GWEN_INCLUDE_DIRECTORIES}
   ${pubsub_INCLUDE_DIRS})
 target_link_libraries(libpubviz PUBLIC GWEN_opengl GWEN_static pubsub_cpp GLU pubsub_msgs)
+set_target_properties(libpubviz PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+set_property(TARGET libpubviz PROPERTY CXX_STANDARD 11)
 
 add_executable(pubviz WIN32
   tools/pubviz.cpp

@@ -26,6 +26,12 @@ namespace pubviz
 {
 	class Plugin;
 }
+
+class TransformException: public std::runtime_error {
+public:
+  TransformException(const std::string& str) : std::runtime_error(str) {}
+};
+
 class PubViz;
 class OpenGLCanvas : public Gwen::Controls::Base
 {
@@ -47,6 +53,8 @@ class OpenGLCanvas : public Gwen::Controls::Base
 		double view_width_ = 0;
 		double view_height_ = 0;
 
+    bool have_odom_transform_ = false;
+    bool have_map_transform_ = false;
 		Matrix3x4d map_to_odom_;
 		Matrix3x4d odom_to_map_;
 		Matrix3x4d vehicle_to_odom_;
@@ -94,13 +102,23 @@ class OpenGLCanvas : public Gwen::Controls::Base
 
 		void TransformToFrame(Frame src, Frame dst, Vec3d& pos) const
 		{
+		  if (src == dst)
+		  {
+		    return;// nothing to do
+		  }
+		  
+		  if ((dst == Map || src == Map) && !have_map_transform_)
+		  {
+		    throw TransformException("No map transform.");
+		  }
+		  if ((dst == Odom || src == Odom) && !have_odom_transform_)
+		  {
+		    throw TransformException("No odom transform.");
+		  }
+
 			if (dst == Map)
 			{
-				if (src == Map)
-				{
-					// do nothing
-				}
-				else if (src == Odom)
+				if (src == Odom)
 				{
 					// transform to map
 					pos = odom_to_map_.transform(pos);
@@ -135,10 +153,6 @@ class OpenGLCanvas : public Gwen::Controls::Base
 					pos.x = lat;
 					pos.y = lon;
 				}
-				else// wgs84
-				{
-					// do nothing
-				}
 			}
 			else// odom
 			{
@@ -146,10 +160,6 @@ class OpenGLCanvas : public Gwen::Controls::Base
 				{
 					// transform to odom
 					pos = map_to_odom_.transform(pos);
-				}
-				else if (src == Odom)
-				{
-					// do nothing
 				}
 				else if (src == Vehicle)
 				{
@@ -164,10 +174,101 @@ class OpenGLCanvas : public Gwen::Controls::Base
 				}
 			}
 		}
+		
+		void TransformToView(const char* frame, Vec3d& pos) const
+		{
+		  if (strcmp(frame, "odom") == 0)
+		  {
+		    TransformToFrame(Odom, wgs84_mode_ ? Map : Odom, pos);
+		  }
+		  else if (strcmp(frame, "map") == 0)
+		  {
+		    TransformToFrame(Map, wgs84_mode_ ? Map : Odom, pos);
+		  }
+		  else if (strcmp(frame, "body") == 0)
+		  {
+		    TransformToFrame(Vehicle, wgs84_mode_ ? Map : Odom, pos);
+		  }
+		  else
+		  {
+		    throw std::runtime_error("unhandled frame");
+		  }
+		}
 
 		void TransformToView(Frame frame, Vec3d& pos) const
 		{
 			TransformToFrame(frame, wgs84_mode_ ? Map : Odom, pos);
+		}
+		
+		Matrix3x4d TransformToView(const std::string& frame) const
+		{
+		  if (frame == "odom")
+		  {
+		    return TransformToView(Odom);
+		  }
+		  else if (frame == "map")
+		  {
+		    return TransformToView(Map);
+		  }
+		  else if (frame == "body")
+		  {
+		    return TransformToView(Vehicle);
+		  }
+		  else
+		  {
+		    throw TransformException("Couldn't find frame '" + frame + "'");
+		  }
+		}
+		
+		Matrix3x4d TransformToView(Frame src) const
+		{
+		  //okay, how to indicate the transform is missing?
+		  auto dst = wgs84_mode_ ? Map : Odom;
+		  // return the matrix or throw if it isnt possible
+		  if (dst == src)
+		  {
+		    return Matrix3x4d::Identity();
+		  }
+		  
+		  if (src == WGS84 || dst == WGS84)
+		  {
+		    // not rectilinear!
+		    throw std::runtime_error("cannot get a matrix involving wgs84");
+		  }
+		  
+		  if ((dst == Map || src == Map) && !have_map_transform_)
+		  {
+		    throw TransformException("No map transform.");
+		  }
+		  if ((dst == Odom || src == Odom) && !have_odom_transform_)
+		  {
+		    throw TransformException("No odom transform.");
+		  }
+		  if (dst == Map)
+			{
+				if (src == Odom)
+				{
+					// transform to map
+					return odom_to_map_;
+				}
+				else if (src == Vehicle)
+				{
+					return vehicle_to_map_;
+				}
+			}
+			else// odom
+			{
+				if (src == Map)
+				{
+					// transform to odom
+					return map_to_odom_;
+				}
+				else if (src == Vehicle)
+				{
+					return vehicle_to_odom_;
+				}
+			}
+			throw std::runtime_error("Unexpected");
 		}
 
 		inline std::string GetViewType()
@@ -211,6 +312,7 @@ class OpenGLCanvas : public Gwen::Controls::Base
 			{
 				printf("initialized local xy to %f %f\n", lat, lon);
 				local_xy_ = LocalXYUtil(lat, lon);
+				have_map_transform_ = true;
 			}
 		}
 
@@ -242,6 +344,7 @@ class OpenGLCanvas : public Gwen::Controls::Base
 
 			vehicle_to_odom_ = Matrix3x4d(odom_rot, Vec3d(x,y,z));
 			vehicle_to_map_ = vehicle_to_map;
+			have_odom_transform_ = true;
 		}
 		
 		// Sets the view origin

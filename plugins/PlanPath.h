@@ -34,17 +34,17 @@
 
 class PlanPathPlugin : public pubviz::Plugin
 {
-	FloatProperty* alpha_;
-	ColorProperty* color_;
-	NumberProperty* line_width_;
-	NumberProperty* point_size_;
+	std::unique_ptr<FloatProperty> alpha_;
+	std::unique_ptr<ColorProperty> color_;
+	std::unique_ptr<NumberProperty> line_width_;
+	std::unique_ptr<NumberProperty> point_size_;
 
-	EnumProperty* frame_;
+	std::unique_ptr<EnumProperty> frame_;
 
-	TopicProperty* topic_;
+	std::unique_ptr<TopicProperty> topic_;
 
-	ButtonProperty* publish_;
-	ButtonProperty*	clear_;
+	std::unique_ptr<ButtonProperty> publish_;
+	std::unique_ptr<ButtonProperty>	clear_;
 
 	std::unique_ptr<pubsub::Publisher<pubsub::msg::Path>> publisher_;
 
@@ -64,7 +64,7 @@ class PlanPathPlugin : public pubviz::Plugin
 
 public:
 
-	int frame_enum_ = pubsub::msg::Path::FRAME_ODOM;
+	std::string frame_str_ = "odom";
 	PlanPathPlugin()
 	{
 		// dont use pubsub here
@@ -73,13 +73,7 @@ public:
 
 	virtual ~PlanPathPlugin()
 	{
-		delete color_;
-		delete alpha_;
-		delete line_width_;
-		//delete show_points_;
-		delete point_size_;
-		delete publish_;
-		delete clear_;
+
 	}
 
 	// Clear out any historical data so the view gets cleared
@@ -123,9 +117,8 @@ public:
 		transformed_pts_.reserve(points_.size());
 		for (auto& pt : points_)
 		{
-			auto f = frame_enum_ == pubsub::msg::Path::FRAME_WGS84 ? OpenGLCanvas::WGS84 : OpenGLCanvas::Odom;
 			Vec3d pos(pt.x, pt.y, 0);
-			GetCanvas()->TransformToView(f, pos);
+			GetCanvas()->TransformToView(frame_str_.c_str(), pos);
 			transformed_pts_.push_back({pos.x, pos.y, pos.z});
 		}
 
@@ -169,7 +162,7 @@ public:
 		{
 			//clear the path and set the frame
 			points_.clear();
-			frame_enum_ = (frame == "Odom" ? pubsub::msg::Path::FRAME_ODOM : pubsub::msg::Path::FRAME_WGS84);
+			frame_str_ = (frame == "Odom" ? "odom" : "wgs84");
 		};
 
 		point_size_ = AddNumberProperty(tree, "Point Size", 6, 1, 100, 2);
@@ -199,7 +192,7 @@ public:
 			points.push_back(pt.z);
 		}
 		pubsub::msg::Path msg;
-		msg.frame = frame_enum_;
+		msg.header.frame = frame_str_;
 		msg.path_type = pubsub::msg::Path::PATH_XY_Y;
 		msg.points = points;
 		publisher_->publish(msg);
@@ -223,7 +216,7 @@ public:
 		//printf("map_click %f %f\n", x, y);
 		Vec3d pos(x, y, 0);
 		auto src = GetCanvas()->wgs84_mode() ? OpenGLCanvas::Map : OpenGLCanvas::Odom;
-		auto dst = frame_enum_ == pubsub::msg::Path::FRAME_WGS84 ? OpenGLCanvas::WGS84 : OpenGLCanvas::Odom;
+		auto dst = frame_str_ == "wgs84" ? OpenGLCanvas::WGS84 : OpenGLCanvas::Odom;
 		GetCanvas()->TransformToFrame(src, dst, pos);
 		// transform to correct frame
 		points_.push_back(Vertex(pos.x, pos.y, std::numeric_limits<double>::quiet_NaN()));

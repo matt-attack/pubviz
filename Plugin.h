@@ -32,6 +32,7 @@ namespace pubviz
 
 		friend class ::PubViz;
 		friend class ::BaseRegisterObject;
+		friend class ::OpenGLCanvas;
 		pubsub::Node* node_;
 		Gwen::Controls::Properties* props_;
 		OpenGLCanvas* canvas_;
@@ -60,7 +61,7 @@ namespace pubviz
 		// Render selection ids into the framebuffer
 		virtual uint32_t RenderSelect(uint32_t start_index) { return start_index; }
 
-		// Returns info about a selected item including bounds (todo)
+		// Returns info about a selected item including bounds
 		virtual std::map<std::string, std::string> Select(uint32_t index, AABB& size) { return {}; }
 
 		// Applies only for 2d. Return true if event is handled.
@@ -68,6 +69,15 @@ namespace pubviz
 
 		// Called on right click to add items to a context menu
 		virtual std::vector<std::pair<std::string, std::function<void()>>> ContextMenu(double x, double y) { return {}; }
+		
+		enum ErrorSeverity
+		{
+		  WARN = 0,
+		  ERROR = 1
+		};
+		
+		// Returns a list of any errors with any plugins
+		virtual std::vector<std::pair<ErrorSeverity, std::string>> GetErrors() { return {}; }
 
 		// Returns if the plugin is enabled and should be rendered
 		bool Enabled()
@@ -169,7 +179,7 @@ namespace pubviz
 
 		std::map<std::string, PropertyBase*> properties_;
 
-		NumberProperty* AddNumberProperty(Gwen::Controls::Properties* tree, const char* name, int num,
+		std::unique_ptr<NumberProperty> AddNumberProperty(Gwen::Controls::Properties* tree, const char* name, int num,
 			int min = 0,
 			int max = 100,
 			int increment = 1,
@@ -177,10 +187,10 @@ namespace pubviz
 		{
 			auto prop = new NumberProperty(tree, name, num, min, max, increment, description);
 			properties_[name] = prop;
-			return prop;
+			return std::unique_ptr<NumberProperty>(prop);
 		}
 
-		FloatProperty* AddFloatProperty(Gwen::Controls::Properties* tree, const char* name, double num,
+		std::unique_ptr<FloatProperty> AddFloatProperty(Gwen::Controls::Properties* tree, const char* name, double num,
 			double min = 0.0,
 			double max = 100.0,
 			double increment = 1.0,
@@ -188,26 +198,26 @@ namespace pubviz
 		{
 			auto prop = new FloatProperty(tree, name, num, min, max, increment, description);
 			properties_[name] = prop;
-			return prop;
+			return std::unique_ptr<FloatProperty>(prop);
 		}
 
-		ColorProperty* AddColorProperty(Gwen::Controls::Properties* tree, const char* name, Gwen::Color color,
+		std::unique_ptr<ColorProperty> AddColorProperty(Gwen::Controls::Properties* tree, const char* name, Gwen::Color color,
 			const std::string& description = "")
 		{
 			auto prop = new ColorProperty(tree, name, color, description);
 			properties_[name] = prop;
-			return prop;
+			return std::unique_ptr<ColorProperty>(prop);
 		}
 
-		BooleanProperty* AddBooleanProperty(Gwen::Controls::Properties* tree, const char* name, bool val,
+		std::unique_ptr<BooleanProperty> AddBooleanProperty(Gwen::Controls::Properties* tree, const char* name, bool val,
 			const std::string& description = "")
 		{
 			auto prop = new BooleanProperty(tree, name, val, description);
 			properties_[name] = prop;
-			return prop;
+			return std::unique_ptr<BooleanProperty>(prop);
 		}
 
-		TopicProperty* AddTopicProperty(Gwen::Controls::Properties* tree, const char* name, std::string topic,
+		std::unique_ptr<TopicProperty> AddTopicProperty(Gwen::Controls::Properties* tree, const char* name, std::string topic,
 			const std::string& description = "", const std::string& type = "", bool use_for_title = true, bool published = true)
 		{
 			auto prop = new TopicProperty(tree, name, topic, description, type, published);
@@ -220,39 +230,39 @@ namespace pubviz
 					p->SetText(GetTitle() + " (" + s + ")");
 				};
 			}
-			return prop;
+			return std::unique_ptr<TopicProperty>(prop);
 		}
 
-		StringProperty* AddStringProperty(Gwen::Controls::Properties* tree, const char* name, std::string val,
+		std::unique_ptr<StringProperty> AddStringProperty(Gwen::Controls::Properties* tree, const char* name, std::string val,
 			const std::string& description = "")
 		{
 			auto prop = new StringProperty(tree, name, val, description);
 			properties_[name] = prop;
-			return prop;
+			return std::unique_ptr<StringProperty>(prop);
 		}
 
-		FileProperty* AddFileProperty(Gwen::Controls::Properties* tree, const char* name, std::string val,
+		std::unique_ptr<FileProperty> AddFileProperty(Gwen::Controls::Properties* tree, const char* name, std::string val,
 			const std::string& description = "")
 		{
 			auto prop = new FileProperty(tree, name, val, description);
 			properties_[name] = prop;
-			return prop;
+			return std::unique_ptr<FileProperty>(prop);
 		}
 
-		EnumProperty* AddEnumProperty(Gwen::Controls::Properties* tree, const char* name, std::string def, std::vector<std::string> enums,
+		std::unique_ptr<EnumProperty> AddEnumProperty(Gwen::Controls::Properties* tree, const char* name, std::string def, std::vector<std::string> enums,
 			const std::string& description = "")
 		{
 			auto prop = new EnumProperty(tree, name, def, enums, description);
 			properties_[name] = prop;
-			return prop;
+			return std::unique_ptr<EnumProperty>(prop);
 		}
 
-		ButtonProperty* AddButtonProperty(Gwen::Controls::Properties* tree, const char* name,
+		std::unique_ptr<ButtonProperty> AddButtonProperty(Gwen::Controls::Properties* tree, const char* name,
 			const std::string& description = "")
 		{
 			auto prop = new ButtonProperty(tree, name, description);
 			properties_[name] = prop;
-			return prop;
+			return std::unique_ptr<ButtonProperty>(prop);
 		}
 	};
 }

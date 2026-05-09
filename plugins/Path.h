@@ -32,13 +32,13 @@
 
 class PathPlugin : public pubviz::Plugin
 {
-	FloatProperty* alpha_;
-	ColorProperty* color_;
-	NumberProperty* line_width_;
-	BooleanProperty* show_points_;
-	NumberProperty* point_size_;
+	std::unique_ptr<FloatProperty> alpha_;
+	std::unique_ptr<ColorProperty> color_;
+	std::unique_ptr<NumberProperty> line_width_;
+	std::unique_ptr<BooleanProperty> show_points_;
+	std::unique_ptr<NumberProperty> point_size_;
 
-	TopicProperty* topic_;
+	std::unique_ptr<TopicProperty> topic_;
 
 	pubsub::Subscriber<pubsub::msg::Path>::Ptr subscriber_;
 
@@ -52,7 +52,7 @@ class PathPlugin : public pubviz::Plugin
 		Clear();
 
 		current_topic_ = str;
-		subscriber_.reset(new pubsub::Subscriber<pubsub::msg::Path>(*GetNode(), current_topic_, [](auto msg) {}, 1, 1));
+		subscriber_.reset(new pubsub::Subscriber<pubsub::msg::Path>(*GetNode(), current_topic_, [](const pubsub::msg::PathSharedPtr& msg) {}, 1, 1));
 	}
 
 public:
@@ -64,11 +64,7 @@ public:
 
 	virtual ~PathPlugin()
 	{
-		delete color_;
-		delete alpha_;
-		delete line_width_;
-		delete show_points_;
-		delete point_size_;
+
 	}
 
 	// Clear out any historical data so the view gets cleared
@@ -156,18 +152,13 @@ public:
 			printf("ERROR: Unknown path type\n");
 		}
 
-		auto frame = OpenGLCanvas::WGS84;
-		if (last_msg_->frame != pubsub::msg::Path::FRAME_WGS84)
-		{
-			frame = OpenGLCanvas::Odom;
-		}
 		// Now transform the points
 		transformed_pts_.clear();
 		transformed_pts_.reserve(points_.size());
 		for (auto& pt : points_)
 		{
-			Vec3 p(pt.x, pt.y, pt.z);
-			GetCanvas()->TransformToView(frame, p);
+			Vec3d p(pt.x, pt.y, pt.z);
+			GetCanvas()->TransformToView(last_msg_->header.frame, p);
 			transformed_pts_.push_back({p.x,p.y,p.z});
 		}
 

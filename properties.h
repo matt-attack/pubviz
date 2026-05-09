@@ -564,6 +564,7 @@ class EnumProperty: public PropertyBase
 	Gwen::Controls::Property::ComboBox* property_;
 	
 	std::string value_;
+	std::set<std::string> values_;
 	
 	void cbOnChange(Gwen::Controls::Base* prop)
 	{
@@ -584,6 +585,7 @@ public:
         for (auto& item: enums)
         {
             box->AddItem(Gwen::Utility::StringToUnicode(item), item);
+            values_.insert(item);
         }
 		auto item = tree->Add(name, property_, value);
 		item->onChange.Add(this, &EnumProperty::cbOnChange);
@@ -597,6 +599,15 @@ public:
 	std::string GetValue()
 	{
 		return value_;
+	}
+	
+	void AddItem(const std::string& item)
+	{
+	  if (values_.find(item) == values_.end())
+	  {
+	    property_->GetComboBox()->AddItem(Gwen::Utility::StringToUnicode(item), item);
+	    values_.insert(item);
+	  }
 	}
 
 	void SetValue(const std::string& enumeration)
@@ -614,6 +625,12 @@ public:
 	virtual void Deserialize(const std::string& str)
 	{
 		value_ = str;
+		// add the item if it was missing, todo maybe have a way to disable this option?
+		if (values_.find(str) == values_.end())
+		{
+		  property_->GetComboBox()->AddItem(Gwen::Utility::StringToUnicode(str), str);
+      values_.insert(str);
+		}
 		property_->SetPropertyValue(str, true);
 	}
 

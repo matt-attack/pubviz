@@ -429,7 +429,7 @@ private:
 		return texture;
 	}
 
-	Incoming LoadPNG(char* data, int size)
+	Incoming LoadPNG(const char* data, int size)
 	{
 		Incoming i;
 		i.width = 256;
@@ -786,15 +786,15 @@ public:
 	virtual void Initialize(Gwen::Controls::Properties* tree)
 	{
 		// add any properties
-		alpha_.reset(AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1, "Tile transparency."));
+		alpha_ = AddFloatProperty(tree, "Alpha", 1.0, 0.0, 1.0, 0.1, "Tile transparency.");
 		
-		show_outline_.reset(AddBooleanProperty(tree, "Show Outline", false, "If true, draw outlines around the tiles."));
+		show_outline_ = AddBooleanProperty(tree, "Show Outline", false, "If true, draw outlines around the tiles.");
 		
-		max_zoom_.reset(AddNumberProperty(tree, "Max Zoom", 19, 1, 22, 1, "Max zoom level to download/show."));
+		max_zoom_ = AddNumberProperty(tree, "Max Zoom", 19, 1, 22, 1, "Max zoom level to download/show.");
 
-		default_zoom_.reset(AddNumberProperty(tree, "3D Zoom Level", 17, 1, 22, 1, "Zoom level to use in views other than top down."));
+		default_zoom_ = AddNumberProperty(tree, "3D Zoom Level", 17, 1, 22, 1, "Zoom level to use in views other than top down.");
 
-		default_tiles_.reset(AddNumberProperty(tree, "3D Tiles", 2, 0, 5, 1, "Number of tiles to show around center tile in views other than top down."));
+		default_tiles_ = AddNumberProperty(tree, "3D Tiles", 2, 0, 5, 1, "Number of tiles to show around center tile in views other than top down.");
 	}
 	
 	std::string GetTitle() override

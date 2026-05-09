@@ -32,12 +32,12 @@
 
 class MeasurePlugin : public pubviz::Plugin
 {
-	FloatProperty* alpha_;
-	ColorProperty* color_;
-	NumberProperty* line_width_;
-	NumberProperty* point_size_;
+	std::unique_ptr<FloatProperty> alpha_;
+	std::unique_ptr<ColorProperty> color_;
+	std::unique_ptr<NumberProperty> line_width_;
+	std::unique_ptr<NumberProperty> point_size_;
 
-	ButtonProperty*	clear_;
+	std::unique_ptr<ButtonProperty>	clear_;
 
 public:
 
@@ -48,12 +48,7 @@ public:
 
 	virtual ~MeasurePlugin()
 	{
-		delete color_;
-		delete alpha_;
-		delete line_width_;
-		//delete show_points_;
-		delete point_size_;
-		delete clear_;
+
 	}
 
 	// Clear out any historical data so the view gets cleared

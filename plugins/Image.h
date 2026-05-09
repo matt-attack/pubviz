@@ -33,12 +33,12 @@
 
 class ImagePlugin: public pubviz::Plugin
 {
-	FloatProperty* alpha_;
-	ColorProperty* color_;
-	BooleanProperty* stretch_;
-	BooleanProperty* keep_aspect_;
+	std::unique_ptr<FloatProperty> alpha_;
+	std::unique_ptr<ColorProperty> color_;
+	std::unique_ptr<BooleanProperty> stretch_;
+	std::unique_ptr<BooleanProperty> keep_aspect_;
 	
-	TopicProperty* topic_;
+	std::unique_ptr<TopicProperty> topic_;
 
 	Gwen::Controls::ImagePanel* image_panel_;
 	Gwen::Controls::TabButton* page_;
@@ -227,7 +227,7 @@ class ImagePlugin: public pubviz::Plugin
 		Clear();
 		
 		current_topic_ = str;
-    subscriber_.reset(new pubsub::Subscriber<pubsub::msg::Image>(*GetNode(), current_topic_, [this](auto msg){}, 1, 1));
+    subscriber_.reset(new pubsub::Subscriber<pubsub::msg::Image>(*GetNode(), current_topic_, [](const pubsub::msg::ImageSharedPtr& msg){}, 1, 1));
 	}
 	
 public:

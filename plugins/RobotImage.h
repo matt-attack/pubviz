@@ -13,6 +13,8 @@
 #include <Gwen/Controls/PropertyTree.h>
 #include <Gwen/Controls/Property/Numeric.h>
 
+#include "../FreeImage.h"
+
 #define GLEW_STATIC
 #include <GL/glew.h>
 
@@ -28,13 +30,13 @@
 
 class RobotImagePlugin: public pubviz::Plugin
 {
-	FloatProperty* alpha_;
-	ColorProperty* color_;
-	BooleanProperty* show_outline_;
+	std::unique_ptr<FloatProperty> alpha_;
+	std::unique_ptr<ColorProperty> color_;
+	std::unique_ptr<BooleanProperty> show_outline_;
 
-	FloatProperty *width_, *length_, *x_offset_;
+	std::unique_ptr<FloatProperty> width_, length_, x_offset_;
 	
-	FileProperty* image_;
+	std::unique_ptr<FileProperty> image_;
 	
 	unsigned int texture_ = -1;
 	
@@ -145,6 +147,12 @@ public:
 	{
 
 	}
+
+	std::vector<std::pair<Plugin::ErrorSeverity, std::string>> errors_;
+	std::vector<std::pair<Plugin::ErrorSeverity, std::string>> GetErrors() override
+	{
+	  return errors_;
+	}
 	
 	virtual void Render()
 	{		
@@ -159,9 +167,18 @@ public:
 		pts[3] = Vec3d(width/2 + x_offset, -height/2, 0);
 
 		// transform to view frame
-		for (int i = 0; i < 4; i++)
+		errors_.clear();
+		try
 		{
-			GetCanvas()->TransformToView(OpenGLCanvas::Vehicle, pts[i]);
+		  for (int i = 0; i < 4; i++)
+		  {
+			  GetCanvas()->TransformToView(OpenGLCanvas::Vehicle, pts[i]);
+		  }
+		}
+		catch (const TransformException& e)
+		{
+		  errors_.emplace_back(Plugin::ERROR, e.what());
+		  return;
 		}
 		
 		// draw the bounds of the costmap

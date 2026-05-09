@@ -35,20 +35,20 @@
 
 class PosePlugin : public pubviz::Plugin
 {
-	FloatProperty* alpha_;
-	ColorProperty* color_;
-	NumberProperty* line_width_;
-	FloatProperty* line_length_;
-	BooleanProperty* follow_pose_;
-	NumberProperty* history_length_;
-	FloatProperty* sample_distance_;
-	NumberProperty* point_size_;
-	EnumProperty* draw_style_;
-	EnumProperty* history_style_;
+	std::unique_ptr<FloatProperty> alpha_;
+	std::unique_ptr<ColorProperty> color_;
+	std::unique_ptr<NumberProperty> line_width_;
+	std::unique_ptr<FloatProperty> line_length_;
+	std::unique_ptr<BooleanProperty> follow_pose_;
+	std::unique_ptr<NumberProperty> history_length_;
+	std::unique_ptr<FloatProperty> sample_distance_;
+	std::unique_ptr<NumberProperty> point_size_;
+	std::unique_ptr<EnumProperty> draw_style_;
+	std::unique_ptr<EnumProperty> history_style_;
 
 	std::unique_ptr<BooleanProperty> use_transforms_;
 
-	TopicProperty* topic_;
+	std::unique_ptr<TopicProperty> topic_;
 
 	pubsub::Subscriber<pubsub::msg::Pose>::Ptr subscriber_;
 
@@ -115,7 +115,7 @@ class PosePlugin : public pubviz::Plugin
 		Clear();
 
 		current_topic_ = str;
-		subscriber_.reset(new pubsub::Subscriber<pubsub::msg::Pose>(*GetNode(), current_topic_, [](auto msg){}, 100, 1));
+		subscriber_.reset(new pubsub::Subscriber<pubsub::msg::Pose>(*GetNode(), current_topic_, [](const pubsub::msg::PoseSharedPtr& msg){}, 100, 1));
 	}
 
 public:
@@ -127,9 +127,7 @@ public:
 
 	virtual ~PosePlugin()
 	{
-		delete color_;
-		delete alpha_;
-		delete line_width_;
+
 	}
 
 	virtual void Update()
@@ -360,7 +358,7 @@ public:
 
 		history_style_ = AddEnumProperty(tree, "History Mode", "None", { "None", "Frames", "Line", "Points" }, "Draw style for history.");
 
-		use_transforms_.reset(AddBooleanProperty(tree, "Use Transform", true, "If true, uses this pose for the transform between odom and WGS84."));
+		use_transforms_ = AddBooleanProperty(tree, "Use Transform", true, "If true, uses this pose for the transform between odom and WGS84.");
 
 		OnDrawStyleChange("Frames");
 		Subscribe(topic_->GetValue());

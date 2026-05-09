@@ -28,25 +28,19 @@
 
 class GridPlugin: public pubviz::Plugin
 {
-	FloatProperty* start_x_;
-	FloatProperty* start_y_;
+	std::unique_ptr<FloatProperty> start_x_;
+	std::unique_ptr<FloatProperty> start_y_;
 	
-	NumberProperty* x_count_;
-	NumberProperty* y_count_;
+	std::unique_ptr<NumberProperty> x_count_;
+	std::unique_ptr<NumberProperty> y_count_;
 	
-	FloatProperty* cell_size_;
+	std::unique_ptr<FloatProperty> cell_size_;
 	
-	ColorProperty* color_;
+	std::unique_ptr<ColorProperty> color_;
 	
 public:
 	virtual ~GridPlugin()
 	{
-		delete start_x_;
-		delete start_y_;
-		delete x_count_;
-		delete y_count_;
-		delete cell_size_;
-		delete color_;
 	}
 	
 	virtual void Update()
